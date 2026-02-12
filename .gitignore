@@ -1,0 +1,9 @@
+# Pyx AI
+__pycache__/
+*.py[cod]
+*$py.class
+data/
+*.json
+.env
+.venv/
+venv/
