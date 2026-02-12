@@ -16,17 +16,15 @@ cd pyx_ai
 python pyx_ai.py
 ```
 
-### Commands
+### UI Flow
 
-| Command | Example | What it does |
-|---------|---------|--------------|
-| `add words <text>` | `add words awesome` | Add a word |
-| `add phrases <text>` | `add phrases hello world` | Add a phrase |
-| `add game_ideas <text>` | `add game_ideas space shooter` | Add a game idea |
-| `train <text> <safe\|bad>` | `train pizza safe` | Train: safe=OK for kids, bad=inappropriate |
-| `score <text>` | `score pizza` | See score (SAFE or INAPPROPRIATE) |
-| `list` | `list` | Show all learned words, phrases, game ideas |
-| `quit` | `quit` | Save and exit |
+1. Enter a phrase
+2. Choose: **[s]afe** / **[b]ad** / **[a]i decide** / **[os] override safe** / **[ob] override bad**
+   - **Safe** – You say it's OK; trains and adds
+   - **Bad** – You say it's inappropriate; trains and removes
+   - **AI decide** – AI scores it and adds only if safe; you can override later
+   - **Override Safe / Bad** – Change the label (e.g. AI said bad, you say safe)
+3. Other: `list` | `score <text>` | `quit`
 
 ## As a Module
 
@@ -43,6 +41,13 @@ pyx.add_game_idea("roguelike dungeon crawler")
 # Train with feedback (safe=True for kid-friendly, safe=False for inappropriate)
 pyx.train("pizza is great", safe=True)
 pyx.train("explicit content", safe=False)
+
+# Let AI decide and add if safe
+safe, score = pyx.ai_decide("pizza is cool")
+print(f"AI: {'SAFE' if safe else 'BAD'} ({score:.2f})")
+
+# Manual label or override
+pyx.set_label("explicit stuff", safe=False)
 
 # Check scores (above BAN_LINE = inappropriate)
 print(pyx.score("pizza"))  # 0.0-1.0

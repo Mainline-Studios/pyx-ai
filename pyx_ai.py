@@ -117,6 +117,12 @@ class PyxMemory:
         store = getattr(self, category, {})
         return {k: v for k, v in store.items() if not self.is_banned(v)}
 
+    def remove(self, category: str, text: str):
+        """Remove an item (for override)."""
+        store = getattr(self, category, None)
+        if store is not None and text in store:
+            del store[text]
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 #                    ✏️ EDIT BELOW THIS LINE ✏️
@@ -196,6 +202,35 @@ class PyxAI:
         pred = self.score(idea)
         self.memory.add("game_ideas", idea, pred if safe else 0.9)
 
+    def ai_decide(self, text: str, category: str = "phrases") -> Tuple[bool, float]:
+        """
+        Let the AI classify on its own. Returns (safe, score).
+        If safe, adds to database. If not, does not add (user can override later).
+        """
+        s = self.score(text)
+        safe = not self.memory.is_banned(s)
+        if safe:
+            self.memory.add(category, text, s)
+            self.train(text, True, category, epochs=2)  # Light reinforce
+        return (safe, s)
+
+    def set_label(self, text: str, safe: bool, category: str = "phrases") -> str:
+        """
+        Set Safe or Bad (manual label or override). Trains and updates database.
+        Returns status message.
+        """
+        if safe:
+            self.memory.remove(category, text)
+            self.train(text, True, category)
+            pred = self.score(text)
+            if not self.memory.is_banned(pred):
+                self.memory.add(category, text, pred)
+            return "Marked SAFE and added."
+        else:
+            self.memory.remove(category, text)
+            self.train(text, False, category)
+            return "Marked BAD and removed."
+
     def get_words(self) -> List[str]:
         return list(self.memory.get_allowed("words").keys())
 
@@ -227,37 +262,48 @@ class PyxAI:
 
 
 def main():
-    """Simple interactive training loop."""
+    """Interactive UI: enter phrase, then Safe / Bad / AI decide. Override anytime."""
     pyx = PyxAI()
-    print("Pyx AI - Kid-friendly filter. Train me!\nCommands: add <words|phrases|game_ideas> <text> | train <text> <safe|bad> | list | score <text> | quit\n")
+    print("Pyx AI - Kid-friendly filter")
+    print("Enter a phrase, then: [s]afe  [b]ad  [a]i decide  [o]verride")
+    print("Commands: list | score <text> | quit\n")
     while True:
         try:
-            cmd = input("pyx> ").strip().split(maxsplit=2)
-            if not cmd:
+            text = input("Phrase: ").strip()
+            if not text:
                 continue
-            if cmd[0] == "quit":
+            if text.lower() == "quit":
                 pyx.save()
                 break
-            if cmd[0] == "add" and len(cmd) >= 3:
-                cat, text = cmd[1], cmd[2]
-                add_map = {"words": pyx.add_word, "phrases": pyx.add_phrase, "game_ideas": pyx.add_game_idea}
-                if cat in add_map:
-                    add_map[cat](text)
-                    print(f"Added to {cat}.")
-            elif cmd[0] == "train" and len(cmd) >= 3:
-                text, fb = cmd[1], cmd[2].lower()
-                loss = pyx.train(text, fb in ("safe", "good", "ok", "1", "yes", "y"), "phrases")
-                print(f"Trained. Loss: {loss:.4f}")
-            elif cmd[0] == "list":
+            if text.lower() == "list":
                 print("Words:", pyx.get_words())
                 print("Phrases:", pyx.get_phrases())
                 print("Game ideas:", pyx.get_game_ideas())
-            elif cmd[0] == "score" and len(cmd) >= 2:
-                s = pyx.score(" ".join(cmd[1:]))
+                continue
+            if text.lower().startswith("score "):
+                t = text[6:].strip()
+                s = pyx.score(t)
                 status = "INAPPROPRIATE" if pyx.memory.is_banned(s) else "SAFE"
                 print(f"Score: {s:.3f} ({status})")
+                continue
+
+            choice = input("  Safe [s] / Bad [b] / AI decide [a] / Override Safe [os] / Override Bad [ob]: ").strip().lower()
+            cat = "phrases"
+            if choice in ("s", "safe"):
+                print(pyx.set_label(text, True, cat))
+            elif choice in ("b", "bad"):
+                print(pyx.set_label(text, False, cat))
+            elif choice in ("a", "ai"):
+                safe, score = pyx.ai_decide(text, cat)
+                status = "SAFE" if safe else "INAPPROPRIATE"
+                print(f"AI says: {status} (score {score:.3f}). {'Added.' if safe else 'Not added (override with Safe if wrong).'}")
+            elif choice in ("os", "override safe"):
+                print(pyx.set_label(text, True, cat))
+            elif choice in ("ob", "override bad"):
+                print(pyx.set_label(text, False, cat))
             else:
-                print("Unknown command.")
+                print("Use s, b, a, os, or ob.")
+            pyx.save()
         except (EOFError, KeyboardInterrupt):
             pyx.save()
             break
