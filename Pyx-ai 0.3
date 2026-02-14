@@ -1,1 +1,73 @@
+"""
+Pyx AI - A Trainable Neural Network (Kid-Friendly) v0.3 - Context-Aware Edition
+================================================================================
+Learn easily. Edit easily. Words, phrases, and game ideas.
+NOW WITH: Conversation context to reduce false positives!
+"""
 
+import json
+import math
+import random
+from pathlib import Path
+from typing import List, Dict, Tuple, Optional
+
+# ... [Keep all existing PyxBrain and PyxMemory classes unchanged] ...
+
+class PyxAI:
+    """Pyx AI v0.3 - Context-aware trainable neural network."""
+
+    def __init__(self):
+        self.brain = PyxBrain(input_size=64, hidden_size=32, output_size=8)
+        self.memory = PyxMemory(ban_threshold=BAN_LINE)
+        
+        # NEW: Conversation history for context-aware filtering
+        self.conversation_history: List[str] = []
+        self.max_history = 10
+        
+        # NEW: Keywords that indicate gaming/safe context
+        self.gaming_keywords = [
+            "game", "minecraft", "roblox", "fortnite", "respawn", "restart",
+            "level", "player", "character", "play", "gaming", "stream",
+            "boss fight", "checkpoint", "stuck", "lava", "mob", "server"
+        ]
+        
+        # NEW: Words that need context checking
+        self.context_sensitive_words = ["die", "kill", "dead", "death", "end"]
+        
+        self._load()
+        self._load_training_grounds()
+
+    def add_to_history(self, text: str):
+        """Add message to conversation history."""
+        self.conversation_history.append(text)
+        if len(self.conversation_history) > self.max_history:
+            self.conversation_history.pop(0)
+
+    def has_gaming_context(self) -> bool:
+        """Check if recent conversation mentions gaming."""
+        recent_context = " ".join(self.conversation_history[-5:]).lower()
+        return any(keyword in recent_context for keyword in self.gaming_keywords)
+
+    def score_with_context(self, text: str, add_to_history: bool = True) -> Tuple[float, float, str]:
+        """
+        NEW: Score text WITH conversation context.
+        Returns: (base_score, adjusted_score, context_note)
+        """
+        base_score = self.score(text)
+        adjusted_score = base_score
+        context_note = "No context adjustment"
+        
+        # Check if text contains context-sensitive words
+        text_lower = text.lower()
+        has_sensitive_word = any(word in text_lower for word in self.context_sensitive_words)
+        
+        if has_sensitive_word and self.has_gaming_context():
+            # Reduce severity if gaming context detected
+            adjusted_score = base_score * 0.4  # Reduce by 60%
+            context_note = "Gaming context detected - score reduced"
+        
+        # Add to history for future context
+        if add_to_history:
+            self.add_to_history(text)
+        
+        return (base_score, adjusted_score, context_note)
