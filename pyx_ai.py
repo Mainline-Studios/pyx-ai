@@ -132,6 +132,7 @@ class PyxMemory:
 
 BAN_LINE = 0.7  # Scores above = inappropriate (banned). Below = safe + borderline (allowed).
 DATA_DIR = Path(__file__).parent / "data"
+TRAINING_GROUNDS = Path(__file__).parent / "Training Grounds 0.2"
 
 
 class PyxAI:
@@ -141,6 +142,7 @@ class PyxAI:
         self.brain = PyxBrain(input_size=64, hidden_size=32, output_size=8)
         self.memory = PyxMemory(ban_threshold=BAN_LINE)
         self._load()
+        self._load_training_grounds()
 
     def _text_to_input(self, text: str) -> List[float]:
         return self.brain._encode(text, self.brain.input_size)
@@ -250,6 +252,26 @@ class PyxAI:
                 self.memory.game_ideas = data.get("game_ideas", {})
             except Exception:
                 pass
+
+    def _load_training_grounds(self):
+        """Load [SAFE] / [BAD] examples from Training Grounds file and train Pyx on them."""
+        if not TRAINING_GROUNDS.exists():
+            return
+        try:
+            for line in TRAINING_GROUNDS.read_text().splitlines():
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if line.startswith("[SAFE]"):
+                    text = line[6:].strip()
+                    if text:
+                        self.train(text, True, "phrases", epochs=5)
+                elif line.startswith("[BAD]"):
+                    text = line[5:].strip()
+                    if text:
+                        self.train(text, False, "phrases", epochs=5)
+        except Exception:
+            pass
 
     def save(self):
         DATA_DIR.mkdir(parents=True, exist_ok=True)
