@@ -1574,19 +1574,24 @@ class PyxAI:
         return self.brain.predict(inputs)[0]
 
     def explain(self, text: str, n: int = 3) -> Tuple[List[Tuple[str, float]], List[Tuple[str, float]]]:
-        """Return top-n most similar phrases (GOOD and BAD) by encoding + meaning (word overlap)."""
+        """Return top-n most similar phrases (GOOD and BAD) by encoding + meaning. Only includes phrases that share at least 2 words so matches are meaning-relevant."""
         if not self._explanation_phrases:
             return ([], [])
         inp = self._text_to_input(text)
+        wa = _words(text)
         safe_sims: List[Tuple[str, float]] = []
         bad_sims: List[Tuple[str, float]] = []
         for phrase, safe in self._explanation_phrases:
             if phrase == text:
                 continue
+            wb = _words(phrase)
+            shared = len(wa & wb)
+            if shared < 2:
+                continue
             other = self._text_to_input(phrase)
             enc_sim = 1.0 - (sum((a - b) ** 2 for a, b in zip(inp, other)) ** 0.5) / (len(inp) ** 0.5)
             enc_sim = max(0.0, min(1.0, enc_sim))
-            word_sim = _word_similarity(text, phrase)
+            word_sim = len(wa & wb) / len(wa | wb) if (wa | wb) else 0.0
             combined = 0.4 * enc_sim + 0.6 * word_sim
             if safe:
                 safe_sims.append((phrase, combined))
@@ -1790,9 +1795,9 @@ def main():
                 good, bad = pyx.explain(t, n=3)
                 if good or bad:
                     if good:
-                        print("  Similar GOOD (model + meaning):", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in good))
+                        print("  Similar GOOD (model + meaning):", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in good) or "none with 2+ shared words")
                     if bad:
-                        print("  Similar BAD (model + meaning):", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in bad))
+                        print("  Similar BAD (model + meaning):", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in bad) or "none with 2+ shared words")
                 continue
 
             choice = input("  Safe [s] / Bad [b] / AI decide [a] / Override Safe [os] / Override Bad [ob]: ").strip().lower()
@@ -1808,9 +1813,9 @@ def main():
                 good, bad = pyx.explain(text, n=3)
                 if good or bad:
                     if good:
-                        print("  Similar GOOD (model + meaning):", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in good))
+                        print("  Similar GOOD (model + meaning):", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in good) or "none with 2+ shared words")
                     if bad:
-                        print("  Similar BAD (model + meaning):", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in bad))
+                        print("  Similar BAD (model + meaning):", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in bad) or "none with 2+ shared words")
             elif choice in ("os", "override safe"):
                 print(pyx.set_label(text, True, cat))
             elif choice in ("ob", "override bad"):
