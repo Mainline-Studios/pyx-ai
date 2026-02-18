@@ -46,15 +46,43 @@ Without credentials, Pyx runs as before (no Firestore).
 3. Click **Create database** → **Firestore in Native mode** → choose a location → Create.  
 4. Wait 1–2 minutes, then run `python3 pyx_ai.py seed-firestore` again.
 
-## Quick Start
+## Getting updated changes
 
-Run the interactive app:
+On any machine that already has the repo:
 
 ```bash
-python pyx_ai.py
+cd /path/to/pyx-ai
+git pull
 ```
 
-Enter a phrase, then choose **safe**, **bad**, **AI decide**, or **override**. Use `list`, `score <text>`, or `quit` for other actions.
+If you have local changes, use `git pull --rebase` or commit them first. To start fresh: clone again from the repo (e.g. `git clone https://github.com/Mainline-Studios/pyx-ai.git`).
+
+## How to run
+
+**1. Go to the project folder**
+```bash
+cd /path/to/pyx-ai
+```
+(Use your actual path, e.g. `cd ~/pyx-ai` or `cd /Users/you/pyx-ai`.)
+
+**2. Use the virtual environment** (recommended on Mac/Homebrew)
+```bash
+source .venv/bin/activate
+```
+Windows: `.venv\Scripts\activate`  
+First time? Create it: `python3 -m venv .venv` then `source .venv/bin/activate` and `pip install -r requirements.txt`
+
+**3. Run the app**
+```bash
+python3 pyx_ai.py
+```
+(With venv active you can use `python pyx_ai.py`.)
+
+**Other commands**
+- `python3 pyx_ai.py seed-firestore` — upload built-in phrases to Firestore (one-time, or to refresh).
+- `python3 pyx_ai.py firestore-check` — show project ID and link to create the Firestore database.
+
+**In the app:** Enter a phrase, then choose **safe**, **bad**, **AI decide**, or **override**. Use `list`, `score <text>`, or `quit`.
 
 ## Using Pyx in Your Code
 

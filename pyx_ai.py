@@ -1614,7 +1614,7 @@ class PyxAI:
     def ai_decide(self, text: str, category: str = "phrases") -> Tuple[bool, float]:
         """
         Let the AI classify on its own. Returns (safe, score).
-        If safe, adds to database. If not, does not add (user can override later).
+        If safe, adds to memory and Firestore. If not, still writes to Firestore as bad (so other devices see it); you can override with Safe later.
         """
         s = self.score(text)
         safe = not self.memory.is_banned(s)
@@ -1625,6 +1625,12 @@ class PyxAI:
             self.train(text, True, category, epochs=2)  # Light reinforce
             if self._db:
                 set_phrase_in_firestore(self._db, text, True, category, source="user")
+        else:
+            self._session_bad.add(text)
+            self._session_safe.discard(text)
+            self.train(text, False, category, epochs=2)
+            if self._db:
+                set_phrase_in_firestore(self._db, text, False, category, source="user")
         return (safe, s)
 
     def set_label(self, text: str, safe: bool, category: str = "phrases") -> str:
@@ -1740,7 +1746,7 @@ def main():
             elif choice in ("a", "ai"):
                 safe, score = pyx.ai_decide(text, cat)
                 status = "SAFE" if safe else "INAPPROPRIATE"
-                print(f"AI says: {status} (score {score:.3f}). {'Added.' if safe else 'Not added (override with Safe if wrong).'}")
+                print(f"AI says: {status} (score {score:.3f}). {'Added.' if safe else 'Saved as bad (Firestore). Override with Safe if wrong.'}")
             elif choice in ("os", "override safe"):
                 print(pyx.set_label(text, True, cat))
             elif choice in ("ob", "override bad"):
