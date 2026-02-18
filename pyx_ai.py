@@ -1535,6 +1535,8 @@ class PyxAI:
         self._session_bad: set = set()   # phrases marked bad this session → score 1.0
         self._session_safe: set = set()  # phrases marked safe this session → score 0.0
         self._explanation_phrases: List[Tuple[str, bool]] = []  # all phrases we know (for "why" explanation)
+        self._bad_prefixes: Set[str] = set()   # phrases ending "..." → prefix + anything = banned
+        self._good_prefixes: Set[str] = set()  # phrases ending "..." → prefix + anything = allowed
         self._load()
         self._load_training_grounds()
 
@@ -1562,44 +1564,84 @@ class PyxAI:
             self.memory.add(category, text, pred)
         return loss
 
+    def _add_prefix_rule(self, phrase: str, safe: bool) -> None:
+        """If phrase ends with '...', treat as prefix rule: that prefix + anything gets this label."""
+        if phrase.endswith("..."):
+            prefix = phrase[:-3].strip().lower()
+            if prefix:
+                if safe:
+                    self._good_prefixes.add(prefix)
+                else:
+                    self._bad_prefixes.add(prefix)
+
     def score(self, text: str) -> float:
         """Get Pyx's score for text (0–1). Above BAN_LINE = bad.
         Same session: if this phrase was marked bad, returns 1.0; if marked safe, returns 0.0.
+        Phrases ending '...' act as prefix rules: prefix + anything gets that label.
         """
         if text in self._session_bad:
             return 1.0
         if text in self._session_safe:
             return 0.0
+        norm = text.strip().lower()
+        for p in self._bad_prefixes:
+            if norm.startswith(p):
+                return 1.0
+        for p in self._good_prefixes:
+            if norm.startswith(p):
+                return 0.0
         inputs = self._text_to_input(text)
         return self.brain.predict(inputs)[0]
 
     def explain(self, text: str, n: int = 3) -> Tuple[List[Tuple[str, float]], List[Tuple[str, float]]]:
-        """Return top-n most similar phrases (GOOD and BAD) by encoding + meaning. Only includes phrases that share at least 2 words so matches are meaning-relevant."""
+        """Return top-n similar phrases (GOOD and BAD). Prefers 2+ shared words; fills with closest by model when needed so BAD decision can show why."""
         if not self._explanation_phrases:
             return ([], [])
         inp = self._text_to_input(text)
         wa = _words(text)
-        safe_sims: List[Tuple[str, float]] = []
-        bad_sims: List[Tuple[str, float]] = []
+        strong_safe: List[Tuple[str, float]] = []
+        strong_bad: List[Tuple[str, float]] = []
+        all_safe: List[Tuple[str, float]] = []
+        all_bad: List[Tuple[str, float]] = []
         for phrase, safe in self._explanation_phrases:
             if phrase == text:
                 continue
             wb = _words(phrase)
             shared = len(wa & wb)
-            if shared < 2:
-                continue
             other = self._text_to_input(phrase)
             enc_sim = 1.0 - (sum((a - b) ** 2 for a, b in zip(inp, other)) ** 0.5) / (len(inp) ** 0.5)
             enc_sim = max(0.0, min(1.0, enc_sim))
             word_sim = len(wa & wb) / len(wa | wb) if (wa | wb) else 0.0
             combined = 0.4 * enc_sim + 0.6 * word_sim
             if safe:
-                safe_sims.append((phrase, combined))
+                all_safe.append((phrase, combined))
+                if shared >= 2:
+                    strong_safe.append((phrase, combined))
             else:
-                bad_sims.append((phrase, combined))
-        safe_sims.sort(key=lambda x: -x[1])
-        bad_sims.sort(key=lambda x: -x[1])
-        return (safe_sims[:n], bad_sims[:n])
+                all_bad.append((phrase, combined))
+                if shared >= 2:
+                    strong_bad.append((phrase, combined))
+        strong_safe.sort(key=lambda x: -x[1])
+        strong_bad.sort(key=lambda x: -x[1])
+        all_safe.sort(key=lambda x: -x[1])
+        all_bad.sort(key=lambda x: -x[1])
+        seen_good = {p for p, _ in strong_safe[:n]}
+        good_final = strong_safe[:n]
+        for p, s in all_safe:
+            if len(good_final) >= n:
+                break
+            if p not in seen_good:
+                seen_good.add(p)
+                good_final.append((p, s))
+        seen_bad = {p for p, _ in strong_bad[:n]}
+        bad_final = strong_bad[:n]
+        for p, s in all_bad:
+            if len(bad_final) >= n:
+                break
+            if p not in seen_bad:
+                seen_bad.add(p)
+                bad_final.append((p, s))
+        return (good_final[:n], bad_final[:n])
 
     def respond(self, prompt: str, category: str = "phrases") -> Optional[str]:
         """Get a learned response. Returns None if nothing matches."""
@@ -1628,6 +1670,7 @@ class PyxAI:
         if self._db:
             set_phrase_in_firestore(self._db, word, safe, "words", source="user")
         self._explanation_phrases.append((word, safe))
+        self._add_prefix_rule(word, safe)
 
     def add_phrase(self, phrase: str, safe: bool = True):
         """Add a phrase - trains and stores if safe for kids."""
@@ -1643,6 +1686,7 @@ class PyxAI:
         if self._db:
             set_phrase_in_firestore(self._db, phrase, safe, "phrases", source="user")
         self._explanation_phrases.append((phrase, safe))
+        self._add_prefix_rule(phrase, safe)
 
     def add_game_idea(self, idea: str, safe: bool = True):
         """Add a game idea - trains and stores if safe for kids."""
@@ -1658,6 +1702,7 @@ class PyxAI:
         if self._db:
             set_phrase_in_firestore(self._db, idea, safe, "game_ideas", source="user")
         self._explanation_phrases.append((idea, safe))
+        self._add_prefix_rule(idea, safe)
 
     def ai_decide(self, text: str, category: str = "phrases") -> Tuple[bool, float]:
         """
@@ -1674,6 +1719,7 @@ class PyxAI:
             if self._db:
                 set_phrase_in_firestore(self._db, text, True, category, source="user")
             self._explanation_phrases.append((text, True))
+            self._add_prefix_rule(text, True)
         else:
             self._session_bad.add(text)
             self._session_safe.discard(text)
@@ -1681,6 +1727,7 @@ class PyxAI:
             if self._db:
                 set_phrase_in_firestore(self._db, text, False, category, source="user")
             self._explanation_phrases.append((text, False))
+            self._add_prefix_rule(text, False)
         return (safe, s)
 
     def set_label(self, text: str, safe: bool, category: str = "phrases") -> str:
@@ -1700,6 +1747,7 @@ class PyxAI:
             if self._db:
                 set_phrase_in_firestore(self._db, text, True, category, source="override")
             self._explanation_phrases.append((text, True))
+            self._add_prefix_rule(text, True)
             return "Marked SAFE and added."
         else:
             self._session_bad.add(text)
@@ -1709,6 +1757,7 @@ class PyxAI:
             if self._db:
                 set_phrase_in_firestore(self._db, text, False, category, source="override")
             self._explanation_phrases.append((text, False))
+            self._add_prefix_rule(text, False)
             return "Marked BAD and removed."
 
     def get_words(self) -> List[str]:
@@ -1734,6 +1783,8 @@ class PyxAI:
     def _load_training_grounds(self):
         """Train Pyx on built-in phrases, then on Firestore (so overrides/user data apply)."""
         self._explanation_phrases = list(TRAINING_GROUNDS_PHRASES)
+        for text, safe in self._explanation_phrases:
+            self._add_prefix_rule(text, safe)
         for text, safe in TRAINING_GROUNDS_PHRASES:
             self.memory.remove("phrases", text)
             self.train(text, safe, "phrases")
@@ -1747,6 +1798,7 @@ class PyxAI:
                 if text not in seen:
                     seen.add(text)
                     self._explanation_phrases.append((text, safe))
+                    self._add_prefix_rule(text, safe)
                 self.memory.remove(category, text)
                 self.train(text, safe, category)
                 if safe:

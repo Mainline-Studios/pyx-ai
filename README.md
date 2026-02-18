@@ -23,6 +23,8 @@ Pyx includes a large built-in phrase list in `pyx_ai.py`:
 
 Edit `TRAINING_GROUNDS_PHRASES` in `pyx_ai.py` to add or remove entries. Pyx trains on this list every time it starts.
 
+- **Prefix rules:** A phrase that ends with `...` acts as a wildcard: that prefix plus *anything* after it gets the same label (banned or allowed).
+
 ## Firestore (optional)
 
 Phrases can sync to [Firebase Firestore](https://console.firebase.google.com/project/pyx-ai/firestore/databases/default/data) so the cloud DB stays updated when users override or train.
