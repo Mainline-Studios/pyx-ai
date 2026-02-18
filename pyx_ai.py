@@ -16,10 +16,26 @@ STRUCTURE:
 
 import json
 import math
+import re
 import random
 import sys
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Set
+
+
+def _words(text: str) -> Set[str]:
+    """Tokenize into lowercase words (letters/numbers only) for meaning-style similarity."""
+    return set(re.findall(r"[a-z0-9]+", text.lower()))
+
+
+def _word_similarity(a: str, b: str) -> float:
+    """Jaccard similarity on word sets: overlap / union. 0 = no shared words, 1 = same words."""
+    wa, wb = _words(a), _words(b)
+    if not wa and not wb:
+        return 1.0
+    if not wa or not wb:
+        return 0.0
+    return len(wa & wb) / len(wa | wb)
 
 # Optional Firestore sync (project pyx-ai). If firebase-admin not installed, runs without it.
 try:
@@ -1558,7 +1574,7 @@ class PyxAI:
         return self.brain.predict(inputs)[0]
 
     def explain(self, text: str, n: int = 3) -> Tuple[List[Tuple[str, float]], List[Tuple[str, float]]]:
-        """Return top-n most similar phrases marked GOOD and top-n marked BAD (phrase, similarity 0–1)."""
+        """Return top-n most similar phrases (GOOD and BAD) by encoding + meaning (word overlap)."""
         if not self._explanation_phrases:
             return ([], [])
         inp = self._text_to_input(text)
@@ -1568,12 +1584,14 @@ class PyxAI:
             if phrase == text:
                 continue
             other = self._text_to_input(phrase)
-            sim = 1.0 - (sum((a - b) ** 2 for a, b in zip(inp, other)) ** 0.5) / (len(inp) ** 0.5)
-            sim = max(0.0, min(1.0, sim))
+            enc_sim = 1.0 - (sum((a - b) ** 2 for a, b in zip(inp, other)) ** 0.5) / (len(inp) ** 0.5)
+            enc_sim = max(0.0, min(1.0, enc_sim))
+            word_sim = _word_similarity(text, phrase)
+            combined = 0.4 * enc_sim + 0.6 * word_sim
             if safe:
-                safe_sims.append((phrase, sim))
+                safe_sims.append((phrase, combined))
             else:
-                bad_sims.append((phrase, sim))
+                bad_sims.append((phrase, combined))
         safe_sims.sort(key=lambda x: -x[1])
         bad_sims.sort(key=lambda x: -x[1])
         return (safe_sims[:n], bad_sims[:n])
@@ -1772,9 +1790,9 @@ def main():
                 good, bad = pyx.explain(t, n=3)
                 if good or bad:
                     if good:
-                        print("  Similar GOOD:", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in good))
+                        print("  Similar GOOD (model + meaning):", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in good))
                     if bad:
-                        print("  Similar BAD:", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in bad))
+                        print("  Similar BAD (model + meaning):", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in bad))
                 continue
 
             choice = input("  Safe [s] / Bad [b] / AI decide [a] / Override Safe [os] / Override Bad [ob]: ").strip().lower()
@@ -1790,9 +1808,9 @@ def main():
                 good, bad = pyx.explain(text, n=3)
                 if good or bad:
                     if good:
-                        print("  Similar GOOD:", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in good))
+                        print("  Similar GOOD (model + meaning):", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in good))
                     if bad:
-                        print("  Similar BAD:", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in bad))
+                        print("  Similar BAD (model + meaning):", ", ".join(f'"{p}" ({sim:.2f})' for p, sim in bad))
             elif choice in ("os", "override safe"):
                 print(pyx.set_label(text, True, cat))
             elif choice in ("ob", "override bad"):
