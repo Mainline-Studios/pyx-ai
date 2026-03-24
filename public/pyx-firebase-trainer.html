@@ -99,6 +99,7 @@
       </div>
       <p class="small">
         Tip: if your service requires auth, paste the same key used for <code>PYX_API_KEY</code>.
+        Status is strict: it turns connected only after a successful feedback write.
         <span id="firebaseStatus" class="status-pill status-pill--unknown">Firebase: Unknown</span>
       </p>
     </div>
@@ -128,6 +129,7 @@
       var textEl = $("text");
       var logEl = $("log");
       var firebaseStatusEl = $("firebaseStatus");
+      var firebaseWriteVerified = false;
 
       function now() {
         return new Date().toLocaleTimeString();
@@ -224,11 +226,16 @@
               connected = x.j.firebase_connected;
             } else if (x.j.services && typeof x.j.services.firebase === "string") {
               connected = x.j.services.firebase === "connected";
-            } else if (x.j && x.j.status === "ok") {
-              // Older API revisions do not report firebase_connected; treat healthy API as connected for UI clarity.
-              connected = true;
             }
-            setFirebaseStatus(connected, x.j.services && x.j.services.firebase ? x.j.services.firebase : "");
+            if (connected === false) {
+              // Backend explicitly says Firestore is offline.
+              setFirebaseStatus(false, x.j.services && x.j.services.firebase ? x.j.services.firebase : "");
+            } else if (firebaseWriteVerified) {
+              // Strict mode: only show Connected after a successful write in this session.
+              setFirebaseStatus(true, "write-verified");
+            } else {
+              setFirebaseStatus(null, "not write-verified yet");
+            }
             log("Health OK: " + JSON.stringify(x.j), "ok");
           })
           .catch(function (e) {
@@ -261,6 +268,8 @@
         log("Sending SAFE feedback ...", "warn");
         api("/feedback", { text: txt, safe: true, category: currentCategory() })
           .then(function (d) {
+            firebaseWriteVerified = true;
+            setFirebaseStatus(true, "write-verified");
             log("Feedback saved SAFE: " + JSON.stringify(d), "ok");
           })
           .catch(function (e) {
@@ -276,6 +285,8 @@
         log("Sending BAD feedback ...", "warn");
         api("/feedback", { text: txt, safe: false, category: currentCategory() })
           .then(function (d) {
+            firebaseWriteVerified = true;
+            setFirebaseStatus(true, "write-verified");
             log("Feedback saved BAD: " + JSON.stringify(d), "ok");
           })
           .catch(function (e) {
