@@ -4,7 +4,7 @@ Pyx HTTP function for Firebase (Hosting + Cloud Functions).
 Deploy with Firebase so Pixel Place can call Pyx at your Hosting URL (e.g. /api/score).
 No server 24/7 — runs only when a request comes in.
 
-Before first deploy: copy pyx_ai.py and data/ into functions/ (see DEPLOY_FIREBASE.md).
+Before first deploy: copy Pyx_ai_moderator.py and data/ into functions/ (see DEPLOY_FIREBASE.md).
 """
 
 import json
@@ -12,15 +12,15 @@ import sys
 from pathlib import Path
 from typing import Tuple
 
-# Allow importing pyx_ai from repo root (local dev) or from functions/ (after copy for deploy)
+# Allow importing Pyx_ai_moderator from repo root (local dev) or from functions/ (after copy for deploy)
 _functions_dir = Path(__file__).resolve().parent
 if str(_functions_dir.parent) not in sys.path:
     sys.path.insert(0, str(_functions_dir.parent))
 try:
-    from pyx_ai import PyxAI, BAN_LINE, censor_letters
+    from Pyx_ai_moderator import PyxAI, BAN_LINE, censor_letters
 except ImportError:
     sys.path.insert(0, str(_functions_dir))
-    from pyx_ai import PyxAI, BAN_LINE, censor_letters
+    from Pyx_ai_moderator import PyxAI, BAN_LINE, censor_letters
 
 from firebase_functions import https_fn, options
 

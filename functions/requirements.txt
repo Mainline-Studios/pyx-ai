@@ -1,4 +1,4 @@
 # Firebase Cloud Functions (Python)
 firebase-functions>=0.4.0
-# Optional for Pyx Firestore sync (pyx_ai imports it)
+# Optional for Pyx Firestore sync (Pyx_ai_moderator imports it)
 firebase-admin>=6.0.0

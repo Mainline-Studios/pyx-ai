@@ -1,0 +1,104 @@
+Subject: Pyx API — All four services and how to integrate
+
+Hi,
+
+The Pyx API now exposes four services from one base URL. Here’s how to integrate them in Pixel Place.
+
+--- Base URL ---
+https://pyxaiapi-574247481583.us-central1.run.app
+
+--- 1. Pyx Moderator (content filter) ---
+Use this for chat and any user/AI-generated text.
+
+  POST /score
+    Body: {"text": "the message"}
+    Response: {"score": number, "bad": boolean, "censored": "..."}
+    Use when you only need a decision. Treat score ≥ 0.7 as inappropriate.
+
+  POST /ai-decide
+    Body: {"text": "..."}  (optional: "category": "phrases")
+    Response: same as /score, plus "safe"
+    Use for game AI decisions so Pyx learns and syncs to the database.
+
+  POST /feedback
+    Body: {"text": "...", "safe": true|false}  (optional: "category": "phrases")
+    Use when a moderator overrides; trains Pyx and writes to Firestore.
+
+Integration: For chat, call POST /score. If response.bad is true, show response.censored (or block). For game AI decisions, call POST /ai-decide instead so the filter learns. For moderator corrections, call POST /feedback.
+
+--- 2. Pyx Code (code completion / explain / refactor) ---
+Use this for in-editor help, tooltips, or code-assist features.
+
+  POST /code/complete
+    Body: {"prompt": "code prefix", "max_tokens": 256}
+    Response: {"completion": "completed code string"}
+
+  POST /code/explain
+    Body: {"snippet": "code snippet"}
+    Response: {"explanation": "short explanation string"}
+
+  POST /code/refactor
+    Body: {"snippet": "code", "instruction": "optional instruction"}
+    Response: {"refactored": "refactored code string"}
+
+  GET /code/health
+    Response: {"service": "pyx_code", "status": "ok", "version": "...", "loaded": true}
+
+Integration: When the user has a code editor (e.g. for games or scripts), call /code/complete with the current line or selection to get a completion; use /code/explain to show “what does this do?” and /code/refactor for “improve this.”
+
+--- 3. Pyx Check (code check / tips) ---
+Use this to show lint-style tips or quality hints on code.
+
+  POST /check
+    Body: {"source": "full code string", "language": "javascript"|"python"}
+    Response: {"tips": [{"line": 1, "message": "...", "severity": "info"|"warning"}], "language": "...", "checked": true}
+
+  POST /check/three
+    Body: {"source": "three.js or WebGL code"}
+    Response: same shape, with three.js-specific tips
+
+  GET /check/health
+    Response: {"service": "pyx_check", "status": "ok", "version": "..."}
+
+Integration: Before saving or publishing user code (e.g. game scripts), call POST /check and display tips in the UI so users can fix issues.
+
+--- 4. Pyx Analyze (inappropriate content in code) ---
+Use this to scan code and three.js for bad strings/URLs before allowing it.
+
+  POST /analyze
+    Body: {"source": "code string", "language": "javascript"}
+    Response: {"safe": boolean, "flagged": [{"snippet": "...", "score": number, "reason": "..."}], "extracted_count": number}
+
+  POST /analyze/three
+    Body: {"source": "three.js / WebGL code"}
+    Response: same shape
+
+  GET /analyze/health
+    Response: {"service": "pyx_analyze", "status": "ok", "version": "..."}
+
+Integration: When users submit or publish code (e.g. custom games or assets), call POST /analyze (or /analyze/three). If safe is false, block or warn and show the flagged snippets (or censored versions).
+
+--- Overall health (all four) ---
+  GET /health  or  GET /
+    Response:
+    {
+      "status": "ok",
+      "services": {
+        "pyx_moderator": "ok",
+        "pyx_code": "ok",
+        "pyx_check": "ok",
+        "pyx_analyze": "ok"
+      }
+    }
+
+Use this to verify the API and all four services are up.
+
+--- Summary ---
+• Moderator: /score, /ai-decide, /feedback — content filter and learning for Pixel Place.
+• Code: /code/complete, /code/explain, /code/refactor — code assist.
+• Check: /check, /check/three — code tips and three.js hints.
+• Analyze: /analyze, /analyze/three — scan code for inappropriate content.
+
+All endpoints accept JSON and return JSON. CORS is enabled. If you need request/response examples for a specific language (e.g. C# or TypeScript), we can add them.
+
+Thanks.

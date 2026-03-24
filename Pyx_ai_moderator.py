@@ -1,11 +1,11 @@
 """
-Pyx AI - A Trainable Neural Network (Kid-Friendly)
-==================================================
-Learn easily. Edit easily. Words, phrases, and game ideas.
+Pyx AI Moderator — A Trainable Neural Network (Kid-Friendly Content Filter)
+===========================================================================
+Version 1.0
 
-Originally made by Mainline Studios for Pixel Place.
+For people forking the code: this is the content filter you customize (training
+phrases, BAN_LINE, prefix rules).
 
-CONTENT FILTER (for most kids):
   - ABOVE THE LINE: Inappropriate stuff = BANNED
   - BELOW THE LINE: Safe + borderline things = ALLOWED
 
@@ -21,6 +21,8 @@ import random
 import sys
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional, Set
+
+__version__ = "1.0"
 
 
 def _words(text: str) -> Set[str]:
@@ -1912,7 +1914,7 @@ if __name__ == "__main__":
             print("  1. Use a venv: python3 -m venv .venv && source .venv/bin/activate")
             print("  2. pip install firebase-admin  (or pip install -r requirements.txt)")
             print("  3. Firebase Console → Project pyx-ai → Service accounts → Generate new private key")
-            print("  4. Save as firebase-key.json in the project folder, then run: python3 pyx_ai.py seed-firestore")
+            print("  4. Save as firebase-key.json in the project folder, then run: python3 Pyx_ai_moderator.py seed-firestore")
             print("  If you see 'database does not exist', create Firestore: https://console.cloud.google.com/datastore/setup?project=pyx-ai")
             sys.exit(1)
         n = firestore_seed(db, TRAINING_GROUNDS_PHRASES, category="phrases")

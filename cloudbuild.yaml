@@ -1,0 +1,26 @@
+# Cloud Build for pyxaiapi — buildpack build with trusted builder (fixes status code 51).
+# Use: gcloud builds submit . (set _IMAGE or use default below)
+#
+# Substitutions (optional): _IMAGE = full image URI, or set _REGION, _REPO, _NAME
+# Default image: us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/pyxaiapi
+
+substitutions:
+  _REGION: us-central1
+  _REPO: cloud-run-source-deploy
+  _NAME: pyxaiapi
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  - name: gcr.io/k8s-skaffold/pack
+    entrypoint: pack
+    args:
+      - build
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_NAME}
+      - --builder=gcr.io/buildpacks/builder:google-24
+      - --trust-builder
+      - --network=cloudbuild
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_NAME}

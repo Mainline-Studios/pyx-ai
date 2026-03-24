@@ -13,7 +13,7 @@ import json
 import base64
 from typing import Tuple
 
-from pyx_ai import PyxAI, BAN_LINE, censor_letters
+from Pyx_ai_moderator import PyxAI, BAN_LINE, censor_letters
 
 # One Pyx instance per container (reused across invocations)
 pyx = PyxAI()

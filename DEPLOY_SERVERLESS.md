@@ -18,7 +18,7 @@ Same API: **POST** with `{"text": "..."}` → response `{"score", "bad", "censor
 
 1. **Create a Lambda function** (Python 3.10+).
 2. **Set handler** to `pyx_serverless.handler`.
-3. **Upload code:** zip `pyx_ai.py`, `pyx_serverless.py`, and the `data/` folder (if you use local memory). Include dependencies (e.g. `firebase-admin` if you use Firestore) in the zip or use a Lambda layer.
+3. **Upload code:** zip `Pyx_ai_moderator.py`, `pyx_serverless.py`, and the `data/` folder (if you use local memory). Include dependencies (e.g. `firebase-admin` if you use Firestore) in the zip or use a Lambda layer.
 4. **Add HTTP trigger:** Create an API Gateway HTTP API (or REST API), link it to the Lambda. Note the invoke URL (e.g. `https://abc123.execute-api.us-east-1.amazonaws.com`).
 5. **Call it:**  
    `POST https://your-api-url/default/score`  

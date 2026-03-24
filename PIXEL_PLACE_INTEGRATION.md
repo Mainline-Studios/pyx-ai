@@ -29,10 +29,10 @@ Use Pyx (and the “if bad → censor letters with `~`” rule) everywhere text 
 
 ## Implementation (Python)
 
-If Pixel Place (or a backend/service) uses Python and the `pyx_ai` package:
+If Pixel Place (or a backend/service) uses Python and the `Pyx_ai_moderator` package:
 
 ```python
-from pyx_ai import PyxAI, BAN_LINE, censor_letters
+from Pyx_ai_moderator import PyxAI, BAN_LINE, censor_letters
 
 # Once at startup (or reuse one instance)
 pyx = PyxAI()
@@ -68,7 +68,7 @@ You don’t need a server running Pyx 24/7. Deploy Pyx as a **serverless functio
 **Firebase Hosting + Cloud Functions (recommended if you already use Firebase):**
 
 - Deploy to your Hosting URL so Pyx is at `https://YOUR_PROJECT.web.app/api/score`.
-- **Steps:** See [DEPLOY_FIREBASE.md](DEPLOY_FIREBASE.md) — copy `pyx_ai.py` into `functions/`, then `firebase deploy --only functions,hosting`.
+- **Steps:** See [DEPLOY_FIREBASE.md](DEPLOY_FIREBASE.md) — copy `Pyx_ai_moderator.py` into `functions/`, then `firebase deploy --only functions,hosting`.
 - No server 24/7; the function runs only when called.
 
 **AWS Lambda or other serverless:**
@@ -121,6 +121,14 @@ If the content is bad, `bad` is `true` and `censored` has letters replaced with 
 
 **From your game/client:** POST JSON `{"text": "user message"}` to `http://your-server:8765/score`. If the response has `bad: true`, show `censored` (or block). If `bad: false`, show the original text. CORS is enabled so browsers can call the service.
 
+### Learning to the database
+
+**POST /ai-decide (use for game AI decisions)**  
+Same request as `/score`: `{"text": "..."}`. Same response shape: `{"score", "bad", "censored"}` (plus `"safe"`). The difference: the model’s decision is **saved and used to train** Pyx and (if Firestore is configured) written to the database. So whenever a game uses the AI to decide if text is OK, call **POST /ai-decide** instead of **POST /score** for that flow; Pyx will learn from those decisions automatically.
+
+**POST /feedback (manual label)**  
+When a human labels something (e.g. moderator override): Body `{"text": "...", "safe": true|false, "category": "phrases"}`. Response: `{"ok": true, "message": "..."}`. Trains Pyx and syncs to Firestore when the API has Firestore credentials.
+
 ---
 
 ## If Pixel Place is not in Python
@@ -142,3 +150,45 @@ If the content is bad, `bad` is `true` and `censored` has letters replaced with 
 | 5 | Use this flow for **all** AI games and any place user/AI text is shown. |
 
 Pyx learns from the training list and from overrides (and supports `...` prefix rules). Keep using it everywhere we display text so one policy applies across chat and AI games.
+
+---
+
+## API key (optional)
+
+You can require an API key so only clients with the key can use the API.
+
+**Server:** Set one or more keys in the environment:
+- `PYX_API_KEY=your-secret-key` (single key), or  
+- `PYX_API_KEYS=key1,key2,key3` (comma-separated).
+
+On Cloud Run: Cloud Run → pyxaiapi → Edit & deploy new revision → Variables & secrets → Add `PYX_API_KEY` (or `PYX_API_KEYS`) with your chosen value. Redeploy.
+
+**Clients:** Send the key on every request (except GET / and GET /health, which stay open for health checks):
+- Header: `X-API-Key: your-secret-key`, or  
+- Header: `Authorization: Bearer your-secret-key`.
+
+If no key env is set, the API stays open (no auth). If a key is set and the request doesn’t send a valid key, the API returns `401` with `{"error": "Missing or invalid API key"}`.
+
+---
+
+## What you have to run (API + learning to the database)
+
+**Deploy the API (Cloud Run / pyxaiapi):**
+
+```bash
+cd /path/to/pyx-ai
+gcloud config set project pyx-ai
+gcloud builds submit .
+gcloud run deploy pyxaiapi \
+  --image=us-central1-docker.pkg.dev/pyx-ai/cloud-run-source-deploy/pyxaiapi \
+  --region=us-central1 --platform=managed --allow-unauthenticated
+```
+
+**So the API learns to the database:**  
+Firestore is used when the API receives **POST /feedback** and the process has Firestore access:
+
+- **Cloud Run:** Deploy in a project that has Firestore (e.g. **pyx-ai**) and give the Cloud Run service account the **Cloud Datastore User** (or Firebase) role so it can write. No key file needed (uses Application Default Credentials). Optionally set `FIREBASE_PROJECT_ID=pyx-ai` if the GCP project ID differs.
+- **Local or other host:** Set `GOOGLE_APPLICATION_CREDENTIALS` to your `firebase-key.json` (or put `firebase-key.json` in the project root). Then any **POST /feedback** call will train Pyx and sync to Firestore.
+
+**When using the library (import Pyx_ai_moderator):**  
+Run your script or `python3 Pyx_ai_moderator.py` with Firestore configured (same as above: key file or ADC). Then `set_label`, `add_phrase`, `ai_decide`, etc. already learn and write to the database; no extra step.

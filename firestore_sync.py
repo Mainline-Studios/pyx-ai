@@ -57,17 +57,24 @@ def init_firestore(key_path: Optional[str] = None):
         print("  Run: pip3 install firebase-admin")
         return None
     path = _find_key_file(key_path)
-    if not path:
-        if key_path:
-            print(f"  Error: Key file not found: {key_path}")
-        else:
-            print("  Error: No credentials. Set GOOGLE_APPLICATION_CREDENTIALS or add firebase-key.json to the project folder or current directory.")
-        return None
     try:
         if not firebase_admin._apps:
-            cred = credentials.Certificate(str(path))
-            # Use project from the key file (Firebase project ID can differ from display name)
-            firebase_admin.initialize_app(cred)
+            if path:
+                cred = credentials.Certificate(str(path))
+                firebase_admin.initialize_app(cred)
+            else:
+                # Cloud Run / GCP: use Application Default Credentials (no key file)
+                try:
+                    cred = credentials.ApplicationDefault()
+                    project_id = os.environ.get("FIREBASE_PROJECT_ID", os.environ.get("GOOGLE_CLOUD_PROJECT", FIRESTORE_PROJECT_ID))
+                    firebase_admin.initialize_app(cred, {"projectId": project_id})
+                except Exception as adc_err:
+                    if key_path:
+                        print(f"  Error: Key file not found: {key_path}")
+                    else:
+                        print("  Error: No credentials. Set GOOGLE_APPLICATION_CREDENTIALS or add firebase-key.json, or run on GCP with ADC.")
+                    print(f"  ADC error: {adc_err}")
+                    return None
         # Use (default) DB. For a named database set env: FIRESTORE_DATABASE_ID=your-db-id
         database_id = os.environ.get("FIRESTORE_DATABASE_ID")
         _db = firestore.client(database_id=database_id) if database_id else firestore.client()
@@ -78,8 +85,10 @@ def init_firestore(key_path: Optional[str] = None):
             # Show project from key so user can create DB in the correct project
             try:
                 import json
-                key_data = json.loads(path.read_text())
-                pid = key_data.get("project_id", "?")
+                pid = "pyx-ai"
+                if path and path.exists():
+                    key_data = json.loads(path.read_text())
+                    pid = key_data.get("project_id", pid)
                 print(f"  → Your key is for project: {pid}")
                 print(f"  → Create the database: https://console.cloud.google.com/datastore/setup?project={pid}")
             except Exception:

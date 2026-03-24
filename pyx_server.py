@@ -11,7 +11,7 @@ import json
 import argparse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-from pyx_ai import PyxAI, BAN_LINE, censor_letters
+from Pyx_ai_moderator import PyxAI, BAN_LINE, censor_letters
 
 
 # One Pyx instance shared across requests (loads once at startup)
