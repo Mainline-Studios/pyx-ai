@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/dev.js",
-    "build:gate": "python3 scripts/set_gate_hash.py"
+    "dev": "node scripts/dev.js"
   }
 }

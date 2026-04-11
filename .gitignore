@@ -9,9 +9,11 @@ data/
 venv/
 firebase-key.json
 
-# Trainer gate — passphrase and generated HTML must not be committed
+# Local secrets / tooling noise
 TRAINER_GATE_PASSWORD.txt
-public/pyx-trainer-gate.html
+.firebase/
+firebase-debug.log
+.DS_Store
 
 # Repo config (do not ignore)
 !package.json

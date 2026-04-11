@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pyx AI — trainer sign-in</title>
+  <style>
+    body { font-family: Georgia, "Times New Roman", Times, serif; background: #fff; color: #000; margin: 16px; line-height: 1.45; max-width: 44em; }
+    p { margin: 0.75em 0; }
+    code { font-family: ui-monospace, monospace; }
+    a { color: #00e; }
+    label { display: block; margin-top: 0.5em; }
+    input { font-family: inherit; font-size: 1rem; padding: 4px; width: 100%; max-width: 28em; box-sizing: border-box; border: 1px solid #000; }
+    button { font-family: inherit; font-size: 1rem; margin-top: 0.75em; padding: 4px 12px; }
+    .err { color: #a00; }
+    .ok { color: #060; }
+  </style>
+</head>
+<body>
+  <p>Pyx content filter API.</p>
+  <p>POST <code>/api/score</code> with <code>{"text": "..."}</code> to score text. No server 24/7 — runs on demand.</p>
+  <p><strong>Trainer</strong> — sign in with your Firebase account (email set up in Firebase Console → Authentication).</p>
+
+  <form id="f" action="#" method="get">
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" required />
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required />
+    <p><button type="submit">Sign in and open trainer</button></p>
+  </form>
+  <p id="msg" class="err" aria-live="polite"></p>
+  <p class="ok" id="ok" style="display:none;"></p>
+  <p><a href="/">Back to home</a></p>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="/firebase-config.js"></script>
+  <script>
+    (function () {
+      var cfg = window.__PYX_FIREBASE_CONFIG__;
+      if (!cfg || !cfg.apiKey) {
+        document.getElementById("msg").textContent = "Missing firebase-config.js";
+        return;
+      }
+      if (!firebase.apps.length) {
+        firebase.initializeApp(cfg);
+      }
+      var auth = firebase.auth();
+
+      function params() {
+        var q = (location.search || "").replace(/^\?/, "");
+        var out = {};
+        q.split("&").forEach(function (pair) {
+          var i = pair.indexOf("=");
+          if (i < 0) return;
+          out[decodeURIComponent(pair.slice(0, i))] = decodeURIComponent(pair.slice(i + 1));
+        });
+        return out;
+      }
+
+      function allowed(email) {
+        var list = window.__PYX_TRAINER_ALLOWED_EMAILS__;
+        if (!list || !list.length) return true;
+        return list.indexOf(String(email || "").toLowerCase().trim()) >= 0;
+      }
+
+      function goNext() {
+        var next = params().next;
+        if (next && next.indexOf("/") === 0 && next.indexOf("//") !== 0) {
+          location.href = next;
+        } else {
+          location.href = "/pyx-firebase-trainer.html";
+        }
+      }
+
+      auth.onAuthStateChanged(function (user) {
+        if (user && allowed(user.email)) {
+          goNext();
+        }
+      });
+
+      document.getElementById("f").addEventListener("submit", function (e) {
+        e.preventDefault();
+        var msg = document.getElementById("msg");
+        var ok = document.getElementById("ok");
+        msg.textContent = "";
+        ok.style.display = "none";
+        var email = document.getElementById("email").value.trim();
+        var pw = document.getElementById("pw").value;
+        if (!email || !pw) {
+          msg.textContent = "Enter email and password.";
+          return;
+        }
+        if (!allowed(email)) {
+          msg.textContent = "This email is not allowed to use the trainer.";
+          return;
+        }
+        auth.signInWithEmailAndPassword(email, pw)
+          .then(function () {
+            ok.style.display = "block";
+            ok.textContent = "Signed in. Redirecting…";
+          })
+          .catch(function (err) {
+            msg.textContent = err && err.message ? err.message : "Sign-in failed.";
+          });
+      });
+    })();
+  </script>
+</body>
+</html>

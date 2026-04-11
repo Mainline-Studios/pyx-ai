@@ -105,6 +105,20 @@ No server to run 24/7 — Firebase runs the function only when it’s called.
 
 ---
 
+## 7. Trainer page (Firebase Auth)
+
+The hosted trainer (`/pyx-trainer-auth.html` → `/pyx-firebase-trainer.html`) uses **Firebase Authentication** (email/password).
+
+1. In [Firebase Console](https://console.firebase.google.com/) → **Authentication** → **Sign-in method**, enable **Email/Password**.
+2. Under **Authentication** → **Users**, add accounts for people who may use the trainer (or use your own flow to create users).
+3. Under **Authentication** → **Settings** → **Authorized domains**, ensure **`pyx-ai.web.app`** and **`pyx-ai.firebaseapp.com`** are listed (they usually are by default for the same project).
+
+Optional email allowlist: edit `public/firebase-config.js` and set `window.__PYX_TRAINER_ALLOWED_EMAILS__` to a list of lowercase emails. Leave it `[]` to allow any signed-in user.
+
+Web SDK config lives in **`public/firebase-config.js`** (same values as the “Pyx AI API” web app in Project settings). Redeploy Hosting after changing it.
+
+---
+
 ## Troubleshooting
 
 - **Import error for Pyx_ai_moderator:** Make sure you ran the copy step: `cp Pyx_ai_moderator.py functions/` (and `cp -r data functions/` if you use it).

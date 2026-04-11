@@ -5,7 +5,6 @@
   },
   "hosting": {
     "public": "public",
-    "predeploy": ["npm run build:gate"],
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
