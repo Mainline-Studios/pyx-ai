@@ -105,17 +105,15 @@ No server to run 24/7 — Firebase runs the function only when it’s called.
 
 ---
 
-## 7. Trainer page (Firebase Auth)
+## 7. Trainer page (password only)
 
-The hosted trainer (`/pyx-trainer-auth.html` → `/pyx-firebase-trainer.html`) uses **Firebase Authentication** (email/password).
+The trainer UI (`/pyx-firebase-trainer.html`) is locked behind **`/pyx-trainer-auth.html`**, which asks for **one password** (no email, no Firebase Auth UI).
 
-1. In [Firebase Console](https://console.firebase.google.com/) → **Authentication** → **Sign-in method**, enable **Email/Password**.
-2. Under **Authentication** → **Users**, add accounts for people who may use the trainer (or use your own flow to create users).
-3. Under **Authentication** → **Settings** → **Authorized domains**, ensure **`pyx-ai.web.app`** and **`pyx-ai.firebaseapp.com`** are listed (they usually are by default for the same project).
+1. Choose a strong password and put it in **`TRAINER_GATE_PASSWORD.txt`** in the repo root as **a single line** (file is gitignored). See **`TRAINER_GATE_PASSWORD.example.txt`**.
+2. Before each Hosting deploy, Firebase runs **`npm run build:trainer-auth`**, which writes **`public/pyx-trainer-auth.html`** containing only a **SHA-256 hash** of that password (the plaintext is not committed).
+3. Alternatively set **`PYX_TRAINER_PASSWORD`** in the environment and run `python3 scripts/build_trainer_auth.py` manually.
 
-Optional email allowlist: edit `public/firebase-config.js` and set `window.__PYX_TRAINER_ALLOWED_EMAILS__` to a list of lowercase emails. Leave it `[]` to allow any signed-in user.
-
-Web SDK config lives in **`public/firebase-config.js`** (same values as the “Pyx AI API” web app in Project settings). Redeploy Hosting after changing it.
+To rotate the password: change the line in `TRAINER_GATE_PASSWORD.txt`, run `npm run build:trainer-auth`, redeploy.
 
 ---
 

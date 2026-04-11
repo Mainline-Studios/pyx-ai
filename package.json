@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/dev.js"
+    "dev": "node scripts/dev.js",
+    "build:trainer-auth": "python3 scripts/build_trainer_auth.py"
   }
 }

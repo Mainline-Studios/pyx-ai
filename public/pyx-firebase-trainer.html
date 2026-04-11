@@ -71,12 +71,22 @@
   </style>
 </head>
 <body>
-  <div id="auth-check" style="padding:24px;text-align:center;color:#b7c4dd;">Checking sign-in…</div>
-  <div id="app" class="wrap" style="display:none;">
+  <script>
+    (function () {
+      try {
+        if (sessionStorage.getItem("pyx_trainer_pw_ok") !== "1") {
+          location.replace("/pyx-trainer-auth.html?next=" + encodeURIComponent(location.pathname + location.search));
+        }
+      } catch (e) {
+        location.replace("/pyx-trainer-auth.html");
+      }
+    })();
+  </script>
+  <div class="wrap">
     <div class="card">
       <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;">
         <h1 style="margin:0;">Pyx Trainer (Website + Firebase)</h1>
-        <button type="button" id="signOut" class="btn-neutral">Sign out</button>
+        <button type="button" id="lockTrainer" class="btn-neutral">Lock trainer</button>
       </div>
       <p>Users can chat with AI decide and submit Safe/Bad feedback. Backend writes to Firestore via your Pyx API.</p>
       <div class="grid">
@@ -124,42 +134,16 @@
     </div>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-  <script src="/firebase-config.js"></script>
   <script>
     (function () {
-      var cfg = window.__PYX_FIREBASE_CONFIG__;
-      if (!cfg || !cfg.apiKey) {
-        document.getElementById("auth-check").textContent = "Missing firebase-config.js";
-        return;
-      }
-      if (!firebase.apps.length) {
-        firebase.initializeApp(cfg);
-      }
-      var auth = firebase.auth();
-
-      function allowed(email) {
-        var list = window.__PYX_TRAINER_ALLOWED_EMAILS__;
-        if (!list || !list.length) return true;
-        return list.indexOf(String(email || "").toLowerCase().trim()) >= 0;
-      }
-
-      function showApp() {
-        document.getElementById("auth-check").style.display = "none";
-        document.getElementById("app").style.display = "block";
-      }
-
-      document.getElementById("signOut").addEventListener("click", function () {
-        auth.signOut();
+      document.getElementById("lockTrainer").addEventListener("click", function () {
+        try {
+          sessionStorage.removeItem("pyx_trainer_pw_ok");
+        } catch (e) {}
+        location.href = "/pyx-trainer-auth.html";
       });
 
-      var trainerInited = false;
-      function initTrainer() {
-        if (trainerInited) return;
-        trainerInited = true;
-
-        var $ = function (id) { return document.getElementById(id); };
+      var $ = function (id) { return document.getElementById(id); };
       var baseUrlEl = $("baseUrl");
       var apiKeyEl = $("apiKey");
       var categoryEl = $("category");
@@ -342,18 +326,8 @@
       if (savedBase) baseUrlEl.value = savedBase;
       if (savedKey) apiKeyEl.value = savedKey;
       if (savedCat) categoryEl.value = savedCat;
-        log("Trainer ready. Enter text, then AI Decide or Mark Safe/Bad.", "ok");
-        $("ping").click();
-      }
-
-      auth.onAuthStateChanged(function (user) {
-        if (!user || !user.email || !allowed(user.email)) {
-          location.replace("/pyx-trainer-auth.html?next=" + encodeURIComponent(location.pathname + location.search));
-          return;
-        }
-        showApp();
-        initTrainer();
-      });
+      log("Trainer ready. Enter text, then AI Decide or Mark Safe/Bad.", "ok");
+      $("ping").click();
     })();
   </script>
 </body>
