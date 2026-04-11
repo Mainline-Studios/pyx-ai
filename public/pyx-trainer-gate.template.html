@@ -29,8 +29,7 @@
 
   <script>
     (function () {
-      // SHA-256 (hex) of the passphrase — plaintext is not stored in this file.
-      var EXPECTED_SHA256_HEX = "9b60d21f15484db4ab85ac93ea044275e9ff40a0819e9938b8120d0b8f512f4d";
+      var EXPECTED_SHA256_HEX = "__EXPECTED_SHA256_HEX__";
       var TARGET = "/pyx-firebase-trainer.html";
       var SESSION_KEY = "pyx_trainer_gate_ok";
 
@@ -59,6 +58,10 @@
         msg.textContent = "";
         if (!pw) {
           msg.textContent = "Enter the passphrase.";
+          return;
+        }
+        if (!EXPECTED_SHA256_HEX || EXPECTED_SHA256_HEX.indexOf("__") === 0) {
+          msg.textContent = "Gate not configured. Build with scripts/set_gate_hash.py before deploy.";
           return;
         }
         if (!window.crypto || !window.crypto.subtle) {
