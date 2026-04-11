@@ -3,21 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Train Pyx — access</title>
+  <title>Pyx AI</title>
   <style>
-    body { font-family: Georgia, "Times New Roman", Times, serif; background: #fff; color: #000; margin: 16px; line-height: 1.45; max-width: 40em; }
+    body { font-family: Georgia, "Times New Roman", Times, serif; background: #fff; color: #000; margin: 16px; line-height: 1.45; max-width: 44em; }
     p { margin: 0.75em 0; }
-    label { display: block; margin-top: 1em; }
-    input[type="password"] { width: 100%; max-width: 28em; font-size: 1rem; padding: 6px; box-sizing: border-box; }
-    button { margin-top: 0.75em; font-family: inherit; font-size: 1rem; padding: 6px 14px; }
-    .err { color: #b00; }
     code { font-family: ui-monospace, monospace; }
     a { color: #00e; }
+    label { display: block; margin-top: 0.5em; }
+    input[type="password"] { font-family: inherit; font-size: 1rem; padding: 4px; width: 100%; max-width: 28em; box-sizing: border-box; border: 1px solid #000; }
+    button { font-family: inherit; font-size: 1rem; margin-top: 0.5em; padding: 4px 12px; }
+    .err { color: #a00; }
   </style>
 </head>
 <body>
   <p>Pyx content filter API.</p>
-  <p>Enter the trainer passphrase to open <code>/pyx-firebase-trainer.html</code>.</p>
+  <p>POST <code>/api/score</code> with <code>{"text": "..."}</code> to score text. No server 24/7 — runs on demand.</p>
+  <p>Trainer access — enter passphrase, then continue.</p>
 
   <form id="f" action="#" method="get">
     <label for="pw">Passphrase</label>
