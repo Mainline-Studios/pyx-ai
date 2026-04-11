@@ -3,122 +3,106 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pyx Firebase Trainer</title>
+  <title>Pyx trainer</title>
   <style>
-    :root { color-scheme: light dark; }
     body {
-      margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: #0b1020;
-      color: #e6edf7;
+      font-family: Georgia, "Times New Roman", Times, serif;
+      background: #fff;
+      color: #000;
+      margin: 16px;
+      line-height: 1.45;
+      max-width: 44em;
     }
-    .wrap { max-width: 920px; margin: 24px auto; padding: 0 16px; }
-    .card {
-      background: #11182d;
-      border: 1px solid #243152;
-      border-radius: 12px;
-      padding: 14px;
-      margin-bottom: 14px;
+    h1 { font-size: 1.25rem; font-weight: normal; margin: 0 0 0.5em; }
+    p { margin: 0.65em 0; }
+    label { display: block; margin-top: 0.75em; font-size: 0.95rem; }
+    input, textarea, select, button {
+      font-family: inherit;
+      font-size: 1rem;
+      box-sizing: border-box;
     }
-    h1 { margin: 0 0 10px; font-size: 24px; }
-    p { margin: 8px 0; color: #b7c4dd; }
-    label { font-size: 13px; color: #c9d4ea; display: block; margin-bottom: 4px; }
-    input, textarea, button, select {
-      border-radius: 8px;
-      border: 1px solid #2f3f66;
-      background: #0e1527;
-      color: #e6edf7;
-      font-size: 14px;
-      padding: 8px 10px;
+    input[type="text"], input[type="password"], textarea, select {
+      width: 100%;
+      max-width: 100%;
+      padding: 6px;
+      border: 1px solid #000;
     }
-    textarea { width: 100%; min-height: 68px; resize: vertical; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .row > * { flex: 1 1 auto; }
-    button { cursor: pointer; font-weight: 600; }
-    .btn-primary { background: #2563eb; border-color: #2563eb; }
-    .btn-safe { background: #166534; border-color: #166534; }
-    .btn-bad { background: #9f1239; border-color: #9f1239; }
-    .btn-neutral { background: #334155; border-color: #334155; }
+    textarea { min-height: 5em; resize: vertical; }
+    .row { margin-top: 0.5em; }
+    .row button { margin-right: 0.5em; margin-top: 0.35em; padding: 6px 10px; }
     #log {
       white-space: pre-wrap;
-      background: #0a1224;
-      border: 1px solid #203056;
-      border-radius: 8px;
-      min-height: 260px;
-      padding: 10px;
+      border: 1px solid #000;
+      min-height: 12em;
+      max-height: 28em;
       overflow: auto;
-      max-height: 460px;
+      padding: 8px;
+      margin-top: 0.75em;
+      font-family: ui-monospace, monospace;
+      font-size: 0.85rem;
     }
-    .small { font-size: 12px; color: #95a7cb; }
-    .status-pill {
-      display: inline-block;
-      margin-left: 8px;
-      padding: 2px 8px;
-      border-radius: 999px;
-      border: 1px solid #334155;
-      font-size: 12px;
-      font-weight: 700;
-      vertical-align: middle;
-    }
-    .status-pill--ok { background: #14532d; border-color: #166534; color: #bbf7d0; }
-    .status-pill--bad { background: #7f1d1d; border-color: #991b1b; color: #fecaca; }
-    .status-pill--unknown { background: #1e293b; border-color: #334155; color: #cbd5e1; }
-    .ok { color: #86efac; }
-    .warn { color: #fde68a; }
-    .err { color: #fca5a5; }
-    @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+    .small { font-size: 0.85rem; }
+    #firebaseStatus { font-weight: bold; }
+    .ok { color: #060; }
+    .warn { color: #660; }
+    .err { color: #a00; }
+    code { font-family: ui-monospace, monospace; }
+    a { color: #00e; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>Pyx Trainer (Website + Firebase)</h1>
-      <p>Users can chat with AI decide and submit Safe/Bad feedback. Backend writes to Firestore via your Pyx API.</p>
-      <div class="grid">
-        <div>
-          <label for="baseUrl">Pyx API Base URL</label>
-          <input id="baseUrl" value="https://pyxaiapi-574247481583.us-central1.run.app" />
-        </div>
-        <div>
-          <label for="apiKey">API Key (optional)</label>
-          <input id="apiKey" placeholder="leave empty if open API" />
-        </div>
-      </div>
-      <div class="row" style="margin-top:10px;">
-        <div>
-          <label for="category">Category</label>
-          <select id="category">
-            <option value="phrases" selected>phrases</option>
-            <option value="words">words</option>
-            <option value="game_ideas">game_ideas</option>
-          </select>
-        </div>
-        <button id="saveConfig" class="btn-neutral">Save Config</button>
-        <button id="ping" class="btn-neutral">Test /health</button>
-      </div>
-      <p class="small">
-        Tip: if your service requires auth, paste the same key used for <code>PYX_API_KEY</code>.
-        Status is strict: it turns connected only after a successful feedback write.
-        <span id="firebaseStatus" class="status-pill status-pill--unknown">Firebase: Unknown</span>
-      </p>
-    </div>
+  <script>
+    (function () {
+      try {
+        if (sessionStorage.getItem("pyx_trainer_gate_ok") !== "1") {
+          location.replace("/pyx-trainer-gate.html?next=" + encodeURIComponent(location.pathname + location.search));
+        }
+      } catch (e) {
+        location.replace("/pyx-trainer-gate.html");
+      }
+    })();
+  </script>
 
-    <div class="card">
-      <label for="text">Message / phrase to train</label>
-      <textarea id="text" placeholder="Type phrase here..."></textarea>
-      <div class="row" style="margin-top:10px;">
-        <button id="aiDecide" class="btn-primary">AI Decide + Train</button>
-        <button id="markSafe" class="btn-safe">Mark Safe</button>
-        <button id="markBad" class="btn-bad">Mark Bad</button>
-        <button id="clearLog" class="btn-neutral">Clear Log</button>
-      </div>
-    </div>
+  <p><a href="/">Home</a> · <a href="/pyx-trainer-gate.html">Re-enter passphrase</a></p>
+  <h1>Pyx trainer</h1>
+  <p>Submit phrases to your Pyx API. Safe/Bad feedback writes through the server to Firestore when configured.</p>
 
-    <div class="card">
-      <div id="log"></div>
-    </div>
+  <label for="baseUrl">Pyx API base URL</label>
+  <input id="baseUrl" type="text" value="https://pyxaiapi-574247481583.us-central1.run.app" />
+
+  <label for="apiKey">API key (optional)</label>
+  <input id="apiKey" type="password" placeholder="leave empty if API is open" autocomplete="off" />
+
+  <label for="category">Category</label>
+  <select id="category">
+    <option value="phrases" selected>phrases</option>
+    <option value="words">words</option>
+    <option value="game_ideas">game_ideas</option>
+  </select>
+
+  <div class="row">
+    <button type="button" id="saveConfig">Save config</button>
+    <button type="button" id="ping">Test /health</button>
   </div>
+
+  <p class="small">
+    If your API requires a key, use the same value as server <code>PYX_API_KEY</code>.
+    Firebase status is strict: <strong id="firebaseStatus">Firebase: Unknown</strong>
+  </p>
+
+  <label for="text">Message / phrase to train</label>
+  <textarea id="text" placeholder="Type phrase here..."></textarea>
+
+  <div class="row">
+    <button type="button" id="aiDecide">Let the AI decide once</button>
+    <button type="button" id="markSafe">Mark safe</button>
+    <button type="button" id="markBad">Mark bad</button>
+    <button type="button" id="clearLog">Clear log</button>
+  </div>
+
+  <p class="small">After AI decides, use <strong>Mark safe</strong> or <strong>Mark bad</strong> once to verify Firebase writes.</p>
+
+  <div id="log"></div>
 
   <script>
     (function () {
@@ -192,16 +176,14 @@
       function setFirebaseStatus(connected, details) {
         if (!firebaseStatusEl) return;
         var text = "Firebase: Unknown";
-        var klass = "status-pill status-pill--unknown";
         if (connected === true) {
           text = "Firebase: Connected";
-          klass = "status-pill status-pill--ok";
         } else if (connected === false) {
           text = "Firebase: Offline";
-          klass = "status-pill status-pill--bad";
+        } else {
+          text = "Firebase: Not yet verified";
         }
         if (details) text += " (" + details + ")";
-        firebaseStatusEl.className = klass;
         firebaseStatusEl.textContent = text;
       }
 
@@ -216,7 +198,6 @@
         var b = (baseUrlEl.value || "").replace(/\/$/, "");
         if (!b) { log("Set base URL first.", "err"); return; }
         disableButtons(true);
-        // Keep health check as a simple GET (no custom headers) to avoid CORS preflight issues.
         fetch(b + "/health")
           .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j, status: r.status }; }); })
           .then(function (x) {
@@ -228,13 +209,11 @@
               connected = x.j.services.firebase === "connected";
             }
             if (connected === false) {
-              // Backend explicitly says Firestore is offline.
               setFirebaseStatus(false, x.j.services && x.j.services.firebase ? x.j.services.firebase : "");
             } else if (firebaseWriteVerified) {
-              // Strict mode: only show Connected after a successful write in this session.
               setFirebaseStatus(true, "write-verified");
             } else {
-              setFirebaseStatus(null, "not write-verified yet");
+              setFirebaseStatus(null, "Let the AI decide once, then Mark safe or Mark bad to verify");
             }
             log("Health OK: " + JSON.stringify(x.j), "ok");
           })
@@ -299,7 +278,6 @@
         logEl.textContent = "";
       });
 
-      // restore saved config
       var savedBase = localStorage.getItem("pyx.baseUrl");
       var savedKey = localStorage.getItem("pyx.apiKey");
       var savedCat = localStorage.getItem("pyx.category");
