@@ -227,10 +227,10 @@
       border-radius: 16px;
       font-size: 14px;
       line-height: 1.5;
-      white-space: pre-wrap;
       word-break: break-word;
     }
     .msg--user {
+      white-space: pre-wrap;
       align-self: flex-end;
       background: var(--user-bg);
       color: var(--user-fg);
@@ -251,6 +251,77 @@
       color: var(--text);
       border-bottom-left-radius: 5px;
     }
+
+    .msg--rich {
+      white-space: normal;
+    }
+    .msg--rich p { margin: 0.45em 0; }
+    .msg--rich p:first-child { margin-top: 0; }
+    .msg--rich p:last-child { margin-bottom: 0; }
+    .msg--rich strong { font-weight: 600; }
+    .msg--rich em { font-style: italic; }
+    .msg--rich ul, .msg--rich ol { margin: 0.45em 0; padding-left: 1.35em; }
+    .msg--rich li { margin: 0.2em 0; }
+    .msg--rich li > p { margin: 0; }
+    .msg--rich code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.9em;
+      padding: 0.12em 0.4em;
+      border-radius: 5px;
+      background: rgba(15, 23, 42, 0.07);
+    }
+    .msg--rich pre {
+      margin: 0.55em 0;
+      padding: 10px 12px;
+      border-radius: 10px;
+      overflow-x: auto;
+      background: rgba(15, 23, 42, 0.06);
+      border: 1px solid var(--border);
+    }
+    .msg--rich pre code {
+      background: none;
+      padding: 0;
+      font-size: 0.86em;
+      border-radius: 0;
+    }
+    .msg--rich a {
+      color: var(--primary);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      word-break: break-all;
+    }
+    .msg--rich blockquote {
+      margin: 0.5em 0;
+      padding-left: 0.85em;
+      border-left: 3px solid var(--primary);
+      color: var(--muted);
+    }
+    .msg--rich h1, .msg--rich h2, .msg--rich h3, .msg--rich h4 {
+      font-size: 1.08em;
+      font-weight: 600;
+      margin: 0.65em 0 0.35em;
+      line-height: 1.3;
+    }
+    .msg--rich h1:first-child,
+    .msg--rich h2:first-child,
+    .msg--rich h3:first-child { margin-top: 0; }
+    .msg--rich hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0.85em 0;
+    }
+    .msg--rich table {
+      border-collapse: collapse;
+      font-size: 0.92em;
+      margin: 0.55em 0;
+      width: 100%;
+    }
+    .msg--rich th, .msg--rich td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      text-align: left;
+    }
+    .msg--rich th { background: rgba(15, 23, 42, 0.04); }
 
     #composer {
       display: flex;
@@ -395,6 +466,8 @@
     <p class="small" id="status"></p>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js" crossorigin="anonymous"></script>
   <script>
     (function () {
       var PYX_TALK_API_BASE = "https://pyxaiapi-574247481583.us-central1.run.app";
@@ -433,10 +506,40 @@
         localStorage.setItem("pyx.talk.useWebAuto", useWebAutoEl.checked ? "1" : "0");
       });
 
+      function renderAssistantMarkdown(text) {
+        if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
+          return null;
+        }
+        try {
+          var raw = marked.parse(text || "", { breaks: true, gfm: true });
+          return DOMPurify.sanitize(raw, {
+            USE_PROFILES: { html: true },
+            ADD_ATTR: ["target"],
+          });
+        } catch (e) {
+          return null;
+        }
+      }
+
       function addBubble(text, role, extraClass) {
         var d = document.createElement("div");
         d.className = "msg msg--" + role + (extraClass ? " " + extraClass : "");
-        d.textContent = text;
+        if (role === "user") {
+          d.textContent = text;
+        } else {
+          d.classList.add("msg--rich");
+          var html = renderAssistantMarkdown(text);
+          if (html !== null) {
+            d.innerHTML = html;
+            var links = d.querySelectorAll("a[href]");
+            for (var i = 0; i < links.length; i++) {
+              links[i].setAttribute("target", "_blank");
+              links[i].setAttribute("rel", "noopener noreferrer");
+            }
+          } else {
+            d.textContent = text;
+          }
+        }
         chatEl.appendChild(d);
         chatEl.scrollTop = chatEl.scrollHeight;
       }
