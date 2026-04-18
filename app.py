@@ -35,8 +35,8 @@ _TALK_MODES = frozenset({"fast", "smart", "thinking"})
 _TALK_MODE_SPECS = {
     "fast": {
         "model_env": "PYX_TALK_MODEL_FAST",
-        "default_model": "meta-llama/llama-3.1-8b-instant",
-        "max_tokens": 512,
+        "default_model": "llama-3.1-8b-instant",
+        "max_tokens": 384,
         "temperature": 0.55,
         "system_suffix": " Mode: fast. Prefer short, direct answers. Skip long preambles unless the user asks for depth.",
     },
@@ -118,11 +118,7 @@ def _groq_openai_chat(messages_for_api, mode="fast"):
         "https://api.groq.com/openai/v1/chat/completions",
     ).strip()
     spec = _TALK_MODE_SPECS.get(mode) or _TALK_MODE_SPECS["fast"]
-    model = (
-        os.environ.get(spec["model_env"])
-        or os.environ.get("PYX_TALK_MODEL")
-        or spec["default_model"]
-    ).strip()
+    model = (os.environ.get(spec["model_env"]) or "").strip() or spec["default_model"]
     max_tokens = min(max(spec["max_tokens"], 64), 2048)
     temperature = float(spec["temperature"])
     system_content = _TALK_SYSTEM + spec["system_suffix"]
@@ -141,7 +137,13 @@ def _groq_openai_chat(messages_for_api, mode="fast"):
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=90) as resp:
+    # Fast mode: short timeout so failures return quickly; larger models may need longer.
+    timeout_s = 32 if mode == "fast" else 90
+    try:
+        timeout_s = max(8, min(int(os.environ.get("PYX_TALK_TIMEOUT", str(timeout_s))), 120))
+    except ValueError:
+        pass
+    with urllib.request.urlopen(req, timeout=timeout_s) as resp:
         data = json.loads(resp.read().decode("utf-8"))
     choices = data.get("choices") or []
     if not choices:
@@ -420,7 +422,7 @@ def talk():
         return jsonify({"error": str(e)}), 502
     if reply is None:
         reply = (
-            "Hi — I’m Pyx Talk. "
+            "Hi — I’m Pyx Talk. An unknown error occurred. Please try again later, or submit an issue on Github."
             "Llama isn’t wired up on this server yet: set PYX_TALK_LLM_KEY (e.g. Groq) "
             "and optional PYX_TALK_MODEL on the Pyx API (Cloud Run) to get full replies."
         )
@@ -431,7 +433,7 @@ def talk():
         if pyx.memory.is_banned(r_score):
             reply_blocked = True
             reply = (
-                "I’d rather not send that answer. Could you ask in a different way?"
+                "Oops! I am not comfortable with that question or topic. Lets change the topic."
             )
     except Exception:
         pass
