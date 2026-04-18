@@ -8,6 +8,8 @@ If no keys are set, the API works without auth (open).
 
 import json
 import os
+import urllib.error
+import urllib.request
 
 from flask import Flask, request, jsonify
 
@@ -18,6 +20,84 @@ from Pyx_ai_analyze import analyze_code, analyze_three_js, __version__ as analyz
 
 app = Flask(__name__)
 pyx = PyxAI()
+
+# Pyx Talk (Llama-class chat via OpenAI-compatible API, e.g. Groq)
+_TALK_MAX_MSG_LEN = 4000
+_TALK_MAX_MESSAGES = 24
+_TALK_SYSTEM = os.environ.get(
+    "PYX_TALK_SYSTEM",
+    "You are Pyx Talk, a helpful, friendly assistant. Keep answers concise and clear. "
+    "Stay safe for general audiences; refuse harmful or explicit requests briefly and offer something helpful instead.",
+)
+
+
+def _normalize_talk_messages(raw):
+    if not isinstance(raw, list):
+        return None, '"messages" must be a list'
+    if len(raw) > _TALK_MAX_MESSAGES:
+        raw = raw[-_TALK_MAX_MESSAGES:]
+    out = []
+    for m in raw:
+        if not isinstance(m, dict):
+            return None, "each message must be an object"
+        role = m.get("role")
+        content = m.get("content")
+        if role not in ("user", "assistant"):
+            return None, '"role" must be "user" or "assistant"'
+        if not isinstance(content, str):
+            return None, '"content" must be a string'
+        content = content.strip()
+        if len(content) > _TALK_MAX_MSG_LEN:
+            return None, "message too long"
+        if not content:
+            return None, "empty message"
+        out.append({"role": role, "content": content})
+    if not out or out[-1]["role"] != "user":
+        return None, "last message must be from user"
+    return out, None
+
+
+def _groq_openai_chat(messages_for_api):
+    """Call OpenAI-compatible chat completions. Returns (reply_text, model_id) or raises.
+    If PYX_TALK_LLM_KEY is unset, returns (None, None) without calling the network."""
+    key = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
+    if not key:
+        return None, None
+    url = os.environ.get(
+        "PYX_TALK_LLM_URL",
+        "https://api.groq.com/openai/v1/chat/completions",
+    ).strip()
+    model = os.environ.get(
+        "PYX_TALK_MODEL",
+        "meta-llama/llama-3.1-8b-instant",
+    ).strip()
+    max_tokens = min(max(int(os.environ.get("PYX_TALK_MAX_TOKENS", "512")), 64), 2048)
+    temperature = float(os.environ.get("PYX_TALK_TEMPERATURE", "0.7"))
+    body = {
+        "model": model,
+        "messages": [{"role": "system", "content": _TALK_SYSTEM}] + messages_for_api,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + key,
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=90) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    choices = data.get("choices") or []
+    if not choices:
+        raise ValueError("LLM returned no choices")
+    msg = choices[0].get("message") or {}
+    content = (msg.get("content") or "").strip()
+    if not content:
+        raise ValueError("empty LLM content")
+    return content, model
 
 # Optional API key auth: if set, requests must include a valid key
 _API_KEYS: set = set()
@@ -75,6 +155,7 @@ def health():
             "pyx_code": "ok",
             "pyx_check": "ok",
             "pyx_analyze": "ok",
+            "pyx_talk": "ok",
             "firebase": "connected" if firebase_connected else "offline",
         },
         "firebase_connected": firebase_connected,
@@ -251,6 +332,63 @@ def check_route():
 @app.route("/analyze/health")
 def analyze_health_route():
     return jsonify({"service": "pyx_analyze", "status": "ok", "version": analyze_version})
+
+
+@app.route("/talk", methods=["POST", "OPTIONS"])
+def talk():
+    """Moderated chat: user messages are scored; assistant reply via Llama-class model (Groq-compatible) if configured."""
+    if request.method == "OPTIONS":
+        return "", 204
+    if request.method != "POST":
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.get_json(silent=True) or {}
+    messages, err = _normalize_talk_messages(data.get("messages"))
+    if err:
+        return jsonify({"error": err}), 400
+    last_user = messages[-1]["content"]
+    try:
+        u_score = pyx.score(last_user)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    if pyx.memory.is_banned(u_score):
+        return jsonify({
+            "bad": True,
+            "score": round(u_score, 4),
+            "censored": censor_letters(last_user),
+            "reply": None,
+            "model": None,
+        })
+    llm_messages = [{"role": m["role"], "content": m["content"]} for m in messages]
+    try:
+        reply, model_used = _groq_openai_chat(llm_messages)
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[:800]
+        return jsonify({"error": "LLM request failed", "status": e.code, "detail": detail}), 502
+    except urllib.error.URLError as e:
+        return jsonify({"error": "LLM network error", "detail": str(e.reason)}), 502
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+    if reply is None:
+        reply = (
+            "Hi — I’m Pyx Talk. Your message passed moderation. "
+            "Llama isn’t wired up on this server yet: set PYX_TALK_LLM_KEY (e.g. Groq) "
+            "and optional PYX_TALK_MODEL on the Pyx API (Cloud Run) to get full replies."
+        )
+        model_used = "pyx-fallback"
+    try:
+        r_score = pyx.score(reply)
+        if pyx.memory.is_banned(r_score):
+            reply = (
+                "I’d rather not send that answer. Could you ask in a different way?"
+            )
+    except Exception:
+        pass
+    return jsonify({
+        "bad": False,
+        "score": round(u_score, 4),
+        "reply": reply,
+        "model": model_used or "unknown",
+    })
 
 
 @app.route("/analyze", methods=["POST", "OPTIONS"])

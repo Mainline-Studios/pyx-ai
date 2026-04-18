@@ -117,6 +117,28 @@ To rotate the password: change the line in `TRAINER_GATE_PASSWORD.txt`, run `npm
 
 ---
 
+## 8. Pyx Talk (Llama-class chat on Cloud Run)
+
+The static page **`public/pyx-talk.html`** calls **`POST /talk`** on the Pyx API (`app.py`).
+
+- **Moderation:** the latest user message is scored; inappropriate text returns `bad: true` and a censored echo (no LLM call).
+- **Replies:** if `PYX_TALK_LLM_KEY` is set, the server calls an **OpenAI-compatible** chat API (default **Groq** + **Llama**). The assistant reply is scored again and softened if needed.
+
+**Cloud Run / local env (examples):**
+
+| Variable | Purpose |
+|----------|---------|
+| `PYX_TALK_LLM_KEY` | API key (e.g. [Groq](https://console.groq.com/) — required for real Llama replies) |
+| `PYX_TALK_LLM_URL` | Default `https://api.groq.com/openai/v1/chat/completions` |
+| `PYX_TALK_MODEL` | Default `meta-llama/llama-3.1-8b-instant` |
+| `PYX_TALK_SYSTEM` | Optional system prompt override |
+| `PYX_TALK_MAX_TOKENS` | Default `512` (capped at 2048) |
+| `PYX_TALK_TEMPERATURE` | Default `0.7` |
+
+Without `PYX_TALK_LLM_KEY`, `/talk` still returns a short **fallback** message after moderation passes.
+
+---
+
 ## Troubleshooting
 
 - **Import error for Pyx_ai_moderator:** Make sure you ran the copy step: `cp Pyx_ai_moderator.py functions/` (and `cp -r data functions/` if you use it).
