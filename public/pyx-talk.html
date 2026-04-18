@@ -306,6 +306,32 @@
       box-shadow: none;
     }
 
+    .web-row {
+      margin: 0 0 16px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .web-opt {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      line-height: 1.4;
+    }
+    .web-opt input {
+      margin: 3px 0 0;
+      accent-color: var(--primary);
+      flex-shrink: 0;
+    }
+    .web-opt span strong { font-weight: 600; }
+
     #status {
       margin: 14px 2px 0;
       min-height: 1.25em;
@@ -324,8 +350,8 @@
 
     <h1>Pyx AI Talk</h1>
     <p class="lede">
-      <strong>Fast</strong>, <strong>Smart</strong>, or <strong>Thinking</strong> — powered by Llama on Groq.
-      Replies come straight from the model.
+      <strong>Fast</strong>, <strong>Smart</strong>, or <strong>Thinking</strong> — Llama on Groq.
+      Optionally run <strong>built-in web search</strong> (no extra API keys), then answer with Llama.
     </p>
 
     <div class="panel">
@@ -347,6 +373,17 @@
         </div>
       </fieldset>
 
+      <div class="web-row" id="webRow">
+        <label class="web-opt">
+          <input type="checkbox" id="useWeb" />
+          <span><strong>Search the web</strong> — Pyx fetches result snippets locally, then Llama answers from them.</span>
+        </label>
+        <label class="web-opt">
+          <input type="checkbox" id="useWebAuto" />
+          <span><strong>Auto</strong> — search when the question looks time-sensitive (news, dates, “latest”, etc.).</span>
+        </label>
+      </div>
+
       <div id="chat" aria-live="polite"></div>
 
       <div id="composer">
@@ -367,6 +404,8 @@
       var statusEl = document.getElementById("status");
       var messages = [];
       var modeField = document.getElementById("modeField");
+      var useWebEl = document.getElementById("useWeb");
+      var useWebAutoEl = document.getElementById("useWebAuto");
 
       var savedMode = localStorage.getItem("pyx.talk.mode");
       if (savedMode) {
@@ -384,6 +423,15 @@
       }
 
       modeField.addEventListener("change", saveMode);
+
+      if (localStorage.getItem("pyx.talk.useWeb") === "1") useWebEl.checked = true;
+      if (localStorage.getItem("pyx.talk.useWebAuto") === "1") useWebAutoEl.checked = true;
+      useWebEl.addEventListener("change", function () {
+        localStorage.setItem("pyx.talk.useWeb", useWebEl.checked ? "1" : "0");
+      });
+      useWebAutoEl.addEventListener("change", function () {
+        localStorage.setItem("pyx.talk.useWebAuto", useWebAutoEl.checked ? "1" : "0");
+      });
 
       function addBubble(text, role, extraClass) {
         var d = document.createElement("div");
@@ -404,17 +452,28 @@
         var b = PYX_TALK_API_BASE.replace(/\/$/, "");
         saveMode();
         var mode = getMode();
+        var useWeb = useWebEl.checked;
+        var useWebAuto = useWebAutoEl.checked;
         inputEl.value = "";
         messages.push({ role: "user", content: text });
         addBubble(text, "user");
         setBusy(true);
-        statusEl.textContent =
-          mode === "fast" ? "Fast reply…" : mode === "thinking" ? "Reasoning…" : "Thinking…";
+        if (useWeb || useWebAuto) {
+          statusEl.textContent = "Searching the web…";
+        } else {
+          statusEl.textContent =
+            mode === "fast" ? "Fast reply…" : mode === "thinking" ? "Reasoning…" : "Thinking…";
+        }
 
         fetch(b + "/talk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: messages, mode: mode }),
+          body: JSON.stringify({
+            messages: messages,
+            mode: mode,
+            use_web: useWeb,
+            use_web_auto: useWebAuto,
+          }),
         })
           .then(function (r) {
             return r.text().then(function (t) {
@@ -444,6 +503,9 @@
             addBubble(reply, "bot");
             var modeLabel = x.j.mode ? x.j.mode.charAt(0).toUpperCase() + x.j.mode.slice(1) : "";
             var m = [modeLabel, x.j.model ? x.j.model : ""].filter(Boolean).join(" · ");
+            if (x.j.web_search && x.j.web_search.used && x.j.web_search.provider) {
+              m = [m, "web:" + x.j.web_search.provider].filter(Boolean).join(" · ");
+            }
             statusEl.textContent = m || "";
           })
           .catch(function (e) {
@@ -465,7 +527,7 @@
       });
 
       addBubble(
-        "Hi! Pick a mode, then type below.",
+        "Hi! Pick a mode (and optional web search), then type below.",
         "bot"
       );
     })();

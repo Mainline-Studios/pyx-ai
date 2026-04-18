@@ -6,9 +6,12 @@ Clients send the key in header X-API-Key or Authorization: Bearer <key>.
 If no keys are set, the API works without auth (open).
 """
 
+import html
 import json
 import os
+import re
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from flask import Flask, request, jsonify
@@ -108,7 +111,156 @@ def _normalize_talk_mode(raw):
     return m, None
 
 
-def _groq_openai_chat(messages_for_api, mode="fast"):
+def _as_bool(v):
+    if v is True:
+        return True
+    if v is False or v is None:
+        return False
+    if isinstance(v, str):
+        return v.strip().lower() in ("1", "true", "yes", "on")
+    return bool(v)
+
+
+def _web_auto_trigger(user_text: str) -> bool:
+    """Heuristic: turn on web search without explicit user toggle."""
+    t = (user_text or "").lower()
+    if len(t) < 6:
+        return False
+    for y in ("2024", "2025", "2026"):
+        if y in t:
+            return True
+    needles = (
+        "latest", "news", "today", "right now", "current events", "breaking",
+        "who won", "stock price", "weather in", "release date", "announced",
+        "how much does", "what happened",
+    )
+    if any(n in t for n in needles):
+        return True
+    if "?" in user_text and len(user_text) > 12:
+        return any(
+            k in t
+            for k in ("when", "where", "who is", "what is the", "how many", "why did", "current ")
+        )
+    return False
+
+
+def _strip_html_fragment(s: str) -> str:
+    s = re.sub(r"<[^>]+>", " ", s or "")
+    return html.unescape(re.sub(r"\s+", " ", s).strip())
+
+
+def _ddg_is_ad_link(href: str) -> bool:
+    h = (href or "").lower()
+    return "duckduckgo.com/y.js" in h or "ad_provider=" in h or "ad_domain=" in h
+
+
+def _unwrap_duck_redirect(href: str) -> str:
+    href = (href or "").strip()
+    if not href:
+        return ""
+    href = html.unescape(href)
+    if href.startswith("//"):
+        href = "https:" + href
+    if "duckduckgo.com/l/?" in href or "duckduckgo.com/l?" in href:
+        try:
+            q = urllib.parse.urlparse(href).query
+            params = urllib.parse.parse_qs(q)
+            if "uddg" in params:
+                return urllib.parse.unquote(params["uddg"][0])
+        except Exception:
+            pass
+    return href
+
+
+def _local_web_search_snippets(query: str):
+    """Pyx local web search: DuckDuckGo HTML (no API keys). Returns (text, provider, error)."""
+    query = (query or "").strip()[:500]
+    if not query:
+        return "", None, "empty query"
+    max_results = 6
+    try:
+        max_results = max(1, min(int(os.environ.get("PYX_TALK_WEB_MAX_RESULTS", "6")), 12))
+    except ValueError:
+        pass
+    cap = min(max(int(os.environ.get("PYX_TALK_WEB_CONTEXT_CHARS", "8000")), 2000), 32000)
+    timeout = max(5, min(int(os.environ.get("PYX_TALK_WEB_TIMEOUT", "22")), 45))
+
+    ddg_url = (os.environ.get("PYX_TALK_WEB_HTML_URL") or "https://html.duckduckgo.com/html/").strip()
+    ua = (os.environ.get("PYX_TALK_USER_AGENT") or "").strip() or (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    )
+    form = urllib.parse.urlencode({"q": query, "b": ""}).encode("utf-8")
+    req = urllib.request.Request(
+        ddg_url,
+        data=form,
+        headers={
+            "User-Agent": ua,
+            "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Referer": "https://duckduckgo.com/",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            page = resp.read().decode("utf-8", errors="replace")
+    except Exception as e:
+        return "", "local-web", str(e)[:300]
+
+    # DDG: result__a (title+link), optional result__snippet in the same result block
+    blocks = re.findall(
+        r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>(?s:.*?)class="result__snippet"[^>]*>(.*?)</a>',
+        page,
+        re.IGNORECASE | re.DOTALL,
+    )
+    lines = []
+    for href, title_html, snip_html in blocks:
+        if _ddg_is_ad_link(href):
+            continue
+        url = _unwrap_duck_redirect(href)
+        if _ddg_is_ad_link(url):
+            continue
+        title = _strip_html_fragment(title_html)
+        snippet = _strip_html_fragment(snip_html)
+        if not title and not snippet:
+            continue
+        lines.append(f"- {title}\n  {url}\n  {snippet[:1200]}")
+        if len(lines) >= max_results:
+            break
+
+    if not lines:
+        # Fallback: titles/links only (older or alternate markup)
+        for m in re.finditer(
+            r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>',
+            page,
+            re.IGNORECASE | re.DOTALL,
+        ):
+            href = m.group(1)
+            if _ddg_is_ad_link(href):
+                continue
+            url = _unwrap_duck_redirect(href)
+            if _ddg_is_ad_link(url):
+                continue
+            title = _strip_html_fragment(m.group(2))
+            if title or url:
+                lines.append(f"- {title}\n  {url}\n  ")
+            if len(lines) >= max_results:
+                break
+
+    text = "\n".join(lines).strip()
+    if not text:
+        return "", "local-web", "no results (blocked, empty query, or page layout changed)"
+    return text[:cap], "local-web", None
+
+
+def _talk_web_snippets(query: str):
+    """Local-first web search for Pyx Talk (no third-party search API keys)."""
+    return _local_web_search_snippets(query)
+
+
+def _groq_openai_chat(messages_for_api, mode="fast", web_context=""):
     """Call OpenAI-compatible chat completions. Returns (reply_text, model_id) or raises.
     Groq requires PYX_TALK_LLM_KEY. For a custom PYX_TALK_LLM_URL (e.g. local Ollama), the key may be omitted."""
     key = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
@@ -121,7 +273,16 @@ def _groq_openai_chat(messages_for_api, mode="fast"):
     model = (os.environ.get(spec["model_env"]) or "").strip() or spec["default_model"]
     max_tokens = min(max(spec["max_tokens"], 64), 2048)
     temperature = float(spec["temperature"])
-    system_content = _TALK_SYSTEM + spec["system_suffix"]
+    web_block = ""
+    if (web_context or "").strip():
+        web_block = (
+            "\n\nThe user enabled web-backed answers. Use the search snippets below to ground facts; "
+            "prefer them over stale training data for time-sensitive topics. "
+            "Summarize clearly; name sources (site or URL) when citing. "
+            "If snippets are missing or irrelevant, say so and answer from general knowledge.\n\n"
+            "--- Web search snippets ---\n" + web_context.strip()
+        )
+    system_content = _TALK_SYSTEM + spec["system_suffix"] + web_block
     body = {
         "model": model,
         "messages": [{"role": "system", "content": system_content}] + messages_for_api,
@@ -403,7 +564,7 @@ def analyze_health_route():
 
 @app.route("/talk", methods=["POST", "OPTIONS"])
 def talk():
-    """Pyx Talk: messages go to the configured LLM; optional `score` is the Pyx score of the latest user text only."""
+    """Pyx Talk: LLM chat with optional built-in web search (`use_web`, `use_web_auto`, local HTML fetch)."""
     if request.method == "OPTIONS":
         return "", 204
     if request.method != "POST":
@@ -421,9 +582,25 @@ def talk():
         u_score = pyx.score(last_user)
     except Exception:
         pass
+
+    use_web = _as_bool(data.get("use_web"))
+    use_web_auto = _as_bool(data.get("use_web_auto"))
+    do_web = use_web or (use_web_auto and _web_auto_trigger(last_user))
+    web_meta = {"used": False, "provider": None, "error": None}
+    web_context = ""
+    if do_web:
+        snippets, provider, werr = _talk_web_snippets(last_user)
+        web_meta["used"] = True
+        web_meta["provider"] = provider
+        web_meta["error"] = werr
+        if snippets:
+            web_context = snippets
+        elif werr:
+            web_context = f"(Search note: {werr})"
+
     llm_messages = [{"role": m["role"], "content": m["content"]} for m in messages]
     try:
-        reply, model_used = _groq_openai_chat(llm_messages, mode=mode)
+        reply, model_used = _groq_openai_chat(llm_messages, mode=mode, web_context=web_context)
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", errors="replace")[:800]
         return jsonify({"error": "LLM request failed", "status": e.code, "detail": detail}), 502
@@ -444,6 +621,7 @@ def talk():
         "reply": reply,
         "model": model_used or "unknown",
         "mode": mode,
+        "web_search": web_meta,
     }
     if u_score is not None:
         out["score"] = round(u_score, 4)
