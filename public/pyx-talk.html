@@ -255,6 +255,10 @@
     .msg--rich {
       white-space: normal;
     }
+    .msg-stream {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
     .msg--rich p { margin: 0.45em 0; }
     .msg--rich p:first-child { margin-top: 0; }
     .msg--rich p:last-child { margin-bottom: 0; }
@@ -606,6 +610,67 @@
         chatEl.scrollTop = chatEl.scrollHeight;
       }
 
+      function wireAssistantLinks(container) {
+        var links = container.querySelectorAll("a[href]");
+        for (var i = 0; i < links.length; i++) {
+          links[i].setAttribute("target", "_blank");
+          links[i].setAttribute("rel", "noopener noreferrer");
+        }
+      }
+
+      /** Empty assistant bubble; call append() with token deltas, then finalize() for Markdown + links. */
+      function beginAssistantStream() {
+        var d = document.createElement("div");
+        d.className = "msg msg--bot msg--rich";
+        var inner = document.createElement("div");
+        inner.className = "msg-stream";
+        d.appendChild(inner);
+        chatEl.appendChild(d);
+        chatEl.scrollTop = chatEl.scrollHeight;
+        var full = "";
+        return {
+          append: function (t) {
+            full += t;
+            inner.textContent = full;
+            chatEl.scrollTop = chatEl.scrollHeight;
+          },
+          finalize: function () {
+            var html = renderAssistantMarkdown(full);
+            if (html !== null) {
+              d.innerHTML = html;
+              wireAssistantLinks(d);
+            } else {
+              d.textContent = full;
+            }
+            chatEl.scrollTop = chatEl.scrollHeight;
+            return full;
+          },
+          abort: function () {
+            if (d.parentNode) d.parentNode.removeChild(d);
+          },
+        };
+      }
+
+      function drainSseBuffer(buf, onDataObj) {
+        var i;
+        while ((i = buf.indexOf("\n\n")) >= 0) {
+          var block = buf.slice(0, i);
+          buf = buf.slice(i + 2);
+          var lines = block.split(/\r?\n/);
+          for (var li = 0; li < lines.length; li++) {
+            var L = lines[li];
+            if (L.indexOf("data: ") !== 0) continue;
+            var raw = L.slice(6);
+            try {
+              onDataObj(JSON.parse(raw));
+            } catch (e) {
+              /* ignore malformed chunk */
+            }
+          }
+        }
+        return buf;
+      }
+
       function setBusy(b) {
         sendBtn.disabled = b;
         inputEl.disabled = b;
@@ -638,40 +703,97 @@
             mode: mode,
             use_web: useWeb,
             use_web_auto: useWebAuto,
+            stream: true,
           }),
         })
-          .then(function (r) {
-            return r.text().then(function (t) {
-              var j;
-              try { j = JSON.parse(t); } catch (e) { j = { error: t }; }
-              return { ok: r.ok, j: j, status: r.status };
+          .then(function (res) {
+            if (!res.ok) {
+              return res.text().then(function (t) {
+                var j;
+                try { j = JSON.parse(t); } catch (e) { j = { error: t }; }
+                var errLine = [j.error, typeof j.detail === "string" ? j.detail : j.detail ? JSON.stringify(j.detail) : ""]
+                  .filter(Boolean)
+                  .join(" — ");
+                statusEl.textContent = "Error: " + (errLine || "HTTP " + res.status);
+                messages.pop();
+                if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
+              });
+            }
+            if (!res.body || !res.body.getReader) {
+              statusEl.textContent = "This browser can’t read a streaming response.";
+              messages.pop();
+              if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
+              return;
+            }
+            var reader = res.body.getReader();
+            var dec = new TextDecoder();
+            var buf = "";
+            var streamer = beginAssistantStream();
+            var aborted = false;
+            var metaHandled = false;
+
+            function onStreamEvent(evt) {
+              if (evt.type === "meta") {
+                if (metaHandled) return;
+                metaHandled = true;
+                if (evt.bad) {
+                  aborted = true;
+                  streamer.abort();
+                  if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
+                  messages.pop();
+                  addBubble(
+                    (evt.censored || text) + "\n\n(That message didn’t pass Pyx moderation.)",
+                    "bot",
+                    "msg--bad"
+                  );
+                  statusEl.textContent = "Blocked by moderator.";
+                  return;
+                }
+                var modeLabel = evt.mode ? evt.mode.charAt(0).toUpperCase() + evt.mode.slice(1) : "";
+                var m = [modeLabel, evt.model ? evt.model : ""].filter(Boolean).join(" · ");
+                if (evt.web_search && evt.web_search.used && evt.web_search.provider) {
+                  m = [m, "web:" + evt.web_search.provider].filter(Boolean).join(" · ");
+                }
+                statusEl.textContent = m || "";
+                return;
+              }
+              if (aborted) return;
+              if (evt.type === "delta" && evt.t) {
+                streamer.append(evt.t);
+              } else if (evt.type === "error") {
+                aborted = true;
+                streamer.abort();
+                if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
+                messages.pop();
+                var emsg = [evt.message, evt.detail].filter(Boolean).join(" — ");
+                statusEl.textContent = "Error: " + (emsg || "stream failed");
+              }
+            }
+
+            function readLoop() {
+              return reader.read().then(function (rd) {
+                if (aborted) return;
+                if (rd.done) {
+                  buf = drainSseBuffer(buf, onStreamEvent);
+                  if (!aborted) {
+                    var reply = streamer.finalize();
+                    messages.push({ role: "assistant", content: reply });
+                  }
+                  return;
+                }
+                buf += dec.decode(rd.value, { stream: true });
+                buf = drainSseBuffer(buf, onStreamEvent);
+                if (aborted) return;
+                return readLoop();
+              });
+            }
+            return readLoop().catch(function (e) {
+              if (aborted) return;
+              streamer.abort();
+              if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
+              messages.pop();
+              statusEl.textContent = "Network: " + (e.message || String(e));
             });
-          })
-          .then(function (x) {
-            if (!x.ok) {
-              var errLine = [x.j.error, typeof x.j.detail === "string" ? x.j.detail : x.j.detail ? JSON.stringify(x.j.detail) : ""]
-                .filter(Boolean)
-                .join(" — ");
-              statusEl.textContent = "Error: " + (errLine || "HTTP " + x.status);
-              messages.pop();
-              chatEl.removeChild(chatEl.lastChild);
-              return;
-            }
-            if (x.j.bad) {
-              addBubble((x.j.censored || text) + "\n\n(That message didn’t pass Pyx moderation.)", "bot", "msg--bad");
-              messages.pop();
-              statusEl.textContent = "Blocked by moderator.";
-              return;
-            }
-            var reply = x.j.reply || "";
-            messages.push({ role: "assistant", content: reply });
-            addBubble(reply, "bot");
-            var modeLabel = x.j.mode ? x.j.mode.charAt(0).toUpperCase() + x.j.mode.slice(1) : "";
-            var m = [modeLabel, x.j.model ? x.j.model : ""].filter(Boolean).join(" · ");
-            if (x.j.web_search && x.j.web_search.used && x.j.web_search.provider) {
-              m = [m, "web:" + x.j.web_search.provider].filter(Boolean).join(" · ");
-            }
-            statusEl.textContent = m || "";
           })
           .catch(function (e) {
             statusEl.textContent = "Network: " + (e.message || String(e));

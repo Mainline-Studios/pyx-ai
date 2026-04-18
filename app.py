@@ -15,7 +15,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
 
 from Pyx_ai_moderator import PyxAI, BAN_LINE, censor_letters
 from Pyx_ai_code import complete as code_complete, explain as code_explain, refactor as code_refactor, health as code_health
@@ -358,15 +358,14 @@ def _enhance_talk_search_query(user_text: str) -> str:
     return f"{q} {year}".strip()
 
 
-def _groq_openai_chat(messages_for_api, mode="fast", web_context="", ground_web=False):
-    """Call OpenAI-compatible chat completions. Returns (reply_text, model_id) or raises.
-    Groq requires PYX_TALK_LLM_KEY. For a custom PYX_TALK_LLM_URL (e.g. local Ollama), the key may be omitted."""
+def _groq_openai_prepare(messages_for_api, mode="fast", web_context="", ground_web=False):
+    """Build shared OpenAI-compatible chat request pieces. Returns None if Groq is selected but no API key."""
     key = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
     url = os.environ.get("PYX_TALK_LLM_URL", _GROQ_CHAT_COMPLETIONS_URL).strip()
     url_norm = url.rstrip("/").lower()
     groq_norm = _GROQ_CHAT_COMPLETIONS_URL.rstrip("/").lower()
     if not key and url_norm == groq_norm:
-        return None, None
+        return None
     spec = _TALK_MODE_SPECS.get(mode) or _TALK_MODE_SPECS["fast"]
     model = (os.environ.get(spec["model_env"]) or "").strip() or spec["default_model"]
     max_tokens = min(max(spec["max_tokens"], 64), 2048)
@@ -402,25 +401,16 @@ def _groq_openai_chat(messages_for_api, mode="fast", web_context="", ground_web=
         "max_tokens": max_tokens,
         "temperature": temperature,
     }
-    # Groq sits behind Cloudflare; missing User-Agent triggers error 1010 (blocked as bot).
     ua = (os.environ.get("PYX_TALK_USER_AGENT") or "").strip() or (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
     )
     headers = {
         "Content-Type": "application/json",
-        "Accept": "application/json",
         "User-Agent": ua,
     }
     if key:
         headers["Authorization"] = "Bearer " + key
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(body).encode("utf-8"),
-        headers=headers,
-        method="POST",
-    )
-    # Fast mode: shorter default; local models may need PYX_TALK_TIMEOUT=180+.
     timeout_s = 32 if mode == "fast" else 90
     if url_norm != groq_norm:
         timeout_s = max(timeout_s, 120)
@@ -429,7 +419,63 @@ def _groq_openai_chat(messages_for_api, mode="fast", web_context="", ground_web=
         timeout_s = max(8, min(int(os.environ.get("PYX_TALK_TIMEOUT", str(timeout_s))), cap))
     except ValueError:
         pass
-    with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+    return {
+        "url": url,
+        "headers": headers,
+        "body": body,
+        "model": model,
+        "timeout_s": timeout_s,
+    }
+
+
+def _groq_openai_stream_deltas(prep):
+    """Stream assistant content tokens from OpenAI-compatible SSE. Yields str fragments."""
+    if prep is None:
+        return
+    body = {**prep["body"], "stream": True}
+    headers = {**prep["headers"], "Accept": "text/event-stream"}
+    req = urllib.request.Request(
+        prep["url"],
+        data=json.dumps(body).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=prep["timeout_s"]) as resp:
+        while True:
+            raw = resp.readline()
+            if not raw:
+                break
+            line = raw.decode("utf-8", errors="replace").strip()
+            if not line.startswith("data: "):
+                continue
+            payload = line[6:].strip()
+            if payload == "[DONE]":
+                break
+            try:
+                obj = json.loads(payload)
+            except json.JSONDecodeError:
+                continue
+            for ch in obj.get("choices") or []:
+                delta = ch.get("delta") or {}
+                piece = delta.get("content")
+                if piece:
+                    yield piece
+
+
+def _groq_openai_chat(messages_for_api, mode="fast", web_context="", ground_web=False):
+    """Call OpenAI-compatible chat completions. Returns (reply_text, model_id) or raises.
+    Groq requires PYX_TALK_LLM_KEY. For a custom PYX_TALK_LLM_URL (e.g. local Ollama), the key may be omitted."""
+    prep = _groq_openai_prepare(messages_for_api, mode, web_context, ground_web)
+    if prep is None:
+        return None, None
+    headers = {**prep["headers"], "Accept": "application/json"}
+    req = urllib.request.Request(
+        prep["url"],
+        data=json.dumps(prep["body"]).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=prep["timeout_s"]) as resp:
         data = json.loads(resp.read().decode("utf-8"))
     choices = data.get("choices") or []
     if not choices:
@@ -438,7 +484,7 @@ def _groq_openai_chat(messages_for_api, mode="fast", web_context="", ground_web=
     content = (msg.get("content") or "").strip()
     if not content:
         raise ValueError("empty LLM content")
-    return content, model
+    return content, prep["model"]
 
 # Optional API key auth: if set, requests must include a valid key
 _API_KEYS: set = set()
@@ -675,6 +721,10 @@ def analyze_health_route():
     return jsonify({"service": "pyx_analyze", "status": "ok", "version": analyze_version})
 
 
+def _talk_sse_event(obj: dict) -> str:
+    return "data: " + json.dumps(obj, ensure_ascii=False) + "\n\n"
+
+
 @app.route("/talk", methods=["POST", "OPTIONS"])
 def talk():
     """Pyx Talk: LLM chat with optional built-in web search (`use_web`, `use_web_auto`, local HTML fetch)."""
@@ -698,6 +748,7 @@ def talk():
 
     use_web = _as_bool(data.get("use_web"))
     use_web_auto = _as_bool(data.get("use_web_auto"))
+    want_stream = _as_bool(data.get("stream"))
     # Space / mission questions: always search so answers aren’t stuck at training cutoff.
     do_web = use_web or (use_web_auto and _web_auto_trigger(last_user)) or _needs_live_web(last_user)
     web_meta = {"used": False, "provider": None, "error": None}
@@ -719,6 +770,58 @@ def talk():
         web_context.strip()
         and not web_context.strip().lower().startswith("(search note:")
     )
+
+    if want_stream:
+        prep = _groq_openai_prepare(llm_messages, mode, web_context, ground_web)
+
+        def generate():
+            meta = {"type": "meta", "mode": mode, "web_search": web_meta, "bad": False}
+            if prep:
+                meta["model"] = prep["model"]
+            else:
+                meta["model"] = "pyx-fallback"
+            if u_score is not None:
+                meta["score"] = round(u_score, 4)
+            yield _talk_sse_event(meta)
+            if prep is None:
+                fb = (
+                    "Hi — I’m Pyx Talk. No LLM is configured for this server yet. "
+                    "For Groq, set PYX_TALK_LLM_KEY. For a local OpenAI-compatible API (e.g. Ollama), "
+                    "set PYX_TALK_LLM_URL to your /v1/chat/completions endpoint (key optional). "
+                    "If the API runs on your computer, run Pyx there too or use a tunnel — Cloud Run cannot reach your localhost."
+                )
+                yield _talk_sse_event({"type": "delta", "t": fb})
+                yield _talk_sse_event({"type": "done", "model": "pyx-fallback"})
+                return
+            try:
+                for piece in _groq_openai_stream_deltas(prep):
+                    yield _talk_sse_event({"type": "delta", "t": piece})
+                yield _talk_sse_event({"type": "done", "model": prep["model"]})
+            except urllib.error.HTTPError as e:
+                detail = e.read().decode("utf-8", errors="replace")[:800]
+                yield _talk_sse_event(
+                    {
+                        "type": "error",
+                        "message": "LLM request failed",
+                        "status": e.code,
+                        "detail": detail,
+                    }
+                )
+            except urllib.error.URLError as e:
+                yield _talk_sse_event({"type": "error", "message": "LLM network error", "detail": str(e.reason)})
+            except Exception as e:
+                yield _talk_sse_event({"type": "error", "message": str(e)})
+
+        return Response(
+            stream_with_context(generate()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+            },
+        )
+
     try:
         reply, model_used = _groq_openai_chat(
             llm_messages,
