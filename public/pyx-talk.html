@@ -5,60 +5,358 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Pyx AI Talk</title>
   <style>
-    body { font-family: Georgia, "Times New Roman", Times, serif; background: #fff; color: #000; margin: 16px; line-height: 1.45; max-width: 42em; }
-    p { margin: 0.65em 0; }
-    a { color: #00e; }
-    #chat {
-      border: 1px solid #000;
-      min-height: 220px;
-      max-height: 420px;
-      overflow-y: auto;
-      padding: 10px;
-      margin: 12px 0;
-      background: #fafafa;
+    :root {
+      --bg: #eef0f4;
+      --bg-mesh: radial-gradient(1200px 600px at 10% -10%, rgba(99, 102, 241, 0.12), transparent 50%),
+        radial-gradient(900px 500px at 100% 0%, rgba(14, 165, 233, 0.1), transparent 45%),
+        var(--bg);
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --border: rgba(15, 23, 42, 0.08);
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --accent: #0ea5e9;
+      --user-bg: linear-gradient(135deg, #4f46e5 0%, #6366f1 48%, #0ea5e9 100%);
+      --user-fg: #fff;
+      --bot-bg: #f1f5f9;
+      --bot-border: rgba(15, 23, 42, 0.06);
+      --bad-bg: #fef2f2;
+      --bad-border: rgba(220, 38, 38, 0.2);
+      --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 40px -12px rgba(15, 23, 42, 0.12);
+      --radius: 14px;
+      --radius-sm: 10px;
+      --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
-    .msg { margin: 8px 0; padding: 6px 8px; border-radius: 4px; }
-    .msg--user { background: #e0e7ff; margin-left: 12%; }
-    .msg--bot { background: #f1f5f9; margin-right: 12%; }
-    .msg--bad { background: #fee2e2; }
-    #composer { display: flex; gap: 8px; margin-top: 8px; align-items: flex-end; }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b0f17;
+        --bg-mesh: radial-gradient(1200px 600px at 10% -10%, rgba(99, 102, 241, 0.18), transparent 50%),
+          radial-gradient(900px 500px at 100% 0%, rgba(14, 165, 233, 0.12), transparent 45%),
+          var(--bg);
+        --surface: #121826;
+        --surface-2: #1a2234;
+        --border: rgba(148, 163, 184, 0.12);
+        --text: #f1f5f9;
+        --muted: #94a3b8;
+        --primary: #818cf8;
+        --primary-hover: #a5b4fc;
+        --accent: #38bdf8;
+        --user-bg: linear-gradient(135deg, #4f46e5 0%, #6366f1 45%, #0891b2 100%);
+        --bot-bg: #1a2234;
+        --bot-border: rgba(148, 163, 184, 0.12);
+        --bad-bg: rgba(127, 29, 29, 0.25);
+        --bad-border: rgba(248, 113, 113, 0.35);
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 20px 50px -15px rgba(0, 0, 0, 0.45);
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.55;
+      color: var(--text);
+      background: var(--bg-mesh);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 24px 18px 48px;
+    }
+
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .home {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .home:hover {
+      color: var(--primary);
+      border-color: rgba(79, 70, 229, 0.25);
+    }
+
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--primary);
+      background: rgba(79, 70, 229, 0.1);
+      padding: 5px 10px;
+      border-radius: 999px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .badge { background: rgba(129, 140, 248, 0.15); }
+    }
+
+    h1 {
+      font-size: 1.65rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin: 0 0 8px;
+    }
+
+    .lede {
+      margin: 0 0 22px;
+      font-size: 14px;
+      color: var(--muted);
+      max-width: 48ch;
+    }
+    .lede strong { color: var(--text); font-weight: 600; }
+
+    .panel {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      padding: 20px 18px 18px;
+    }
+
+    .mode-row {
+      border: none;
+      margin: 0 0 18px;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .mode-row legend {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0;
+    }
+    .mode-inner {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 4px;
+      border-radius: 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+    }
+    .mode-option {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+    }
+    .mode-option input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .mode-option span {
+      display: block;
+      text-align: center;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 9px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    }
+    .mode-option input:focus-visible + span {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+    .mode-option input:checked + span {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    }
+    @media (prefers-color-scheme: dark) {
+      .mode-option input:checked + span {
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+      }
+    }
+
+    #chat {
+      min-height: 280px;
+      max-height: min(52vh, 440px);
+      overflow-y: auto;
+      padding: 14px 12px;
+      margin: 0 0 16px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scroll-behavior: smooth;
+    }
+    #chat::-webkit-scrollbar { width: 8px; }
+    #chat::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 99px;
+    }
+
+    .msg {
+      max-width: 92%;
+      padding: 12px 14px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg--user {
+      align-self: flex-end;
+      background: var(--user-bg);
+      color: var(--user-fg);
+      border-bottom-right-radius: 5px;
+      box-shadow: 0 4px 14px -4px rgba(79, 70, 229, 0.45);
+    }
+    .msg--bot {
+      align-self: flex-start;
+      background: var(--bot-bg);
+      color: var(--text);
+      border: 1px solid var(--bot-border);
+      border-bottom-left-radius: 5px;
+    }
+    .msg--bad {
+      align-self: flex-start;
+      background: var(--bad-bg);
+      border: 1px solid var(--bad-border);
+      color: var(--text);
+      border-bottom-left-radius: 5px;
+    }
+
+    #composer {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
     #composer textarea {
       flex: 1;
-      min-height: 3.2em;
+      min-height: 52px;
+      max-height: 160px;
       resize: vertical;
       font-family: inherit;
-      padding: 8px;
-      border: 1px solid #000;
-      box-sizing: border-box;
+      font-size: 14px;
+      line-height: 1.45;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-    button { font-family: inherit; padding: 8px 14px; cursor: pointer; }
-    .small { font-size: 0.85em; color: #333; }
-    .mode-row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 10px 0 6px; }
-    .mode-row legend { font-size: 0.95em; padding: 0 6px 0 0; margin: 0; font-weight: normal; }
-    .mode-option { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.95em; }
-    .mode-option input { margin: 0; }
+    #composer textarea::placeholder { color: var(--muted); opacity: 0.85; }
+    #composer textarea:hover { border-color: rgba(79, 70, 229, 0.2); }
+    #composer textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
+    }
+
+    #send {
+      flex-shrink: 0;
+      padding: 12px 20px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      background: var(--primary);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s, opacity 0.15s;
+      box-shadow: 0 4px 14px -3px rgba(79, 70, 229, 0.55);
+    }
+    #send:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+    #send:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+    #send:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    #status {
+      margin: 14px 2px 0;
+      min-height: 1.25em;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    #status:empty { margin-top: 8px; }
   </style>
 </head>
 <body>
-  <p><a href="/">Home</a></p>
-  <h1 style="font-size:1.25em;font-weight:normal;margin:0 0 0.5em;">Pyx AI Talk</h1>
-  <p class="small">
-    <strong>Fast</strong>, <strong>Smart</strong>, or <strong>Thinking</strong> (Llama on Groq). Assistant replies are checked so Pyx won’t send inappropriate answers.
-  </p>
+  <div class="page">
+    <div class="top">
+      <a class="home" href="/">← Home</a>
+      <span class="badge">Llama · Groq</span>
+    </div>
 
-  <fieldset class="mode-row" id="modeField">
-    <legend>Mode</legend>
-    <label class="mode-option"><input type="radio" name="talkMode" value="fast" checked /> Fast</label>
-    <label class="mode-option"><input type="radio" name="talkMode" value="smart" /> Smart</label>
-    <label class="mode-option"><input type="radio" name="talkMode" value="thinking" /> Thinking</label>
-  </fieldset>
+    <h1>Pyx AI Talk</h1>
+    <p class="lede">
+      <strong>Fast</strong>, <strong>Smart</strong>, or <strong>Thinking</strong> — powered by Llama on Groq.
+      Assistant replies are safety-checked.
+    </p>
 
-  <div id="chat" aria-live="polite"></div>
-  <div id="composer">
-    <textarea id="input" placeholder="Message…" rows="3"></textarea>
-    <button type="button" id="send">Send</button>
+    <div class="panel">
+      <fieldset class="mode-row" id="modeField">
+        <legend>Mode</legend>
+        <div class="mode-inner">
+          <label class="mode-option">
+            <input type="radio" name="talkMode" value="fast" checked />
+            <span>Fast</span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="talkMode" value="smart" />
+            <span>Smart</span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="talkMode" value="thinking" />
+            <span>Thinking</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <div id="chat" aria-live="polite"></div>
+
+      <div id="composer">
+        <textarea id="input" placeholder="Write a message…" rows="3" aria-label="Message"></textarea>
+        <button type="button" id="send">Send</button>
+      </div>
+    </div>
+
+    <p class="small" id="status"></p>
   </div>
-  <p class="small" id="status"></p>
 
   <script>
     (function () {
