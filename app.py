@@ -389,7 +389,8 @@ def analyze_health_route():
 
 @app.route("/talk", methods=["POST", "OPTIONS"])
 def talk():
-    """Moderated chat: user messages are scored; assistant reply via Llama-class model (Groq-compatible) if configured."""
+    """Pyx Talk: user text is not blocked by Pyx (still scored for `score` in the response).
+    Assistant replies are scored; inappropriate model output is replaced with a safe message."""
     if request.method == "OPTIONS":
         return "", 204
     if request.method != "POST":
@@ -402,19 +403,11 @@ def talk():
     if err:
         return jsonify({"error": err}), 400
     last_user = messages[-1]["content"]
+    u_score = None
     try:
         u_score = pyx.score(last_user)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    if pyx.memory.is_banned(u_score):
-        return jsonify({
-            "bad": True,
-            "score": round(u_score, 4),
-            "censored": censor_letters(last_user),
-            "reply": None,
-            "model": None,
-            "mode": mode,
-        })
+    except Exception:
+        pass
     llm_messages = [{"role": m["role"], "content": m["content"]} for m in messages]
     try:
         reply, model_used = _groq_openai_chat(llm_messages, mode=mode)
@@ -427,26 +420,31 @@ def talk():
         return jsonify({"error": str(e)}), 502
     if reply is None:
         reply = (
-            "Hi — I’m Pyx Talk. Your message passed moderation. "
+            "Hi — I’m Pyx Talk. "
             "Llama isn’t wired up on this server yet: set PYX_TALK_LLM_KEY (e.g. Groq) "
             "and optional PYX_TALK_MODEL on the Pyx API (Cloud Run) to get full replies."
         )
         model_used = "pyx-fallback"
+    reply_blocked = False
     try:
         r_score = pyx.score(reply)
         if pyx.memory.is_banned(r_score):
+            reply_blocked = True
             reply = (
                 "I’d rather not send that answer. Could you ask in a different way?"
             )
     except Exception:
         pass
-    return jsonify({
+    out = {
         "bad": False,
-        "score": round(u_score, 4),
         "reply": reply,
         "model": model_used or "unknown",
         "mode": mode,
-    })
+        "reply_moderated": reply_blocked,
+    }
+    if u_score is not None:
+        out["score"] = round(u_score, 4)
+    return jsonify(out)
 
 
 @app.route("/analyze", methods=["POST", "OPTIONS"])

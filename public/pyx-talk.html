@@ -43,7 +43,7 @@
   <p><a href="/">Home</a></p>
   <h1 style="font-size:1.25em;font-weight:normal;margin:0 0 0.5em;">Pyx AI Talk</h1>
   <p class="small">
-    <strong>Fast</strong>, <strong>Smart</strong>, or <strong>Thinking</strong> (Llama on Groq). Messages and replies are moderated.
+    <strong>Fast</strong>, <strong>Smart</strong>, or <strong>Thinking</strong> (Llama on Groq). Assistant replies are checked so Pyx won’t send inappropriate answers.
   </p>
 
   <fieldset class="mode-row" id="modeField">
@@ -142,6 +142,7 @@
             addBubble(reply, "bot");
             var modeLabel = x.j.mode ? x.j.mode.charAt(0).toUpperCase() + x.j.mode.slice(1) : "";
             var m = [modeLabel, x.j.model ? x.j.model : ""].filter(Boolean).join(" · ");
+            if (x.j.reply_moderated) m = (m ? m + " · " : "") + "Reply adjusted for safety";
             statusEl.textContent = m || "";
           })
           .catch(function (e) {
@@ -163,7 +164,7 @@
       });
 
       addBubble(
-        "Hi! Pick a mode, then type below — Pyx keeps things safe.",
+        "Hi! Pick a mode, then type below — replies are safety-checked.",
         "bot"
       );
     })();
