@@ -161,7 +161,7 @@ def complete(prompt: str, max_tokens: int = 256, language: Optional[str] = None,
             if callable(suffix):
                 try:
                     add = suffix(m, base)
-                except Exception:
+            except Exception:
                     add = "\n  \n"
             else:
                 add = suffix

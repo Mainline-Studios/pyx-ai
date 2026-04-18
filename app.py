@@ -488,6 +488,115 @@ def _groq_openai_chat(messages_for_api, mode="fast", web_context="", ground_web=
         raise ValueError("empty LLM content")
     return content, prep["model"]
 
+
+# --- Pyx pixel art (LLM emits a small grid; upscaled to 100×100 for export / UI) ---
+_PIXEL_LINE_RE = re.compile(r"^\s*px(\d+)\s*=\s*#([0-9A-Fa-f]{6})\s*$", re.I | re.M)
+
+
+def _parse_px_lines(text: str, n_expected: int):
+    """Parse pxK=#RRGGBB lines; fill missing indices by carrying the last color."""
+    found = {}
+    for m in _PIX_LINE_RE.finditer(text or ""):
+        try:
+            idx = int(m.group(1))
+        except ValueError:
+            continue
+        hx = "#" + m.group(2).upper()
+        if 1 <= idx <= n_expected:
+            found[idx] = hx
+    out = []
+    last = "#2D2D2D"
+    for i in range(1, n_expected + 1):
+        if i in found:
+            last = found[i]
+        out.append(last)
+    return out
+
+
+def _upscale_nearest(px: list, gw: int, gh: int, W: int, H: int):
+    """Nearest-neighbor upscale row-major grid gw×gh → W×H."""
+    out = []
+    for Y in range(H):
+        for X in range(W):
+            sx = min(gw - 1, (X * gw) // W) if W else 0
+            sy = min(gh - 1, (Y * gh) // H) if H else 0
+            out.append(px[sy * gw + sx])
+    return out
+
+
+def _groq_pixel_art_completion(user_prompt: str, gen_w: int, gen_h: int):
+    """Single non-streaming completion for pixel-line output. Returns (text, model) or (None, None)."""
+    key = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
+    url = os.environ.get("PYX_TALK_LLM_URL", _GROQ_CHAT_COMPLETIONS_URL).strip()
+    url_norm = url.rstrip("/").lower()
+    groq_norm = _GROQ_CHAT_COMPLETIONS_URL.rstrip("/").lower()
+    if not key and url_norm == groq_norm:
+        return None, None
+    n = gen_w * gen_h
+    model = (os.environ.get("PYX_PIXEL_MODEL") or "").strip() or "llama-3.1-8b-instant"
+    try:
+        max_tokens = int(os.environ.get("PYX_PIXEL_MAX_TOKENS", "12000"))
+    except ValueError:
+        max_tokens = 12000
+    max_tokens = max(512, min(max_tokens, 16384))
+    try:
+        temperature = float(os.environ.get("PYX_PIXEL_TEMPERATURE", "0.35"))
+    except ValueError:
+        temperature = 0.35
+    temperature = max(0.1, min(temperature, 0.9))
+    system = (
+        "You are a pixel-art engine. Output ONLY pixel color lines — no markdown fences, no explanations, no blank lines "
+        f"before or after the data. The grid is exactly {gen_w} columns × {gen_h} rows ({n} pixels), row-major: "
+        "px1 is top-left, px2 is one step right on the same row, and so on. "
+        f"Emit EXACTLY {n} lines. Line format MUST be: pxK=#RRGGBB (uppercase hex, six digits). "
+        f"K runs from 1 to {n} inclusive in order. "
+        f"Subject / scene to draw: interpret the user’s request vividly but keep the output strictly to those {n} lines."
+    )
+    body = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": (user_prompt or "abstract pattern").strip()[:2000]},
+        ],
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+    ua = (os.environ.get("PYX_TALK_USER_AGENT") or "").strip() or (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    )
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": ua,
+    }
+    if key:
+        headers["Authorization"] = "Bearer " + key
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    timeout_s = 90
+    if url_norm != groq_norm:
+        timeout_s = 180
+    try:
+        timeout_s = max(20, min(int(os.environ.get("PYX_PIXEL_TIMEOUT", str(timeout_s))), 300))
+    except ValueError:
+        pass
+    with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    choices = data.get("choices") or []
+    if not choices:
+        raise ValueError("LLM returned no choices")
+    msg = choices[0].get("message") or {}
+    content = (msg.get("content") or "").strip()
+    if not content:
+        raise ValueError("empty LLM content")
+    return content, model
+
+
 # Optional API key auth: if set, requests must include a valid key
 _API_KEYS: set = set()
 _raw = os.environ.get("PYX_API_KEY") or os.environ.get("PYX_API_KEYS") or ""
@@ -545,6 +654,7 @@ def health():
             "pyx_check": "ok",
             "pyx_analyze": "ok",
             "pyx_talk": "ok",
+            "pyx_pixel_art": "ok",
             "firebase": "connected" if firebase_connected else "offline",
         },
         "firebase_connected": firebase_connected,
@@ -856,6 +966,68 @@ def talk():
     if u_score is not None:
         out["score"] = round(u_score, 4)
     return jsonify(out)
+
+
+@app.route("/pixel_art", methods=["POST", "OPTIONS"])
+def pixel_art():
+    """LLM draws a small grid (pxK=#RRGGBB); server upscales to 100×100 (configurable) for JSON + UI."""
+    if request.method == "OPTIONS":
+        return "", 204
+    if request.method != "POST":
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.get_json(silent=True) or {}
+    prompt = data.get("prompt") or data.get("q") or ""
+    if not isinstance(prompt, str) or not prompt.strip():
+        return jsonify({"error": '"prompt" must be a non-empty string'}), 400
+    try:
+        gw = int(os.environ.get("PYX_PIXEL_GEN_W", os.environ.get("PYX_PIXEL_GEN_GRID", "20")))
+    except ValueError:
+        gw = 20
+    try:
+        gh = int(os.environ.get("PYX_PIXEL_GEN_H", str(gw)))
+    except ValueError:
+        gh = gw
+    gw = max(8, min(gw, 64))
+    gh = max(8, min(gh, 64))
+    try:
+        out_w = int(os.environ.get("PYX_PIXEL_OUT_W", "100"))
+        out_h = int(os.environ.get("PYX_PIXEL_OUT_H", "100"))
+    except ValueError:
+        out_w, out_h = 100, 100
+    out_w = max(16, min(out_w, 256))
+    out_h = max(16, min(out_h, 256))
+
+    try:
+        raw, model_used = _groq_pixel_art_completion(prompt.strip(), gw, gh)
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[:800]
+        return jsonify({"error": "LLM request failed", "status": e.code, "detail": detail}), 502
+    except urllib.error.URLError as e:
+        return jsonify({"error": "LLM network error", "detail": str(e.reason)}), 502
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+    if raw is None:
+        return jsonify(
+            {
+                "error": "No LLM configured for pixel art. Set PYX_TALK_LLM_KEY (optional: PYX_PIXEL_MODEL, PYX_TALK_LLM_URL).",
+            }
+        ), 503
+
+    n = gw * gh
+    base_px = _parse_px_lines(raw, n)
+    pixels = _upscale_nearest(base_px, gw, gh, out_w, out_h)
+    return jsonify(
+        {
+            "ok": True,
+            "pixels": pixels,
+            "width": out_w,
+            "height": out_h,
+            "gen_w": gw,
+            "gen_h": gh,
+            "model": model_used or "unknown",
+        }
+    )
 
 
 @app.route("/analyze", methods=["POST", "OPTIONS"])
