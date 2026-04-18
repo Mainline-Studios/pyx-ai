@@ -323,6 +323,36 @@
     }
     .msg--rich th { background: rgba(15, 23, 42, 0.04); }
 
+    .msg-reasoning {
+      margin: 0 0 0.85em;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.04);
+      overflow: hidden;
+    }
+    .msg-reasoning-summary {
+      cursor: pointer;
+      font-size: 0.88em;
+      font-weight: 600;
+      padding: 8px 12px;
+      color: var(--muted);
+      list-style: none;
+      user-select: none;
+    }
+    .msg-reasoning-summary::-webkit-details-marker { display: none; }
+    .msg-reasoning[open] .msg-reasoning-summary {
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+    }
+    .msg-reasoning-body {
+      padding: 10px 12px 12px;
+      font-size: 0.92em;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .msg-reasoning-body p:first-child { margin-top: 0; }
+    .msg-reasoning-body p:last-child { margin-bottom: 0; }
+
     #composer {
       display: flex;
       gap: 10px;
@@ -506,16 +536,48 @@
         localStorage.setItem("pyx.talk.useWebAuto", useWebAutoEl.checked ? "1" : "0");
       });
 
+      function splitReasoningAndAnswer(text) {
+        var t = (text || "").replace(/\r\n/g, "\n");
+        var re = /\n\s*(\*\*\s*)?Answer(\s*\*\*)?\s*:\s*/i;
+        var idx = t.search(re);
+        if (idx < 0) return null;
+        var reasoning = t.slice(0, idx).trim();
+        var m = t.match(re);
+        if (!m) return null;
+        var answer = t.slice(idx + m[0].length).trim();
+        if (!reasoning || !answer) return null;
+        if (!/reasoning/i.test(reasoning.slice(0, Math.min(reasoning.length, 400)))) return null;
+        return { reasoning: reasoning, answer: answer };
+      }
+
+      function mdToSafeHtml(md) {
+        return DOMPurify.sanitize(
+          marked.parse(md || "", { breaks: true, gfm: true }),
+          {
+            USE_PROFILES: { html: true },
+            ADD_TAGS: ["details", "summary", "div"],
+            ADD_ATTR: ["class", "target", "rel"],
+          }
+        );
+      }
+
       function renderAssistantMarkdown(text) {
         if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
           return null;
         }
         try {
-          var raw = marked.parse(text || "", { breaks: true, gfm: true });
-          return DOMPurify.sanitize(raw, {
-            USE_PROFILES: { html: true },
-            ADD_ATTR: ["target"],
-          });
+          var parts = splitReasoningAndAnswer(text);
+          if (parts) {
+            return (
+              '<details class="msg-reasoning">' +
+              '<summary class="msg-reasoning-summary">Reasoning (click to expand)</summary>' +
+              '<div class="msg-reasoning-body">' +
+              mdToSafeHtml(parts.reasoning) +
+              "</div></details>" +
+              mdToSafeHtml(parts.answer)
+            );
+          }
+          return mdToSafeHtml(text || "");
         } catch (e) {
           return null;
         }

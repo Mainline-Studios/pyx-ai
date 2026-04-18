@@ -13,6 +13,7 @@ import re
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 
 from flask import Flask, request, jsonify
 
@@ -121,11 +122,57 @@ def _as_bool(v):
     return bool(v)
 
 
+def _mentions_space_or_mission(t: str) -> bool:
+    """Topics where training data is often wrong about dates / flight status."""
+    low = (t or "").lower()
+    if any(
+        x in low
+        for x in (
+            "artemis",
+            "orion",
+            "splashdown",
+            "spacex",
+            "starship",
+            "falcon heavy",
+            "falcon 9",
+            "crew dragon",
+            "dragon capsule",
+            "sls",
+            "moon mission",
+            "lunar mission",
+            "gateway",
+            "hubble",
+            "james webb",
+            "jwst",
+            "mars rover",
+            "perseverance",
+            "curiosity rover",
+        )
+    ):
+        return True
+    if "nasa" in low:
+        return True
+    if " iss" in low or low.startswith("iss ") or "international space station" in low:
+        return True
+    if re.search(r"\b(has|have)\s+.+\s+launched\b", low):
+        return True
+    if re.search(r"\b(splash(?:ed)?\s+down|splashed\s+down)\b", low):
+        return True
+    return False
+
+
+def _needs_live_web(user_text: str) -> bool:
+    """Always fetch web for these asks — training cutoffs miss crewed flight status, etc."""
+    return _mentions_space_or_mission(user_text)
+
+
 def _web_auto_trigger(user_text: str) -> bool:
     """Heuristic: turn on web search without explicit user toggle."""
     t = (user_text or "").lower()
     if len(t) < 6:
         return False
+    if _mentions_space_or_mission(user_text):
+        return True
     for y in ("2024", "2025", "2026"):
         if y in t:
             return True
@@ -260,7 +307,58 @@ def _talk_web_snippets(query: str):
     return _local_web_search_snippets(query)
 
 
-def _groq_openai_chat(messages_for_api, mode="fast", web_context=""):
+def _enhance_talk_search_query(user_text: str) -> str:
+    """Bias DuckDuckGo toward recent pages (news, games, human spaceflight, etc.)."""
+    q = (user_text or "").strip()
+    if not q:
+        return q
+    low = q.lower()
+    now = datetime.now(timezone.utc)
+    year = str(now.year)
+    prev_y = str(now.year - 1)
+    if year in q or prev_y in q:
+        return q
+
+    recency_hints = (
+        "news", "latest", "current", "today", "breaking",
+        "announcement", "released", "release", "launch", "patch", "update",
+        "dlc", "trailer", "delay", "rumor", "rumour",
+    )
+    wants_year = any(h in low for h in recency_hints) or _mentions_space_or_mission(user_text)
+
+    if not wants_year:
+        return q
+
+    if _mentions_space_or_mission(user_text):
+        mission_flight = any(
+            x in low
+            for x in (
+                "artemis",
+                "orion",
+                "splashdown",
+                "crew dragon",
+                "dragon capsule",
+                "starship",
+                "sls",
+                "moon mission",
+                "lunar mission",
+                "gateway",
+            )
+        )
+        mission_flight = mission_flight or " iss" in low or low.startswith("iss ")
+        mission_flight = mission_flight or "international space station" in low
+        mission_flight = mission_flight or re.search(r"\b(has|have)\s+.+\s+launched\b", low)
+        mission_flight = mission_flight or re.search(
+            r"\b(splash(?:ed)?\s+down|splashed\s+down)\b", low
+        )
+        if mission_flight:
+            return f"{q} {year} mission flight status".strip()
+        return f"{q} {year} latest".strip()
+
+    return f"{q} {year}".strip()
+
+
+def _groq_openai_chat(messages_for_api, mode="fast", web_context="", ground_web=False):
     """Call OpenAI-compatible chat completions. Returns (reply_text, model_id) or raises.
     Groq requires PYX_TALK_LLM_KEY. For a custom PYX_TALK_LLM_URL (e.g. local Ollama), the key may be omitted."""
     key = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
@@ -273,14 +371,29 @@ def _groq_openai_chat(messages_for_api, mode="fast", web_context=""):
     model = (os.environ.get(spec["model_env"]) or "").strip() or spec["default_model"]
     max_tokens = min(max(spec["max_tokens"], 64), 2048)
     temperature = float(spec["temperature"])
+    if ground_web:
+        try:
+            cap_t = float(os.environ.get("PYX_TALK_WEB_TEMP_CAP", "0.38"))
+        except ValueError:
+            cap_t = 0.38
+        temperature = max(0.12, min(temperature, cap_t))
     web_block = ""
-    if (web_context or "").strip():
+    ctx = (web_context or "").strip()
+    if ctx:
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         web_block = (
-            "\n\nThe user enabled web-backed answers. Use the search snippets below to ground facts; "
-            "prefer them over stale training data for time-sensitive topics. "
-            "Summarize clearly; name sources (site or URL) when citing. "
-            "If snippets are missing or irrelevant, say so and answer from general knowledge.\n\n"
-            "--- Web search snippets ---\n" + web_context.strip()
+            f"\n\nToday’s date (UTC) is {today}. The user asked for web-grounded information.\n"
+            "RULES — follow strictly:\n"
+            "1) For releases, delays, trailers, DLC, patches, and news, ONLY state facts that are directly supported by "
+            "the search snippets below. If a detail is not in the snippets, do not state it.\n"
+            "2) Do NOT supplement with memorized hype, old marketing cycles, or plausible-sounding but uncited claims from training data.\n"
+            "3) If snippets look outdated vs today’s date, or contradict each other, say that clearly and tell the user to verify on a live source.\n"
+            "4) Cite the site name or URL from the snippet for each major claim.\n"
+            "5) If snippets are empty or useless, say search didn’t return enough fresh info—do not invent a news roundup.\n"
+            "6) Human spaceflight (Artemis, Orion, Crew Dragon, ISS crews, splashdowns, etc.): do NOT guess launch, in-flight, "
+            "or recovery status from memory. Training data is often wrong here. Only state status if snippets explicitly support it "
+            "(with timing). If snippets are thin, say you can’t confirm from search alone and point to NASA / the operator’s official site.\n\n"
+            "--- Web search snippets ---\n" + ctx
         )
     system_content = _TALK_SYSTEM + spec["system_suffix"] + web_block
     body = {
@@ -585,11 +698,14 @@ def talk():
 
     use_web = _as_bool(data.get("use_web"))
     use_web_auto = _as_bool(data.get("use_web_auto"))
-    do_web = use_web or (use_web_auto and _web_auto_trigger(last_user))
+    # Space / mission questions: always search so answers aren’t stuck at training cutoff.
+    do_web = use_web or (use_web_auto and _web_auto_trigger(last_user)) or _needs_live_web(last_user)
     web_meta = {"used": False, "provider": None, "error": None}
     web_context = ""
     if do_web:
-        snippets, provider, werr = _talk_web_snippets(last_user)
+        search_query = _enhance_talk_search_query(last_user)
+        web_meta["query"] = search_query
+        snippets, provider, werr = _talk_web_snippets(search_query)
         web_meta["used"] = True
         web_meta["provider"] = provider
         web_meta["error"] = werr
@@ -599,8 +715,17 @@ def talk():
             web_context = f"(Search note: {werr})"
 
     llm_messages = [{"role": m["role"], "content": m["content"]} for m in messages]
+    ground_web = bool(
+        web_context.strip()
+        and not web_context.strip().lower().startswith("(search note:")
+    )
     try:
-        reply, model_used = _groq_openai_chat(llm_messages, mode=mode, web_context=web_context)
+        reply, model_used = _groq_openai_chat(
+            llm_messages,
+            mode=mode,
+            web_context=web_context,
+            ground_web=ground_web,
+        )
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", errors="replace")[:800]
         return jsonify({"error": "LLM request failed", "status": e.code, "detail": detail}), 502
