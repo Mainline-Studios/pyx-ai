@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.js",
+    "build": "npm run build:trainer-auth",
     "build:trainer-auth": "python3 scripts/build_trainer_auth.py"
   }
 }

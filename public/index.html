@@ -5,16 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Pyx AI</title>
   <style>
-    body { font-family: Georgia, "Times New Roman", Times, serif; background: #fff; color: #000; margin: 16px; line-height: 1.45; }
+    body { font-family: Georgia, "Times New Roman", Times, serif; background: #fff; color: #000; margin: 16px; line-height: 1.45; max-width: 44em; }
     p { margin: 0.75em 0; }
     code { font-family: ui-monospace, monospace; }
     a { color: #00e; }
+    h2 { font-size: 1.05em; font-weight: normal; margin: 1.25em 0 0.35em; border-bottom: 1px solid #ccc; padding-bottom: 0.2em; }
   </style>
 </head>
 <body>
   <p>Pyx content filter API.</p>
   <p>POST <code>/api/score</code> with <code>{"text": "..."}</code> to score text. No server 24/7 — runs on demand.</p>
-  <p>TRAIN PYX HERE ➡️ <a href="/pyx-trainer-auth.html">/pyx-trainer-auth.html</a></p>
-  <p>PYX TALK (Llama chat + Pyx moderation) ➡️ <a href="/pyx-talk.html">/pyx-talk.html</a></p>
+
+  <h2>Trainer (password)</h2>
+  <p><a href="/pyx-trainer-auth.html">Open trainer gate</a> — <code>/pyx-trainer-auth.html</code></p>
+
+  <h2>Public features</h2>
+  <p><a href="/pyx-talk.html"><strong>Pyx AI Talk</strong></a> — Llama chat with Fast / Smart / Thinking modes and moderation (<code>/pyx-talk.html</code>).</p>
 </body>
 </html>

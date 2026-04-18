@@ -3,14 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pyx Talk</title>
+  <title>Pyx AI Talk</title>
   <style>
     body { font-family: Georgia, "Times New Roman", Times, serif; background: #fff; color: #000; margin: 16px; line-height: 1.45; max-width: 42em; }
     p { margin: 0.65em 0; }
-    code { font-family: ui-monospace, monospace; font-size: 0.9em; }
     a { color: #00e; }
-    label { display: block; margin-top: 0.5em; font-size: 0.95em; }
-    input[type="text"], input[type="password"] { width: 100%; max-width: 100%; box-sizing: border-box; padding: 6px; border: 1px solid #000; font-family: inherit; }
     #chat {
       border: 1px solid #000;
       min-height: 220px;
@@ -24,7 +21,6 @@
     .msg--user { background: #e0e7ff; margin-left: 12%; }
     .msg--bot { background: #f1f5f9; margin-right: 12%; }
     .msg--bad { background: #fee2e2; }
-    .meta { font-size: 0.8em; color: #444; margin-top: 4px; }
     #composer { display: flex; gap: 8px; margin-top: 8px; align-items: flex-end; }
     #composer textarea {
       flex: 1;
@@ -45,17 +41,10 @@
 </head>
 <body>
   <p><a href="/">Home</a></p>
-  <h1 style="font-size:1.25em;font-weight:normal;margin:0 0 0.5em;">Pyx Talk</h1>
+  <h1 style="font-size:1.25em;font-weight:normal;margin:0 0 0.5em;">Pyx AI Talk</h1>
   <p class="small">
-    Chat with <strong>Llama on Groq</strong> when your Pyx API has <code>PYX_TALK_LLM_KEY</code> set.
-    Choose a <strong>reasoning mode</strong> below (fast 8B · smart / thinking 70B). Every message is <strong>moderated</strong> first; bot replies are checked too.
+    <strong>Fast</strong>, <strong>Smart</strong>, or <strong>Thinking</strong> (Llama on Groq). Messages and replies are moderated.
   </p>
-
-  <label for="baseUrl">Pyx API base URL</label>
-  <input id="baseUrl" type="text" value="https://pyxaiapi-574247481583.us-central1.run.app" />
-
-  <label for="apiKey">Pyx API key (optional)</label>
-  <input id="apiKey" type="password" placeholder="if your /talk route requires it" autocomplete="off" />
 
   <fieldset class="mode-row" id="modeField">
     <legend>Mode</legend>
@@ -73,8 +62,7 @@
 
   <script>
     (function () {
-      var baseUrlEl = document.getElementById("baseUrl");
-      var apiKeyEl = document.getElementById("apiKey");
+      var PYX_TALK_API_BASE = "https://pyxaiapi-574247481583.us-central1.run.app";
       var chatEl = document.getElementById("chat");
       var inputEl = document.getElementById("input");
       var sendBtn = document.getElementById("send");
@@ -82,11 +70,7 @@
       var messages = [];
       var modeField = document.getElementById("modeField");
 
-      var savedBase = localStorage.getItem("pyx.talk.baseUrl");
-      var savedKey = localStorage.getItem("pyx.talk.apiKey");
       var savedMode = localStorage.getItem("pyx.talk.mode");
-      if (savedBase) baseUrlEl.value = savedBase;
-      if (savedKey) apiKeyEl.value = savedKey;
       if (savedMode) {
         var r = modeField.querySelector('input[name="talkMode"][value="' + savedMode + '"]');
         if (r) r.checked = true;
@@ -103,16 +87,6 @@
 
       modeField.addEventListener("change", saveMode);
 
-      function headers() {
-        var h = { "Content-Type": "application/json" };
-        var k = (apiKeyEl.value || "").trim();
-        if (k) {
-          h["X-API-Key"] = k;
-          h["Authorization"] = "Bearer " + k;
-        }
-        return h;
-      }
-
       function addBubble(text, role, extraClass) {
         var d = document.createElement("div");
         d.className = "msg msg--" + role + (extraClass ? " " + extraClass : "");
@@ -126,23 +100,10 @@
         inputEl.disabled = b;
       }
 
-      function saveCfg() {
-        localStorage.setItem("pyx.talk.baseUrl", baseUrlEl.value || "");
-        localStorage.setItem("pyx.talk.apiKey", apiKeyEl.value || "");
-      }
-
-      baseUrlEl.addEventListener("change", saveCfg);
-      apiKeyEl.addEventListener("change", saveCfg);
-
       function send() {
         var text = (inputEl.value || "").trim();
         if (!text) return;
-        var b = (baseUrlEl.value || "").replace(/\/$/, "");
-        if (!b) {
-          statusEl.textContent = "Set base URL.";
-          return;
-        }
-        saveCfg();
+        var b = PYX_TALK_API_BASE.replace(/\/$/, "");
         saveMode();
         var mode = getMode();
         inputEl.value = "";
@@ -153,7 +114,7 @@
 
         fetch(b + "/talk", {
           method: "POST",
-          headers: headers(),
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messages: messages, mode: mode }),
         })
           .then(function (r) {
@@ -202,7 +163,7 @@
       });
 
       addBubble(
-        "Hi! I’m Pyx Talk. Pick Fast, Smart, or Thinking — then type below. Pyx keeps things safe.",
+        "Hi! Pick a mode, then type below — Pyx keeps things safe.",
         "bot"
       );
     })();
