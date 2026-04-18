@@ -79,6 +79,16 @@
       gap: 12px;
       margin-bottom: 20px;
     }
+    .top-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .top-right .home--small {
+      font-size: 12px;
+      padding: 6px 12px;
+    }
 
     .home {
       display: inline-flex;
@@ -491,7 +501,10 @@
   <div class="page">
     <div class="top">
       <a class="home" href="/">← Home</a>
-      <span class="badge">Llama · Groq</span>
+      <div class="top-right">
+        <a class="home home--small" href="/pyxel-image.html">Pyxel Image</a>
+        <span class="badge">Llama · Groq</span>
+      </div>
     </div>
 
     <h1>Pyx AI Talk</h1>
