@@ -235,7 +235,13 @@
 
   <script>
     (function () {
-      var API_BASE = "https://pyxaiapi-574247481583.us-central1.run.app".replace(/\/$/, "");
+      function pyxApiPath(endpoint) {
+        var h = (typeof location !== "undefined" && location.hostname) || "";
+        if (h === "localhost" || h === "127.0.0.1" || h === "") {
+          return "https://pyxaiapi-574247481583.us-central1.run.app/" + endpoint;
+        }
+        return "/api/" + endpoint;
+      }
       var canvas = document.getElementById("pixelCanvas");
       var placeholder = document.getElementById("placeholder");
       var promptEl = document.getElementById("prompt");
@@ -311,7 +317,7 @@
         }
         generateBtn.disabled = true;
         statusEl.textContent = "Generating 100×100 pixel art…";
-        fetch(API_BASE + "/pixel_art", {
+        fetch(pyxApiPath("pixel_art"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt: p }),

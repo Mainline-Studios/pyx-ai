@@ -25,6 +25,13 @@
           "functionId": "pyxscore",
           "region": "us-central1"
         }
+      },
+      {
+        "source": "/api/**",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
       }
     ]
   }

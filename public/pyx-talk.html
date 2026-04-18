@@ -549,7 +549,13 @@
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js" crossorigin="anonymous"></script>
   <script>
     (function () {
-      var PYX_TALK_API_BASE = "https://pyxaiapi-574247481583.us-central1.run.app";
+      function pyxApiPath(endpoint) {
+        var h = (typeof location !== "undefined" && location.hostname) || "";
+        if (h === "localhost" || h === "127.0.0.1" || h === "") {
+          return "https://pyxaiapi-574247481583.us-central1.run.app/" + endpoint;
+        }
+        return "/api/" + endpoint;
+      }
       var chatEl = document.getElementById("chat");
       var inputEl = document.getElementById("input");
       var sendBtn = document.getElementById("send");
@@ -950,14 +956,13 @@
       }
 
       function sendPixelArt(fullUserLine, subject) {
-        var b = PYX_TALK_API_BASE.replace(/\/$/, "");
         saveMode();
         inputEl.value = "";
         messages.push({ role: "user", content: fullUserLine });
         addBubble(fullUserLine, "user");
         setBusy(true);
         statusEl.textContent = "Drawing 100×100 pixel art…";
-        fetch(b + "/pixel_art", {
+        fetch(pyxApiPath("pixel_art"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt: subject }),
@@ -1019,7 +1024,6 @@
           sendPixelArt(text, pixelSubject);
           return;
         }
-        var b = PYX_TALK_API_BASE.replace(/\/$/, "");
         saveMode();
         var mode = getMode();
         var useWeb = useWebEl.checked;
@@ -1037,7 +1041,7 @@
               : modeDisplayName(mode) + " — replying…";
         }
 
-        fetch(b + "/talk", {
+        fetch(pyxApiPath("talk"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

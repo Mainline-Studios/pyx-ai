@@ -838,6 +838,7 @@ def _talk_sse_event(obj: dict) -> str:
 
 
 @app.route("/talk", methods=["POST", "OPTIONS"])
+@app.route("/api/talk", methods=["POST", "OPTIONS"])
 def talk():
     """Pyx Talk: LLM chat with optional built-in web search (`use_web`, `use_web_auto`, local HTML fetch)."""
     if request.method == "OPTIONS":
@@ -969,6 +970,7 @@ def talk():
 
 
 @app.route("/pixel_art", methods=["POST", "OPTIONS"])
+@app.route("/api/pixel_art", methods=["POST", "OPTIONS"])
 def pixel_art():
     """LLM draws a small grid (pxK=#RRGGBB); server upscales to 100×100 (configurable) for JSON + UI."""
     if request.method == "OPTIONS":
