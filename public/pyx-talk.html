@@ -139,65 +139,45 @@
       padding: 20px 18px 18px;
     }
 
-    .mode-row {
-      border: none;
-      margin: 0 0 18px;
-      padding: 0;
+    .model-row {
+      margin: 0 0 16px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
     }
-    .mode-row legend {
+    .model-row label {
       font-size: 12px;
       font-weight: 600;
       letter-spacing: 0.02em;
       text-transform: uppercase;
       color: var(--muted);
-      padding: 0;
     }
-    .mode-inner {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 4px;
-      border-radius: 12px;
+    #talkMode {
+      width: 100%;
+      max-width: 100%;
+      padding: 11px 14px;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: var(--font);
+      color: var(--text);
       background: var(--surface-2);
       border: 1px solid var(--border);
-    }
-    .mode-option {
-      position: relative;
-      flex: 1;
-      min-width: 0;
-    }
-    .mode-option input {
-      position: absolute;
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-    .mode-option span {
-      display: block;
-      text-align: center;
-      padding: 10px 12px;
-      font-size: 13px;
-      font-weight: 600;
-      border-radius: 9px;
-      color: var(--muted);
+      border-radius: 12px;
       cursor: pointer;
-      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 40px;
     }
-    .mode-option input:focus-visible + span {
-      outline: 2px solid var(--primary);
-      outline-offset: 2px;
-    }
-    .mode-option input:checked + span {
-      background: var(--surface);
-      color: var(--text);
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    #talkMode:focus {
+      outline: none;
+      border-color: rgba(79, 70, 229, 0.45);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
     }
     @media (prefers-color-scheme: dark) {
-      .mode-option input:checked + span {
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+      #talkMode {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
       }
     }
 
@@ -455,29 +435,10 @@
 
     <h1>Pyx AI Talk</h1>
     <p class="lede">
-      <strong>Fast</strong>, <strong>Smart</strong>, or <strong>Thinking</strong> — Llama on Groq.
-      Optionally run <strong>built-in web search</strong> (no extra API keys), then answer with Llama.
+      Choose a <strong>Pyx Talk</strong> model — Llama on Groq. Optionally run <strong>built-in web search</strong> (no extra API keys), then answer with Llama.
     </p>
 
     <div class="panel">
-      <fieldset class="mode-row" id="modeField">
-        <legend>Mode</legend>
-        <div class="mode-inner">
-          <label class="mode-option">
-            <input type="radio" name="talkMode" value="fast" checked />
-            <span>Fast</span>
-          </label>
-          <label class="mode-option">
-            <input type="radio" name="talkMode" value="smart" />
-            <span>Smart</span>
-          </label>
-          <label class="mode-option">
-            <input type="radio" name="talkMode" value="thinking" />
-            <span>Thinking</span>
-          </label>
-        </div>
-      </fieldset>
-
       <div class="web-row" id="webRow">
         <label class="web-opt">
           <input type="checkbox" id="useWeb" />
@@ -487,6 +448,15 @@
           <input type="checkbox" id="useWebAuto" />
           <span><strong>Auto</strong> — search when the question looks time-sensitive (news, dates, “latest”, etc.).</span>
         </label>
+      </div>
+
+      <div class="model-row">
+        <label for="talkMode">Model</label>
+        <select id="talkMode" name="talkMode" aria-label="Pyx Talk model">
+          <option value="fast">Pyx Talk Mini 1.0</option>
+          <option value="smart">Pyx Talk 1.0</option>
+          <option value="thinking">Pyx Talk Reasoning 1.0</option>
+        </select>
       </div>
 
       <div id="chat" aria-live="polite"></div>
@@ -510,26 +480,38 @@
       var sendBtn = document.getElementById("send");
       var statusEl = document.getElementById("status");
       var messages = [];
-      var modeField = document.getElementById("modeField");
+      var STORAGE_MESSAGES = "pyx.talk.messages";
+      var MAX_STORE_CHARS = 450000;
+      var MAX_STORE_MESSAGES = 200;
+      var modeSelect = document.getElementById("talkMode");
       var useWebEl = document.getElementById("useWeb");
       var useWebAutoEl = document.getElementById("useWebAuto");
 
+      var MODE_LABELS = {
+        fast: "Pyx Talk Mini 1.0",
+        smart: "Pyx Talk 1.0",
+        thinking: "Pyx Talk Reasoning 1.0",
+      };
+
+      function modeDisplayName(key) {
+        return MODE_LABELS[key] || key || "";
+      }
+
       var savedMode = localStorage.getItem("pyx.talk.mode");
-      if (savedMode) {
-        var r = modeField.querySelector('input[name="talkMode"][value="' + savedMode + '"]');
-        if (r) r.checked = true;
+      if (savedMode && modeSelect.querySelector('option[value="' + savedMode + '"]')) {
+        modeSelect.value = savedMode;
       }
 
       function getMode() {
-        var sel = modeField.querySelector('input[name="talkMode"]:checked');
-        return sel ? sel.value : "fast";
+        var v = modeSelect.value;
+        return v === "smart" || v === "thinking" ? v : "fast";
       }
 
       function saveMode() {
         localStorage.setItem("pyx.talk.mode", getMode());
       }
 
-      modeField.addEventListener("change", saveMode);
+      modeSelect.addEventListener("change", saveMode);
 
       if (localStorage.getItem("pyx.talk.useWeb") === "1") useWebEl.checked = true;
       if (localStorage.getItem("pyx.talk.useWebAuto") === "1") useWebAutoEl.checked = true;
@@ -651,6 +633,49 @@
         };
       }
 
+      function loadChatFromStorage() {
+        try {
+          var raw = localStorage.getItem(STORAGE_MESSAGES);
+          if (!raw) return [];
+          var arr = JSON.parse(raw);
+          if (!Array.isArray(arr)) return [];
+          var out = [];
+          for (var i = 0; i < arr.length; i++) {
+            var m = arr[i];
+            if (
+              m &&
+              (m.role === "user" || m.role === "assistant") &&
+              typeof m.content === "string"
+            ) {
+              out.push({ role: m.role, content: m.content });
+            }
+          }
+          return out;
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function persistChat() {
+        try {
+          var trimmed = messages.slice();
+          while (trimmed.length > MAX_STORE_MESSAGES) trimmed.shift();
+          var s = JSON.stringify(trimmed);
+          while (s.length > MAX_STORE_CHARS && trimmed.length > 1) {
+            trimmed.shift();
+            s = JSON.stringify(trimmed);
+          }
+          localStorage.setItem(STORAGE_MESSAGES, s);
+        } catch (e) {
+          try {
+            var fallback = messages.slice(-24);
+            localStorage.setItem(STORAGE_MESSAGES, JSON.stringify(fallback));
+          } catch (e2) {
+            /* ignore quota */
+          }
+        }
+      }
+
       function drainSseBuffer(buf, onDataObj) {
         var i;
         while ((i = buf.indexOf("\n\n")) >= 0) {
@@ -692,7 +717,9 @@
           statusEl.textContent = "Searching the web…";
         } else {
           statusEl.textContent =
-            mode === "fast" ? "Fast reply…" : mode === "thinking" ? "Reasoning…" : "Thinking…";
+            mode === "thinking"
+              ? modeDisplayName(mode) + " — reasoning…"
+              : modeDisplayName(mode) + " — replying…";
         }
 
         fetch(b + "/talk", {
@@ -749,7 +776,7 @@
                   statusEl.textContent = "Blocked by moderator.";
                   return;
                 }
-                var modeLabel = evt.mode ? evt.mode.charAt(0).toUpperCase() + evt.mode.slice(1) : "";
+                var modeLabel = evt.mode ? modeDisplayName(evt.mode) : "";
                 var m = [modeLabel, evt.model ? evt.model : ""].filter(Boolean).join(" · ");
                 if (evt.web_search && evt.web_search.used && evt.web_search.provider) {
                   m = [m, "web:" + evt.web_search.provider].filter(Boolean).join(" · ");
@@ -801,6 +828,7 @@
             if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
           })
           .finally(function () {
+            persistChat();
             setBusy(false);
           });
       }
@@ -813,10 +841,22 @@
         }
       });
 
-      addBubble(
-        "Hi! Pick a mode (and optional web search), then type below.",
-        "bot"
-      );
+      (function initChatHistory() {
+        var loaded = loadChatFromStorage();
+        if (loaded.length > 0) {
+          messages = loaded;
+          chatEl.innerHTML = "";
+          for (var i = 0; i < messages.length; i++) {
+            addBubble(messages[i].content, messages[i].role);
+          }
+          chatEl.scrollTop = chatEl.scrollHeight;
+        } else {
+          addBubble(
+            "Hi! Pick a model (and optional web search), then type below.",
+            "bot"
+          );
+        }
+      })();
     })();
   </script>
 </body>
