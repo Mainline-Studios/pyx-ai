@@ -37,14 +37,18 @@
     }
     button { font-family: inherit; padding: 8px 14px; cursor: pointer; }
     .small { font-size: 0.85em; color: #333; }
+    .mode-row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 10px 0 6px; }
+    .mode-row legend { font-size: 0.95em; padding: 0 6px 0 0; margin: 0; font-weight: normal; }
+    .mode-option { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.95em; }
+    .mode-option input { margin: 0; }
   </style>
 </head>
 <body>
   <p><a href="/">Home</a></p>
   <h1 style="font-size:1.25em;font-weight:normal;margin:0 0 0.5em;">Pyx Talk</h1>
   <p class="small">
-    Chat with a <strong>Llama-class</strong> model when your Pyx API has <code>PYX_TALK_LLM_KEY</code> set (e.g. Groq).
-    Every message is <strong>moderated</strong> first; bot replies are checked too.
+    Chat with <strong>Llama on Groq</strong> when your Pyx API has <code>PYX_TALK_LLM_KEY</code> set.
+    Choose a <strong>reasoning mode</strong> below (fast 8B · smart / thinking 70B). Every message is <strong>moderated</strong> first; bot replies are checked too.
   </p>
 
   <label for="baseUrl">Pyx API base URL</label>
@@ -52,6 +56,13 @@
 
   <label for="apiKey">Pyx API key (optional)</label>
   <input id="apiKey" type="password" placeholder="if your /talk route requires it" autocomplete="off" />
+
+  <fieldset class="mode-row" id="modeField">
+    <legend>Mode</legend>
+    <label class="mode-option"><input type="radio" name="talkMode" value="fast" checked /> Fast</label>
+    <label class="mode-option"><input type="radio" name="talkMode" value="smart" /> Smart</label>
+    <label class="mode-option"><input type="radio" name="talkMode" value="thinking" /> Thinking</label>
+  </fieldset>
 
   <div id="chat" aria-live="polite"></div>
   <div id="composer">
@@ -69,11 +80,28 @@
       var sendBtn = document.getElementById("send");
       var statusEl = document.getElementById("status");
       var messages = [];
+      var modeField = document.getElementById("modeField");
 
       var savedBase = localStorage.getItem("pyx.talk.baseUrl");
       var savedKey = localStorage.getItem("pyx.talk.apiKey");
+      var savedMode = localStorage.getItem("pyx.talk.mode");
       if (savedBase) baseUrlEl.value = savedBase;
       if (savedKey) apiKeyEl.value = savedKey;
+      if (savedMode) {
+        var r = modeField.querySelector('input[name="talkMode"][value="' + savedMode + '"]');
+        if (r) r.checked = true;
+      }
+
+      function getMode() {
+        var sel = modeField.querySelector('input[name="talkMode"]:checked');
+        return sel ? sel.value : "fast";
+      }
+
+      function saveMode() {
+        localStorage.setItem("pyx.talk.mode", getMode());
+      }
+
+      modeField.addEventListener("change", saveMode);
 
       function headers() {
         var h = { "Content-Type": "application/json" };
@@ -115,16 +143,18 @@
           return;
         }
         saveCfg();
+        saveMode();
+        var mode = getMode();
         inputEl.value = "";
         messages.push({ role: "user", content: text });
         addBubble(text, "user");
         setBusy(true);
-        statusEl.textContent = "Thinking…";
+        statusEl.textContent = mode === "thinking" ? "Reasoning…" : "Thinking…";
 
         fetch(b + "/talk", {
           method: "POST",
           headers: headers(),
-          body: JSON.stringify({ messages: messages }),
+          body: JSON.stringify({ messages: messages, mode: mode }),
         })
           .then(function (r) {
             return r.text().then(function (t) {
@@ -149,8 +179,9 @@
             var reply = x.j.reply || "";
             messages.push({ role: "assistant", content: reply });
             addBubble(reply, "bot");
-            var m = x.j.model ? "Model: " + x.j.model : "";
-            statusEl.textContent = m;
+            var modeLabel = x.j.mode ? x.j.mode.charAt(0).toUpperCase() + x.j.mode.slice(1) : "";
+            var m = [modeLabel, x.j.model ? x.j.model : ""].filter(Boolean).join(" · ");
+            statusEl.textContent = m || "";
           })
           .catch(function (e) {
             statusEl.textContent = "Network: " + (e.message || String(e));
@@ -171,7 +202,7 @@
       });
 
       addBubble(
-        "Hi! I’m Pyx Talk. Type below — I’ll answer with Llama when the API is configured, and Pyx keeps things safe.",
+        "Hi! I’m Pyx Talk. Pick Fast, Smart, or Thinking — then type below. Pyx keeps things safe.",
         "bot"
       );
     })();

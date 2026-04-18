@@ -30,6 +30,36 @@ _TALK_SYSTEM = os.environ.get(
     "Stay safe for general audiences; refuse harmful or explicit requests briefly and offer something helpful instead.",
 )
 
+# Reasoning modes: Llama on Groq — fast (8B instant), smart / thinking (70B versatile + prompts).
+_TALK_MODES = frozenset({"fast", "smart", "thinking"})
+_TALK_MODE_SPECS = {
+    "fast": {
+        "model_env": "PYX_TALK_MODEL_FAST",
+        "default_model": "meta-llama/llama-3.1-8b-instant",
+        "max_tokens": 512,
+        "temperature": 0.55,
+        "system_suffix": " Mode: fast. Prefer short, direct answers. Skip long preambles unless the user asks for depth.",
+    },
+    "smart": {
+        "model_env": "PYX_TALK_MODEL_SMART",
+        "default_model": "llama-3.3-70b-versatile",
+        "max_tokens": 1024,
+        "temperature": 0.5,
+        "system_suffix": " Mode: smart. Prioritize correctness and clarity. Structure longer answers when it helps (brief setup, then the answer).",
+    },
+    "thinking": {
+        "model_env": "PYX_TALK_MODEL_THINKING",
+        "default_model": "llama-3.3-70b-versatile",
+        "max_tokens": 2048,
+        "temperature": 0.35,
+        "system_suffix": (
+            " Mode: thinking. For anything non-trivial, reason step by step first "
+            '(use a short heading like "Reasoning:" with numbered steps), then give a final concise answer under '
+            '"Answer:". For trivial greetings or one-word factual lookups, answer directly without the full template.'
+        ),
+    },
+}
+
 
 def _normalize_talk_messages(raw):
     if not isinstance(raw, list):
@@ -57,7 +87,27 @@ def _normalize_talk_messages(raw):
     return out, None
 
 
-def _groq_openai_chat(messages_for_api):
+def _normalize_talk_mode(raw):
+    """Return (mode_str or None, error_str or None). Default mode is fast."""
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        return "fast", None
+    if not isinstance(raw, str):
+        return None, '"mode" must be a string'
+    m = raw.strip().lower()
+    aliases = {
+        "quick": "fast",
+        "speed": "fast",
+        "deep": "thinking",
+        "reason": "thinking",
+        "reasoning": "thinking",
+    }
+    m = aliases.get(m, m)
+    if m not in _TALK_MODES:
+        return None, '"mode" must be "fast", "smart", or "thinking"'
+    return m, None
+
+
+def _groq_openai_chat(messages_for_api, mode="fast"):
     """Call OpenAI-compatible chat completions. Returns (reply_text, model_id) or raises.
     If PYX_TALK_LLM_KEY is unset, returns (None, None) without calling the network."""
     key = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
@@ -67,15 +117,18 @@ def _groq_openai_chat(messages_for_api):
         "PYX_TALK_LLM_URL",
         "https://api.groq.com/openai/v1/chat/completions",
     ).strip()
-    model = os.environ.get(
-        "PYX_TALK_MODEL",
-        "meta-llama/llama-3.1-8b-instant",
+    spec = _TALK_MODE_SPECS.get(mode) or _TALK_MODE_SPECS["fast"]
+    model = (
+        os.environ.get(spec["model_env"])
+        or os.environ.get("PYX_TALK_MODEL")
+        or spec["default_model"]
     ).strip()
-    max_tokens = min(max(int(os.environ.get("PYX_TALK_MAX_TOKENS", "512")), 64), 2048)
-    temperature = float(os.environ.get("PYX_TALK_TEMPERATURE", "0.7"))
+    max_tokens = min(max(spec["max_tokens"], 64), 2048)
+    temperature = float(spec["temperature"])
+    system_content = _TALK_SYSTEM + spec["system_suffix"]
     body = {
         "model": model,
-        "messages": [{"role": "system", "content": _TALK_SYSTEM}] + messages_for_api,
+        "messages": [{"role": "system", "content": system_content}] + messages_for_api,
         "max_tokens": max_tokens,
         "temperature": temperature,
     }
@@ -342,6 +395,9 @@ def talk():
     if request.method != "POST":
         return jsonify({"error": "Method not allowed"}), 405
     data = request.get_json(silent=True) or {}
+    mode, mode_err = _normalize_talk_mode(data.get("mode"))
+    if mode_err:
+        return jsonify({"error": mode_err}), 400
     messages, err = _normalize_talk_messages(data.get("messages"))
     if err:
         return jsonify({"error": err}), 400
@@ -357,10 +413,11 @@ def talk():
             "censored": censor_letters(last_user),
             "reply": None,
             "model": None,
+            "mode": mode,
         })
     llm_messages = [{"role": m["role"], "content": m["content"]} for m in messages]
     try:
-        reply, model_used = _groq_openai_chat(llm_messages)
+        reply, model_used = _groq_openai_chat(llm_messages, mode=mode)
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", errors="replace")[:800]
         return jsonify({"error": "LLM request failed", "status": e.code, "detail": detail}), 502
@@ -388,6 +445,7 @@ def talk():
         "score": round(u_score, 4),
         "reply": reply,
         "model": model_used or "unknown",
+        "mode": mode,
     })
 
 
