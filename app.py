@@ -58,9 +58,11 @@ _TALK_MODE_SPECS = {
         "max_tokens": 2048,
         "temperature": 0.35,
         "system_suffix": (
-            " Mode: thinking. For anything non-trivial, reason step by step first "
-            '(use a short heading like "Reasoning:" with numbered steps), then give a final concise answer under '
-            '"Answer:". For trivial greetings or one-word factual lookups, answer directly without the full template.'
+            ' Mode: Pyx Talk Reasoning 1.0 — reasoning is mandatory on every reply, no exceptions. '
+            'Always write two sections in this exact order: (1) Start with a line **Reasoning:** then numbered '
+            "step-by-step working (even for greetings or tiny questions — at least one short step stating what you're doing). "
+            '(2) Then a blank line and a line **Answer:** followed by the final user-facing reply (clear and concise). '
+            "Never skip the Reasoning block. Never put the final answer before **Answer:**."
         ),
     },
 }
