@@ -128,12 +128,19 @@ def _groq_openai_chat(messages_for_api, mode="fast"):
         "max_tokens": max_tokens,
         "temperature": temperature,
     }
+    # Groq sits behind Cloudflare; missing User-Agent triggers error 1010 (blocked as bot).
+    ua = (os.environ.get("PYX_TALK_USER_AGENT") or "").strip() or (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    )
     req = urllib.request.Request(
         url,
         data=json.dumps(body).encode("utf-8"),
         headers={
             "Content-Type": "application/json",
+            "Accept": "application/json",
             "Authorization": "Bearer " + key,
+            "User-Agent": ua,
         },
         method="POST",
     )
