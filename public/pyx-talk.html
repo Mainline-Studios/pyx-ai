@@ -325,7 +325,7 @@
     <h1>Pyx AI Talk</h1>
     <p class="lede">
       <strong>Fast</strong>, <strong>Smart</strong>, or <strong>Thinking</strong> — powered by Llama on Groq.
-      Assistant replies are safety-checked.
+      Replies come straight from the model.
     </p>
 
     <div class="panel">
@@ -444,7 +444,6 @@
             addBubble(reply, "bot");
             var modeLabel = x.j.mode ? x.j.mode.charAt(0).toUpperCase() + x.j.mode.slice(1) : "";
             var m = [modeLabel, x.j.model ? x.j.model : ""].filter(Boolean).join(" · ");
-            if (x.j.reply_moderated) m = (m ? m + " · " : "") + "Reply adjusted for safety";
             statusEl.textContent = m || "";
           })
           .catch(function (e) {
@@ -466,7 +465,7 @@
       });
 
       addBubble(
-        "Hi! Pick a mode, then type below — replies are safety-checked.",
+        "Hi! Pick a mode, then type below.",
         "bot"
       );
     })();

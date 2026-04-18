@@ -21,7 +21,8 @@ from Pyx_ai_analyze import analyze_code, analyze_three_js, __version__ as analyz
 app = Flask(__name__)
 pyx = PyxAI()
 
-# Pyx Talk (Llama-class chat via OpenAI-compatible API, e.g. Groq)
+# Pyx Talk (Llama-class chat via OpenAI-compatible API, e.g. Groq or local Ollama)
+_GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
 _TALK_MAX_MSG_LEN = 4000
 _TALK_MAX_MESSAGES = 24
 _TALK_SYSTEM = os.environ.get(
@@ -109,14 +110,13 @@ def _normalize_talk_mode(raw):
 
 def _groq_openai_chat(messages_for_api, mode="fast"):
     """Call OpenAI-compatible chat completions. Returns (reply_text, model_id) or raises.
-    If PYX_TALK_LLM_KEY is unset, returns (None, None) without calling the network."""
+    Groq requires PYX_TALK_LLM_KEY. For a custom PYX_TALK_LLM_URL (e.g. local Ollama), the key may be omitted."""
     key = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
-    if not key:
+    url = os.environ.get("PYX_TALK_LLM_URL", _GROQ_CHAT_COMPLETIONS_URL).strip()
+    url_norm = url.rstrip("/").lower()
+    groq_norm = _GROQ_CHAT_COMPLETIONS_URL.rstrip("/").lower()
+    if not key and url_norm == groq_norm:
         return None, None
-    url = os.environ.get(
-        "PYX_TALK_LLM_URL",
-        "https://api.groq.com/openai/v1/chat/completions",
-    ).strip()
     spec = _TALK_MODE_SPECS.get(mode) or _TALK_MODE_SPECS["fast"]
     model = (os.environ.get(spec["model_env"]) or "").strip() or spec["default_model"]
     max_tokens = min(max(spec["max_tokens"], 64), 2048)
@@ -133,21 +133,26 @@ def _groq_openai_chat(messages_for_api, mode="fast"):
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
     )
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": ua,
+    }
+    if key:
+        headers["Authorization"] = "Bearer " + key
     req = urllib.request.Request(
         url,
         data=json.dumps(body).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Authorization": "Bearer " + key,
-            "User-Agent": ua,
-        },
+        headers=headers,
         method="POST",
     )
-    # Fast mode: short timeout so failures return quickly; larger models may need longer.
+    # Fast mode: shorter default; local models may need PYX_TALK_TIMEOUT=180+.
     timeout_s = 32 if mode == "fast" else 90
+    if url_norm != groq_norm:
+        timeout_s = max(timeout_s, 120)
     try:
-        timeout_s = max(8, min(int(os.environ.get("PYX_TALK_TIMEOUT", str(timeout_s))), 120))
+        cap = 600 if url_norm != groq_norm else 120
+        timeout_s = max(8, min(int(os.environ.get("PYX_TALK_TIMEOUT", str(timeout_s))), cap))
     except ValueError:
         pass
     with urllib.request.urlopen(req, timeout=timeout_s) as resp:
@@ -398,8 +403,7 @@ def analyze_health_route():
 
 @app.route("/talk", methods=["POST", "OPTIONS"])
 def talk():
-    """Pyx Talk: user text is not blocked by Pyx (still scored for `score` in the response).
-    Assistant replies are scored; inappropriate model output is replaced with a safe message."""
+    """Pyx Talk: messages go to the configured LLM; optional `score` is the Pyx score of the latest user text only."""
     if request.method == "OPTIONS":
         return "", 204
     if request.method != "POST":
@@ -429,27 +433,17 @@ def talk():
         return jsonify({"error": str(e)}), 502
     if reply is None:
         reply = (
-            "Hi — I’m Pyx Talk. An unknown error occurred. Please try again later, or submit an issue on Github."
-            "Llama isn’t wired up on this server yet: set PYX_TALK_LLM_KEY (e.g. Groq) "
-            "and optional PYX_TALK_MODEL on the Pyx API (Cloud Run) to get full replies."
+            "Hi — I’m Pyx Talk. No LLM is configured for this server yet. "
+            "For Groq, set PYX_TALK_LLM_KEY. For a local OpenAI-compatible API (e.g. Ollama), "
+            "set PYX_TALK_LLM_URL to your /v1/chat/completions endpoint (key optional). "
+            "If the API runs on your computer, run Pyx there too or use a tunnel — Cloud Run cannot reach your localhost."
         )
         model_used = "pyx-fallback"
-    reply_blocked = False
-    try:
-        r_score = pyx.score(reply)
-        if pyx.memory.is_banned(r_score):
-            reply_blocked = True
-            reply = (
-                "Oops! I am not comfortable with that question or topic. Lets change the topic."
-            )
-    except Exception:
-        pass
     out = {
         "bad": False,
         "reply": reply,
         "model": model_used or "unknown",
         "mode": mode,
-        "reply_moderated": reply_blocked,
     }
     if u_score is not None:
         out["score"] = round(u_score, 4)
