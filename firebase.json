@@ -27,7 +27,14 @@
         }
       },
       {
-        "source": "/api/**",
+        "source": "/api/talk",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/pixel_art",
         "run": {
           "serviceId": "pyxaiapi",
           "region": "us-central1"

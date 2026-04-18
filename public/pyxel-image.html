@@ -235,12 +235,33 @@
 
   <script>
     (function () {
+      var PYX_CLOUD_RUN = "https://pyxaiapi-574247481583.us-central1.run.app";
       function pyxApiPath(endpoint) {
         var h = (typeof location !== "undefined" && location.hostname) || "";
         if (h === "localhost" || h === "127.0.0.1" || h === "") {
-          return "https://pyxaiapi-574247481583.us-central1.run.app/" + endpoint;
+          return PYX_CLOUD_RUN + "/" + endpoint;
         }
         return "/api/" + endpoint;
+      }
+      /** If Firebase /api proxy returns 5xx, retry direct Cloud Run (CORS allows it). */
+      function fetchPyxPost(endpoint, bodyString) {
+        var primary = pyxApiPath(endpoint);
+        var direct = PYX_CLOUD_RUN + "/" + endpoint;
+        var opts = {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: bodyString,
+        };
+        return fetch(primary, opts).then(function (res) {
+          if (
+            res.status >= 500 &&
+            res.status < 600 &&
+            primary.indexOf("/api/") === 0
+          ) {
+            return fetch(direct, opts);
+          }
+          return res;
+        });
       }
       var canvas = document.getElementById("pixelCanvas");
       var placeholder = document.getElementById("placeholder");
@@ -317,11 +338,7 @@
         }
         generateBtn.disabled = true;
         statusEl.textContent = "Generating 100×100 pixel art…";
-        fetch(pyxApiPath("pixel_art"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: p }),
-        })
+        fetchPyxPost("pixel_art", JSON.stringify({ prompt: p }))
           .then(function (res) {
             return res.text().then(function (t) {
               var j;
@@ -330,13 +347,16 @@
               } catch (e) {
                 j = { error: t };
               }
-              return { ok: res.ok, j: j };
+              return { ok: res.ok, status: res.status, j: j };
             });
           })
           .then(function (x) {
             if (!x.ok || !x.j || !x.j.ok) {
               var err = (x.j && (x.j.error || x.j.detail)) || "Request failed";
-              statusEl.textContent = "Error: " + (typeof err === "string" ? err : JSON.stringify(err));
+              var msg =
+                (typeof err === "string" ? err : JSON.stringify(err)) +
+                (x.status ? " (HTTP " + x.status + ")" : "");
+              statusEl.textContent = "Error: " + msg;
               return;
             }
             lastPixels = x.j.pixels;
