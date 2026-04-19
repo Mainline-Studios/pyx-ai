@@ -649,11 +649,19 @@ def _groq_pixel_art_completion(user_prompt: str, gen_w: int, gen_h: int):
         return None, None
     n = gen_w * gen_h
     model = (os.environ.get("PYX_PIXEL_MODEL") or "").strip() or "llama-3.1-8b-instant"
+    # Hard ceiling keeps Groq TPM low (pixel_art was the main 502 path). Override with PYX_PIXEL_COMPLETION_CEILING.
     try:
-        max_tokens = int(os.environ.get("PYX_PIXEL_MAX_TOKENS", "12000"))
+        _cap = int(os.environ.get("PYX_PIXEL_COMPLETION_CEILING", "350"))
     except ValueError:
-        max_tokens = 12000
-    max_tokens = max(512, min(max_tokens, 16384))
+        _cap = 350
+    _cap = max(64, min(_cap, 8192))
+    try:
+        max_tokens = int(os.environ.get("PYX_PIXEL_MAX_TOKENS", str(_cap)))
+    except ValueError:
+        max_tokens = _cap
+    # Tight per-grid estimate; never exceed _cap.
+    ceil_for_grid = min(_cap, max(32, min(n * 3 + 200, _cap)))
+    max_tokens = max(32, min(max_tokens, _cap, ceil_for_grid))
     try:
         temperature = float(os.environ.get("PYX_PIXEL_TEMPERATURE", "0.35"))
     except ValueError:
@@ -1235,8 +1243,23 @@ def pixel_art():
     try:
         raw, model_used = _groq_pixel_art_completion(prompt.strip(), gw, gh)
     except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", errors="replace")[:800]
-        return jsonify({"error": "LLM request failed", "status": e.code, "detail": detail}), 502
+        detail = e.read().decode("utf-8", errors="replace")[:1200]
+        status = 502
+        err_code = "llm_http_error"
+        if e.code == 429:
+            status = 429
+            err_code = "rate_limited"
+        elif e.code in (400, 413):
+            status = 400
+            err_code = "bad_request"
+        return jsonify(
+            {
+                "error": "LLM request failed",
+                "status": e.code,
+                "detail": detail,
+                "error_code": err_code,
+            }
+        ), status
     except urllib.error.URLError as e:
         return jsonify({"error": "LLM network error", "detail": str(e.reason)}), 502
     except Exception as e:
