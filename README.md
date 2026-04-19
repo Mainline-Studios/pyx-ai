@@ -26,7 +26,9 @@ Edit `TRAINING_GROUNDS_PHRASES` in `Pyx_ai_moderator.py` to add or remove entrie
 
 ## Pyx for your app
    **Pyx Moderator:** 
-   We have a dedicated provider running a Pyx AI API; as this code is stripped down. Our APIs have updated word databases based on slang and trends, and it is more comprehensive. Use this for a great out of the box moderator; and this repo code for full creative access. 
+   We have a dedicated provider running a Pyx AI API; as this code is stripped down. Our APIs have updated word databases based on slang and trends, and it is more comprehensive. Use this for a great out-of-the-box moderator; and this repo code for full creative access. 
+   Alternatively, you can import `PyxAI` from `Pyx_ai_moderator`. You can add words and phrases, train with safe/bad feedback, use `ai_decide` to classify, use `set_label` to override, and call `score` to check if text is above or below the ban line. Save with `save()`.
+
    **Other Pyx Services**
    We are working on a way to add **Pyx Talk, Pyx Code, and Pyxel Images** to our API list. Thanks for considering us for your app!
 
@@ -69,8 +71,6 @@ python3 Pyx_ai_moderator.py
 - **No server 24/7:** Deploy to **Firebase Hosting + Cloud Functions** — see [DEPLOY_FIREBASE.md](DEPLOY_FIREBASE.md) (Pyx at `https://YOUR_PROJECT.web.app/api/score`). Or deploy `pyx_serverless.handler` as AWS Lambda; see [DEPLOY_SERVERLESS.md](DEPLOY_SERVERLESS.md). Pyx runs only when a request comes in.
 
 **In the app:** Enter a phrase, then choose **safe**, **bad**, **AI decide**, or **override**. Use `list`, `score <text>`, or `quit`.
-
-## Using Pyx in Your Code
 
 Import `PyxAI` from `Pyx_ai_moderator`. You can add words and phrases, train with safe/bad feedback, use `ai_decide` to classify, use `set_label` to override, and call `score` to check if text is above or below the ban line. Save with `save()`.
 
