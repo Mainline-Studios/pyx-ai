@@ -624,7 +624,7 @@ _PIXEL_LINE_RE = re.compile(r"^\s*px(\d+)\s*=\s*#([0-9A-Fa-f]{6})\s*$", re.I | r
 def _parse_px_lines(text: str, n_expected: int):
     """Parse pxK=#RRGGBB lines; fill missing indices by carrying the last color."""
     found = {}
-    for m in _PIX_LINE_RE.finditer(text or ""):
+    for m in _PIXEL_LINE_RE.finditer(text or ""):
         try:
             idx = int(m.group(1))
         except ValueError:
