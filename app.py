@@ -661,7 +661,7 @@ def _groq_pixel_art_completion(user_prompt: str, gen_w: int, gen_h: int):
     if not key and url_norm == groq_norm:
         return None, None
     n = gen_w * gen_h
-    model = (os.environ.get("PYX_PIXEL_MODEL") or "").strip() or "llama-3.1-8b-instant"
+    model = (os.environ.get("PYX_PIXEL_MODEL") or "").strip() or "openai/gpt-oss-120b"
     # Hard ceiling keeps Groq TPM low (pixel_art was the main 502 path). Override with PYX_PIXEL_COMPLETION_CEILING.
     try:
         _cap = int(os.environ.get("PYX_PIXEL_COMPLETION_CEILING", "350"))
