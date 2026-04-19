@@ -21,8 +21,8 @@
     "rewrites": [
       {
         "source": "/api/score",
-        "function": {
-          "functionId": "pyxscore",
+        "run": {
+          "serviceId": "pyxaiapi",
           "region": "us-central1"
         }
       },

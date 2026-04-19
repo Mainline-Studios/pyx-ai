@@ -665,9 +665,13 @@ def health():
 
 
 @app.route("/score", methods=["GET", "POST", "OPTIONS"])
+@app.route("/api/score", methods=["GET", "POST", "OPTIONS"])
 def score():
     if request.method == "OPTIONS":
         return "", 204
+    # Match legacy Cloud Function: GET on /api/score = health (Hosting rewrites forward /api/score to Run)
+    if request.method == "GET":
+        return jsonify({"status": "ok", "service": "pyx"}), 200
     if request.method != "POST":
         return jsonify({"error": "Method not allowed"}), 405
     data = request.get_json(silent=True) or {}
