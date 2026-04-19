@@ -1013,11 +1013,16 @@ def pixel_art():
         return jsonify({"error": str(e)}), 502
 
     if raw is None:
+        # 422 (not 503) so this isn’t confused with Cloud Run / proxy “Service Unavailable”.
         return jsonify(
             {
-                "error": "No LLM configured for pixel art. Set PYX_TALK_LLM_KEY (optional: PYX_PIXEL_MODEL, PYX_TALK_LLM_URL).",
+                "error": (
+                    "No LLM configured for pixel art. On Cloud Run set secret/env PYX_TALK_LLM_KEY "
+                    "(Groq). Optional: PYX_PIXEL_MODEL, PYX_TALK_LLM_URL for a custom OpenAI-compatible host."
+                ),
+                "error_code": "llm_not_configured",
             }
-        ), 503
+        ), 422
 
     n = gw * gh
     base_px = _parse_px_lines(raw, n)

@@ -508,10 +508,7 @@
     </div>
 
     <h1>Pyx AI Talk</h1>
-    <p class="lede">
-      Choose a <strong>Pyx Talk</strong> model — Llama on Groq. Optionally run <strong>built-in web search</strong> (no extra API keys). Say
-      <strong>generate image of …</strong> or <strong>pixel art of …</strong> for 100×100 pixel art (shown as an image; JSON only if you ask).
-    </p>
+    <p class="lede">PYX TALK LIVE COMING SOON</p>
 
     <div class="panel">
       <div class="web-row" id="webRow">
@@ -537,7 +534,7 @@
       <div id="chat" aria-live="polite"></div>
 
       <div id="composer">
-        <textarea id="input" placeholder="Write a message… (e.g. generate image of a tiny cactus)" rows="3" aria-label="Message"></textarea>
+        <textarea id="input" placeholder="Write a message…" rows="3" aria-label="Message"></textarea>
         <button type="button" id="send">Send</button>
       </div>
     </div>
@@ -1202,11 +1199,6 @@
             }
           }
           chatEl.scrollTop = chatEl.scrollHeight;
-        } else {
-          addBubble(
-            "Hi! Pick a model (and optional web search), or try **generate image of a moon** for 100×100 pixel art.",
-            "bot"
-          );
         }
       })();
     })();
