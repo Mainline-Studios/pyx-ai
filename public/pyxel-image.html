@@ -211,8 +211,8 @@
 
     <div class="canvas-wrap">
       <div class="canvas-inner">
-        <canvas id="pixelCanvas" width="100" height="100" aria-label="100 by 100 pixel art output"></canvas>
-        <div class="canvas-placeholder" id="placeholder">100×100 pixel grid — your art appears here after you generate.</div>
+        <canvas id="pixelCanvas" width="10" height="10" aria-label="10 by 10 pixel art output (100 pixels)"></canvas>
+        <div class="canvas-placeholder" id="placeholder">10×10 pixel grid (100 pixels) — your art appears here after you generate.</div>
       </div>
     </div>
 
@@ -241,7 +241,13 @@
         var h = (typeof location !== "undefined" && location.hostname) || "";
         return h === "localhost" || h === "127.0.0.1" || h === "";
       }
-      /** Same strategy as Pyx Talk: Run first, then /api on failure or 5xx. */
+      /** Same strategy as Pyx Talk: Run first, /api on 5xx, then one 2s retry on 502/503. */
+      function gatewayErrorHint(status) {
+        if (status === 503 || status === 502) {
+          return "Service busy or cold-starting — wait a few seconds and retry.";
+        }
+        return "";
+      }
       function fetchPyxPost(endpoint, bodyString) {
         var opts = {
           method: "POST",
@@ -256,18 +262,28 @@
         if (pyxIsLocalHost()) {
           return fetch(direct, opts);
         }
-        return fetch(direct, opts)
-          .then(function (res) {
-            if (res.status >= 500 && res.status < 600) {
-              return fetch(proxied, opts).catch(function () {
-                return res;
-              });
-            }
-            return res;
-          })
-          .catch(function () {
-            return fetch(proxied, opts);
+        function directThenProxy() {
+          return fetch(direct, opts)
+            .then(function (res) {
+              if (res.status >= 500 && res.status < 600) {
+                return fetch(proxied, opts).catch(function () {
+                  return res;
+                });
+              }
+              return res;
+            })
+            .catch(function () {
+              return fetch(proxied, opts);
+            });
+        }
+        return directThenProxy().then(function (res) {
+          if (res.status !== 502 && res.status !== 503) return res;
+          return new Promise(function (resolve) {
+            setTimeout(resolve, 2000);
+          }).then(function () {
+            return directThenProxy();
           });
+        });
       }
       var canvas = document.getElementById("pixelCanvas");
       var placeholder = document.getElementById("placeholder");
@@ -281,8 +297,8 @@
       var btnPng = document.getElementById("btnPng");
 
       var lastPixels = null;
-      var lastW = 100;
-      var lastH = 100;
+      var lastW = 10;
+      var lastH = 10;
 
       function normalizeHex(h) {
         if (!h || typeof h !== "string") return "#000000";
@@ -343,7 +359,7 @@
           return;
         }
         generateBtn.disabled = true;
-        statusEl.textContent = "Generating 100×100 pixel art…";
+        statusEl.textContent = "Generating 10×10 pixel art (100 pixels)…";
         fetchPyxPost("pixel_art", JSON.stringify({ prompt: p }))
           .then(function (res) {
             return res.text().then(function (t) {
@@ -364,13 +380,14 @@
               if (det && det.length > 400) det = det.slice(0, 400) + "…";
               var msg = det ? base + " — " + det : base;
               if (j.error_code === "rate_limited") msg = "Rate limited — try again shortly. " + msg;
+              var ghx = gatewayErrorHint(x.status);
               msg += x.status ? " (HTTP " + x.status + ")" : "";
-              statusEl.textContent = "Error: " + msg;
+              statusEl.textContent = "Error: " + msg + (ghx ? " — " + ghx : "");
               return;
             }
             lastPixels = x.j.pixels;
-            lastW = x.j.width || 100;
-            lastH = x.j.height || 100;
+            lastW = x.j.width || 10;
+            lastH = x.j.height || 10;
             drawPixels(lastPixels, lastW, lastH);
             statusEl.textContent = x.j.model ? "Done · " + x.j.model : "Done.";
           })

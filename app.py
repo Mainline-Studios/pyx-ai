@@ -617,7 +617,7 @@ def _groq_code_chat(messages_for_api, language="auto", agent=False):
     return content, prep["model"]
 
 
-# --- Pyx pixel art (LLM emits a small grid; upscaled to 100×100 for export / UI) ---
+# --- Pyx pixel art (LLM emits a small grid; optionally upscaled for export / UI) ---
 _PIXEL_LINE_RE = re.compile(r"^\s*px(\d+)\s*=\s*#([0-9A-Fa-f]{6})\s*$", re.I | re.M)
 
 
@@ -685,7 +685,8 @@ def _groq_pixel_art_completion(user_prompt: str, gen_w: int, gen_h: int):
         f"before or after the data. The grid is exactly {gen_w} columns × {gen_h} rows ({n} pixels), row-major: "
         "px1 is top-left, px2 is one step right on the same row, and so on. "
         f"Emit EXACTLY {n} lines. Line format MUST be: pxK=#RRGGBB (uppercase hex, six digits). "
-        f"K runs from 1 to {n} inclusive in order. "
+        f"K must be ONLY from 1 to {n} inclusive — never use px indices above {n} or below 1. "
+        f"List px1 through px{n} in order (one line per pixel). "
         f"Subject / scene to draw: interpret the user’s request vividly but keep the output strictly to those {n} lines."
     )
     body = {
@@ -1253,7 +1254,7 @@ def code_chat():
 @app.route("/pixel_art", methods=["POST", "OPTIONS"])
 @app.route("/api/pixel_art", methods=["POST", "OPTIONS"])
 def pixel_art():
-    """LLM draws a small grid (pxK=#RRGGBB); server upscales to 100×100 (configurable) for JSON + UI."""
+    """LLM draws a small grid (pxK=#RRGGBB); server may nearest-neighbor upscale for JSON + UI (defaults: 10×10, no upscale)."""
     if request.method == "OPTIONS":
         return "", 204
     if request.method != "POST":
@@ -1263,9 +1264,9 @@ def pixel_art():
     if not isinstance(prompt, str) or not prompt.strip():
         return jsonify({"error": '"prompt" must be a non-empty string'}), 400
     try:
-        gw = int(os.environ.get("PYX_PIXEL_GEN_W", os.environ.get("PYX_PIXEL_GEN_GRID", "20")))
+        gw = int(os.environ.get("PYX_PIXEL_GEN_W", os.environ.get("PYX_PIXEL_GEN_GRID", "10")))
     except ValueError:
-        gw = 20
+        gw = 10
     try:
         gh = int(os.environ.get("PYX_PIXEL_GEN_H", str(gw)))
     except ValueError:
@@ -1273,12 +1274,15 @@ def pixel_art():
     gw = max(8, min(gw, 64))
     gh = max(8, min(gh, 64))
     try:
-        out_w = int(os.environ.get("PYX_PIXEL_OUT_W", "100"))
-        out_h = int(os.environ.get("PYX_PIXEL_OUT_H", "100"))
+        out_w = int(os.environ.get("PYX_PIXEL_OUT_W", str(gw)))
     except ValueError:
-        out_w, out_h = 100, 100
-    out_w = max(16, min(out_w, 256))
-    out_h = max(16, min(out_h, 256))
+        out_w = gw
+    try:
+        out_h = int(os.environ.get("PYX_PIXEL_OUT_H", str(gh)))
+    except ValueError:
+        out_h = gh
+    out_w = max(8, min(out_w, 256))
+    out_h = max(8, min(out_h, 256))
 
     try:
         raw, model_used = _groq_pixel_art_completion(prompt.strip(), gw, gh)

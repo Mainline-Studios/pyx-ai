@@ -556,6 +556,7 @@
        * Production: try Cloud Run first (avoids broken Firebase rewrites). Then:
        * - If fetch rejects (Safari “Load failed”, DNS, etc.) → same-origin /api/…
        * - If HTTP 5xx from Run → try /api/… once; if that also fails, keep first response for error JSON
+       * - If still 502/503 (cold start / gateway), wait 2s and repeat once
        * Local dev: only Cloud Run (no /api proxy).
        */
       function fetchPyxHttp(endpoint, bodyString) {
@@ -572,18 +573,35 @@
         if (pyxIsLocalHost()) {
           return fetch(direct, opts);
         }
-        return fetch(direct, opts)
-          .then(function (res) {
-            if (res.status >= 500 && res.status < 600) {
-              return fetch(proxied, opts).catch(function () {
-                return res;
-              });
-            }
-            return res;
-          })
-          .catch(function () {
-            return fetch(proxied, opts);
+        function directThenProxy() {
+          return fetch(direct, opts)
+            .then(function (res) {
+              if (res.status >= 500 && res.status < 600) {
+                return fetch(proxied, opts).catch(function () {
+                  return res;
+                });
+              }
+              return res;
+            })
+            .catch(function () {
+              return fetch(proxied, opts);
+            });
+        }
+        return directThenProxy().then(function (res) {
+          if (res.status !== 502 && res.status !== 503) return res;
+          return new Promise(function (resolve) {
+            setTimeout(resolve, 2000);
+          }).then(function () {
+            return directThenProxy();
           });
+        });
+      }
+      /** Human hint when the edge returns 502/503 (empty JSON body is common). */
+      function gatewayErrorHint(status) {
+        if (status === 503 || status === 502) {
+          return "Service busy or cold-starting — wait a few seconds and retry.";
+        }
+        return "";
       }
       function fetchPyxPost(endpoint, bodyString) {
         return fetchPyxHttp(endpoint, bodyString);
@@ -996,7 +1014,7 @@
         messages.push({ role: "user", content: fullUserLine });
         addBubble(fullUserLine, "user");
         setBusy(true);
-        statusEl.textContent = "Drawing 100×100 pixel art…";
+        statusEl.textContent = "Drawing 10×10 pixel art (100 pixels)…";
         fetchPyxPost("pixel_art", JSON.stringify({ prompt: subject }))
           .then(function (res) {
             return res.text().then(function (t) {
@@ -1017,8 +1035,12 @@
               if (det && det.length > 400) det = det.slice(0, 400) + "…";
               var err = det ? base + " — " + det : base;
               if (j.error_code === "rate_limited") err = "Rate limited — try again shortly. " + err;
+              var gh = gatewayErrorHint(x.status);
               statusEl.textContent =
-                "Error: " + (typeof err === "string" ? err : JSON.stringify(err));
+                "Error: " +
+                (typeof err === "string" ? err : JSON.stringify(err)) +
+                (x.status ? " (HTTP " + x.status + ")" : "") +
+                (gh ? " — " + gh : "");
               messages.pop();
               if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
               return;
@@ -1090,7 +1112,9 @@
                 var errLine = [j.error, typeof j.detail === "string" ? j.detail : j.detail ? JSON.stringify(j.detail) : ""]
                   .filter(Boolean)
                   .join(" — ");
-                statusEl.textContent = "Error: " + (errLine || "HTTP " + res.status);
+                var gh2 = gatewayErrorHint(res.status);
+                statusEl.textContent =
+                  "Error: " + (errLine || "HTTP " + res.status) + (gh2 ? " — " + gh2 : "");
                 messages.pop();
                 if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
               });

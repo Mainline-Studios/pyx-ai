@@ -6,8 +6,9 @@
     "dev": "node scripts/dev.js",
     "build": "npm run build:trainer-auth",
     "build:trainer-auth": "python3 scripts/build_trainer_auth.py",
-    "deploy": "bash scripts/deploy.sh all",
-    "deploy:api": "bash scripts/deploy.sh api",
-    "deploy:hosting": "bash scripts/deploy.sh hosting"
+    "deploy:githubmessage": "bash scripts/git-deploy-commit.sh",
+    "deploy": "bash scripts/run-deploy.sh all",
+    "deploy:api": "bash scripts/run-deploy.sh api",
+    "deploy:hosting": "bash scripts/run-deploy.sh hosting"
   }
 }
