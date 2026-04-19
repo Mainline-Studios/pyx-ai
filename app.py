@@ -430,7 +430,8 @@ def _groq_openai_prepare(messages_for_api, mode="fast", web_context="", ground_w
     if url_norm != groq_norm:
         timeout_s = max(timeout_s, 120)
     try:
-        cap = 600 if url_norm != groq_norm else 120
+        # Groq streams can run several minutes (thinking / long replies); 120s cap caused dropped streams.
+        cap = 600
         timeout_s = max(8, min(int(os.environ.get("PYX_TALK_TIMEOUT", str(timeout_s))), cap))
     except ValueError:
         pass
@@ -470,9 +471,15 @@ def _groq_openai_stream_deltas(prep):
                 obj = json.loads(payload)
             except json.JSONDecodeError:
                 continue
+            err = obj.get("error")
+            if err:
+                msg = err.get("message", str(err)) if isinstance(err, dict) else str(err)
+                raise RuntimeError(msg)
             for ch in obj.get("choices") or []:
                 delta = ch.get("delta") or {}
                 piece = delta.get("content")
+                if not piece and isinstance(delta.get("reasoning_content"), str):
+                    piece = delta.get("reasoning_content")
                 if piece:
                     yield piece
 
@@ -803,6 +810,11 @@ def handle_unexpected_exception(e):
 @app.route("/")
 def health():
     firebase_connected = bool(getattr(pyx, "_db", None))
+    _k = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
+    _u = os.environ.get("PYX_TALK_LLM_URL", _GROQ_CHAT_COMPLETIONS_URL).strip()
+    _un = _u.rstrip("/").lower()
+    _gn = _GROQ_CHAT_COMPLETIONS_URL.rstrip("/").lower()
+    talk_llm_ready = bool(_k) or (_un != _gn)
     return jsonify({
         "status": "ok",
         "services": {
@@ -816,6 +828,7 @@ def health():
             "firebase": "connected" if firebase_connected else "offline",
         },
         "firebase_connected": firebase_connected,
+        "talk_llm_configured": talk_llm_ready,
     })
 
 
