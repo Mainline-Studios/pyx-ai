@@ -1011,9 +1011,12 @@
           })
           .then(function (x) {
             if (!x.ok || !x.j || !x.j.ok) {
-              var err =
-                (x.j && (x.j.error || x.j.detail)) ||
-                "HTTP " + x.status;
+              var j = x.j || {};
+              var base = j.error || "Request failed";
+              var det = typeof j.detail === "string" ? j.detail : "";
+              if (det && det.length > 400) det = det.slice(0, 400) + "…";
+              var err = det ? base + " — " + det : base;
+              if (j.error_code === "rate_limited") err = "Rate limited — try again shortly. " + err;
               statusEl.textContent =
                 "Error: " + (typeof err === "string" ? err : JSON.stringify(err));
               messages.pop();
