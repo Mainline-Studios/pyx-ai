@@ -8,6 +8,7 @@ If no keys are set, the API works without auth (open).
 
 import html
 import json
+import math
 import os
 import re
 import urllib.error
@@ -21,8 +22,20 @@ from Pyx_ai_moderator import PyxAI, BAN_LINE, censor_letters
 from Pyx_ai_code import complete as code_complete, explain as code_explain, refactor as code_refactor, health as code_health
 from Pyx_ai_check import check_code, check_three_js, __version__ as check_version
 from Pyx_ai_analyze import analyze_code, analyze_three_js, __version__ as analyze_version
+from werkzeug.exceptions import HTTPException
 
 app = Flask(__name__)
+
+
+def _json_safe_score(x):
+    """Float safe for JSON (NaN/Inf break jsonify). Returns rounded float or None."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(v):
+        return None
+    return round(v, 4)
 pyx = PyxAI()
 
 # Pyx Talk (Llama-class chat via OpenAI-compatible API, e.g. Groq or local Ollama)
@@ -768,6 +781,23 @@ def cors(response):
     return response
 
 
+@app.errorhandler(Exception)
+def handle_unexpected_exception(e):
+    """Avoid HTML 500 for API clients; jsonify rejects NaN which caused opaque 500 pages."""
+    if isinstance(e, HTTPException):
+        return e
+    if request.path.startswith("/api/") or request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        app.logger.exception("Unhandled error: %s", request.path)
+        return jsonify(
+            {
+                "error": "Internal server error",
+                "detail": str(e),
+                "error_code": "internal_error",
+            }
+        ), 500
+    raise
+
+
 @app.route("/health")
 @app.route("/")
 def health():
@@ -807,10 +837,13 @@ def score():
     if len(text) > 1_000_000:
         return jsonify({"error": "Text too long"}), 413
     s = pyx.score(text)
-    bad = s >= BAN_LINE
+    sf = _json_safe_score(s)
+    if sf is None:
+        sf = 0.0
+    bad = sf >= BAN_LINE
     censored = censor_letters(text) if bad else text
     return jsonify({
-        "score": round(s, 4),
+        "score": sf,
         "bad": bad,
         "censored": censored,
     })
@@ -840,8 +873,11 @@ def ai_decide():
         return jsonify({"ok": False, "error": str(e)}), 500
     bad = not safe
     censored = censor_letters(text) if bad else text
+    sf = _json_safe_score(s)
+    if sf is None:
+        sf = 0.0
     return jsonify({
-        "score": round(s, 4),
+        "score": sf,
         "bad": bad,
         "censored": censored,
         "safe": safe,
@@ -1024,8 +1060,9 @@ def talk():
                 meta["model"] = prep["model"]
             else:
                 meta["model"] = "pyx-fallback"
-            if u_score is not None:
-                meta["score"] = round(u_score, 4)
+            us = _json_safe_score(u_score)
+            if us is not None:
+                meta["score"] = us
             yield _talk_sse_event(meta)
             if prep is None:
                 fb = (
@@ -1095,8 +1132,9 @@ def talk():
         "mode": mode,
         "web_search": web_meta,
     }
-    if u_score is not None:
-        out["score"] = round(u_score, 4)
+    us = _json_safe_score(u_score)
+    if us is not None:
+        out["score"] = us
     return jsonify(out)
 
 
@@ -1143,8 +1181,9 @@ def code_chat():
                 meta["model"] = prep["model"]
             else:
                 meta["model"] = "pyx-fallback"
-            if u_score is not None:
-                meta["score"] = round(u_score, 4)
+            us = _json_safe_score(u_score)
+            if us is not None:
+                meta["score"] = us
             yield _talk_sse_event(meta)
             if prep is None:
                 fb = (
@@ -1205,8 +1244,9 @@ def code_chat():
         "language": language,
         "agent": agent,
     }
-    if u_score is not None:
-        out["score"] = round(u_score, 4)
+    us = _json_safe_score(u_score)
+    if us is not None:
+        out["score"] = us
     return jsonify(out)
 
 
@@ -1278,8 +1318,11 @@ def pixel_art():
         ), 422
 
     n = gw * gh
-    base_px = _parse_px_lines(raw, n)
-    pixels = _upscale_nearest(base_px, gw, gh, out_w, out_h)
+    try:
+        base_px = _parse_px_lines(raw, n)
+        pixels = _upscale_nearest(base_px, gw, gh, out_w, out_h)
+    except Exception as e:
+        return jsonify({"error": "Failed to build pixel grid", "detail": str(e), "error_code": "pixel_parse"}), 500
     return jsonify(
         {
             "ok": True,
