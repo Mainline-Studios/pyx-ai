@@ -489,6 +489,97 @@ def _groq_openai_chat(messages_for_api, mode="fast", web_context="", ground_web=
     return content, prep["model"]
 
 
+# --- Pyx AI Code (Groq GPT-OSS via OpenAI-compatible API) ---
+_CODE_MODEL_DEFAULT = "openai/gpt-oss-120b"
+_CODE_SYSTEM = os.environ.get(
+    "PYX_CODE_SYSTEM",
+    "You are Pyx AI Code, an expert programming assistant running on OpenAI GPT-OSS via Groq. "
+    "Give precise, runnable code when the user asks for implementation. "
+    "Use fenced markdown code blocks with language tags. Keep prose short; put the answer in code when appropriate. "
+    "Call out security and performance pitfalls briefly when relevant.",
+)
+
+
+def _groq_code_prepare(messages_for_api, language="auto"):
+    """OpenAI-compatible chat request for coding (GPT-OSS on Groq by default). Returns None if Groq selected but no key."""
+    key = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
+    url = os.environ.get("PYX_TALK_LLM_URL", _GROQ_CHAT_COMPLETIONS_URL).strip()
+    url_norm = url.rstrip("/").lower()
+    groq_norm = _GROQ_CHAT_COMPLETIONS_URL.rstrip("/").lower()
+    if not key and url_norm == groq_norm:
+        return None
+    model = (os.environ.get("PYX_CODE_MODEL") or "").strip() or _CODE_MODEL_DEFAULT
+    try:
+        max_tokens = int(os.environ.get("PYX_CODE_MAX_TOKENS", "8192"))
+    except ValueError:
+        max_tokens = 8192
+    max_tokens = max(256, min(max_tokens, 16384))
+    try:
+        temperature = float(os.environ.get("PYX_CODE_TEMPERATURE", "0.22"))
+    except ValueError:
+        temperature = 0.22
+    temperature = max(0.05, min(temperature, 1.2))
+    lang = language if isinstance(language, str) else "auto"
+    lang = (lang or "auto").strip() or "auto"
+    lang_hint = ""
+    if lang.lower() not in ("auto", "plain", ""):
+        lang_hint = f"\n\nEditor / stack context: {lang}. Prefer idioms, build tools, and libraries typical for this environment."
+    system_content = _CODE_SYSTEM + lang_hint
+    body = {
+        "model": model,
+        "messages": [{"role": "system", "content": system_content}] + messages_for_api,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+    ua = (os.environ.get("PYX_TALK_USER_AGENT") or "").strip() or (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    )
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": ua,
+    }
+    if key:
+        headers["Authorization"] = "Bearer " + key
+    try:
+        timeout_s = max(15, min(int(os.environ.get("PYX_CODE_TIMEOUT", "120")), 600))
+    except ValueError:
+        timeout_s = 120
+    if url_norm != groq_norm:
+        timeout_s = max(timeout_s, 120)
+    return {
+        "url": url,
+        "headers": headers,
+        "body": body,
+        "model": model,
+        "timeout_s": timeout_s,
+    }
+
+
+def _groq_code_chat(messages_for_api, language="auto"):
+    """Non-streaming code assistant. Returns (reply_text, model_id) or (None, None) if unconfigured."""
+    prep = _groq_code_prepare(messages_for_api, language)
+    if prep is None:
+        return None, None
+    headers = {**prep["headers"], "Accept": "application/json"}
+    req = urllib.request.Request(
+        prep["url"],
+        data=json.dumps(prep["body"]).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=prep["timeout_s"]) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    choices = data.get("choices") or []
+    if not choices:
+        raise ValueError("LLM returned no choices")
+    msg = choices[0].get("message") or {}
+    content = (msg.get("content") or "").strip()
+    if not content:
+        raise ValueError("empty LLM content")
+    return content, prep["model"]
+
+
 # --- Pyx pixel art (LLM emits a small grid; upscaled to 100×100 for export / UI) ---
 _PIXEL_LINE_RE = re.compile(r"^\s*px(\d+)\s*=\s*#([0-9A-Fa-f]{6})\s*$", re.I | re.M)
 
@@ -657,6 +748,7 @@ def health():
             "pyx_check": "ok",
             "pyx_analyze": "ok",
             "pyx_talk": "ok",
+            "pyx_ai_code": "ok",
             "pyx_pixel_art": "ok",
             "firebase": "connected" if firebase_connected else "offline",
         },
@@ -970,6 +1062,108 @@ def talk():
         "model": model_used or "unknown",
         "mode": mode,
         "web_search": web_meta,
+    }
+    if u_score is not None:
+        out["score"] = round(u_score, 4)
+    return jsonify(out)
+
+
+@app.route("/code_chat", methods=["POST", "OPTIONS"])
+@app.route("/api/code_chat", methods=["POST", "OPTIONS"])
+def code_chat():
+    """Pyx AI Code: GPT-OSS on Groq (default) — coding assistant with streaming SSE."""
+    if request.method == "OPTIONS":
+        return "", 204
+    if request.method != "POST":
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.get_json(silent=True) or {}
+    messages, err = _normalize_talk_messages(data.get("messages"))
+    if err:
+        return jsonify({"error": err}), 400
+    last_user = messages[-1]["content"]
+    u_score = None
+    try:
+        u_score = pyx.score(last_user)
+    except Exception:
+        pass
+
+    language = data.get("language", "auto")
+    if language is not None and not isinstance(language, str):
+        return jsonify({"error": '"language" must be a string'}), 400
+    language = (language or "auto").strip() or "auto"
+
+    want_stream = _as_bool(data.get("stream"))
+    llm_messages = [{"role": m["role"], "content": m["content"]} for m in messages]
+
+    if want_stream:
+        prep = _groq_code_prepare(llm_messages, language)
+
+        def generate_code():
+            meta = {"type": "meta", "kind": "code", "language": language, "bad": False}
+            if prep:
+                meta["model"] = prep["model"]
+            else:
+                meta["model"] = "pyx-fallback"
+            if u_score is not None:
+                meta["score"] = round(u_score, 4)
+            yield _talk_sse_event(meta)
+            if prep is None:
+                fb = (
+                    "Pyx AI Code needs an LLM on the server. Set PYX_TALK_LLM_KEY for Groq. "
+                    "Optional: PYX_CODE_MODEL (default openai/gpt-oss-120b), PYX_TALK_LLM_URL for a custom OpenAI-compatible host."
+                )
+                yield _talk_sse_event({"type": "delta", "t": fb})
+                yield _talk_sse_event({"type": "done", "model": "pyx-fallback"})
+                return
+            try:
+                for piece in _groq_openai_stream_deltas(prep):
+                    yield _talk_sse_event({"type": "delta", "t": piece})
+                yield _talk_sse_event({"type": "done", "model": prep["model"]})
+            except urllib.error.HTTPError as e:
+                detail = e.read().decode("utf-8", errors="replace")[:800]
+                yield _talk_sse_event(
+                    {
+                        "type": "error",
+                        "message": "LLM request failed",
+                        "status": e.code,
+                        "detail": detail,
+                    }
+                )
+            except urllib.error.URLError as e:
+                yield _talk_sse_event({"type": "error", "message": "LLM network error", "detail": str(e.reason)})
+            except Exception as e:
+                yield _talk_sse_event({"type": "error", "message": str(e)})
+
+        return Response(
+            stream_with_context(generate_code()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+            },
+        )
+
+    try:
+        reply, model_used = _groq_code_chat(llm_messages, language=language)
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[:800]
+        return jsonify({"error": "LLM request failed", "status": e.code, "detail": detail}), 502
+    except urllib.error.URLError as e:
+        return jsonify({"error": "LLM network error", "detail": str(e.reason)}), 502
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+    if reply is None:
+        reply = (
+            "Pyx AI Code needs an LLM on the server. Set PYX_TALK_LLM_KEY for Groq. "
+            "Optional: PYX_CODE_MODEL (default openai/gpt-oss-120b)."
+        )
+        model_used = "pyx-fallback"
+    out = {
+        "bad": False,
+        "reply": reply,
+        "model": model_used or "unknown",
+        "language": language,
     }
     if u_score is not None:
         out["score"] = round(u_score, 4)

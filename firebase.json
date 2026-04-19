@@ -39,6 +39,13 @@
           "serviceId": "pyxaiapi",
           "region": "us-central1"
         }
+      },
+      {
+        "source": "/api/code_chat",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
       }
     ]
   }
