@@ -182,6 +182,58 @@
       padding: 2px 6px; border-radius: 4px;
       border: 1px solid var(--border); background: var(--surface2);
     }
+    .run-panel {
+      border-top: 1px solid var(--border);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--surface2);
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+    .run-panel h3 {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    #runOut {
+      width: 100%;
+      min-height: 100px;
+      max-height: 220px;
+      resize: vertical;
+      font-family: var(--code-font);
+      font-size: 12px;
+      line-height: 1.4;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+    }
+    .patch-bar {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(52, 211, 153, 0.35);
+      background: rgba(52, 211, 153, 0.08);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .patch-bar span { color: var(--muted); flex: 1; min-width: 120px; }
+    .agent-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
   </style>
 </head>
 <body>
@@ -197,8 +249,8 @@
     <div class="title-block">
       <h1>Pyx AI Code</h1>
       <p class="sub">
-        Studio mode: your editor and assistant side by side. Powered by <strong>OpenAI GPT-OSS</strong> on <strong>Groq</strong>
-        (same API key as Pyx Talk). Ask for refactors, tests, or explanations — optional: include the buffer for full context.
+        Studio mode: editor + assistant. <strong>Agent</strong> mode asks the model for minimal JSON patches instead of pasting the whole file.
+        <strong>Run</strong> executes JavaScript or Python in your browser. Powered by <strong>GPT-OSS</strong> on <strong>Groq</strong>.
       </p>
     </div>
 
@@ -229,15 +281,30 @@
         <div class="editor-wrap">
           <textarea id="editor" spellcheck="false" placeholder="// Write or paste code. Toggle “Include editor” when you want the model to see this buffer." aria-label="Code editor"></textarea>
         </div>
+        <div class="run-panel" aria-label="Run output">
+          <h3>Run <span style="font-weight:500;text-transform:none;color:var(--muted);">(browser)</span></h3>
+          <div class="toolbar" style="margin:0;">
+            <button type="button" class="primary" id="btnRun">Run</button>
+            <button type="button" id="btnClearRun">Clear output</button>
+          </div>
+          <textarea id="runOut" readonly placeholder="stdout / logs appear here…" aria-label="Program output"></textarea>
+          <p class="hint" style="margin:0;">JavaScript runs in a sandboxed iframe. Python uses Pyodide (downloaded on first run). Other languages: run locally.</p>
+        </div>
       </section>
 
       <section class="panel chat-panel" aria-label="Assistant chat">
         <div class="panel-h">
           <h2>Assistant</h2>
-          <label style="margin:0;font-size:12px;color:var(--muted);">
-            <input type="checkbox" id="includeEditor" checked />
-            Include editor in message
-          </label>
+          <div class="agent-row">
+            <label>
+              <input type="checkbox" id="agentMode" />
+              <strong>Agent</strong> — search/replace JSON edits (no full-file dumps)
+            </label>
+            <label>
+              <input type="checkbox" id="includeEditor" checked />
+              Include editor
+            </label>
+          </div>
         </div>
         <div id="chat" aria-live="polite"></div>
         <div class="composer">
@@ -290,10 +357,14 @@
       var statusEl = document.getElementById("status");
       var langEl = document.getElementById("lang");
       var includeEditorEl = document.getElementById("includeEditor");
+      var agentModeEl = document.getElementById("agentMode");
+      var runOutEl = document.getElementById("runOut");
       var messages = [];
       var STORAGE = "pyx.code.messages";
       var STORAGE_ED = "pyx.code.editor";
       var STORAGE_LANG = "pyx.code.lang";
+      var STORAGE_AGENT = "pyx.code.agent";
+      var MAX_CTX_CHARS = 12000;
 
       function mdToSafeHtml(md) {
         return DOMPurify.sanitize(
@@ -328,6 +399,7 @@
         chatEl.appendChild(d);
         var full = "";
         return {
+          rootEl: d,
           append: function (t) {
             full += t;
             inner.textContent = full;
@@ -367,16 +439,276 @@
         return v;
       }
 
+      function truncateEditorForContext(raw) {
+        if (!raw || raw.length <= MAX_CTX_CHARS) return raw;
+        var head = Math.floor(MAX_CTX_CHARS * 0.55);
+        var tail = MAX_CTX_CHARS - head - 140;
+        if (tail < 200) tail = 200;
+        var omitted = raw.length - head - tail;
+        return (
+          raw.slice(0, head) +
+          "\n\n/* … Pyx: " +
+          omitted +
+          " characters omitted; tail below … */\n\n" +
+          raw.slice(raw.length - tail)
+        );
+      }
+
       function buildUserContent(instruction) {
-        var code = (editorEl.value || "").trim();
+        var raw = editorEl.value || "";
         var inc = includeEditorEl.checked;
-        if (inc && code) {
-          var fence = fenceLang();
-          return (
-            "Context — code in editor:\n```" + fence + "\n" + editorEl.value + "\n```\n\nInstruction:\n" + instruction
-          );
+        var agent = agentModeEl.checked;
+        if (!inc || !raw.trim()) return instruction;
+        var body = agent ? truncateEditorForContext(raw) : raw;
+        var fence = fenceLang();
+        var header = agent
+          ? "[Agent mode: apply SEARCH/REPLACE JSON or short prose — never paste the full file unless explicitly asked.]\n\n"
+          : "";
+        return (
+          header +
+          "Context — code in editor:\n```" +
+          fence +
+          "\n" +
+          body +
+          "\n```\n\nInstruction:\n" +
+          instruction
+        );
+      }
+
+      function extractPatches(text) {
+        if (!text) return [];
+        var re = /```(?:json)?\s*([\s\S]*?)```/gi;
+        var m;
+        var all = [];
+        while ((m = re.exec(text)) !== null) {
+          try {
+            var obj = JSON.parse(m[1].trim());
+            if (obj && Array.isArray(obj.patches)) {
+              for (var i = 0; i < obj.patches.length; i++) {
+                var p = obj.patches[i];
+                var s = p.search != null ? p.search : p.old;
+                var r = p.replace != null ? p.replace : p.new;
+                if (typeof s === "string" && typeof r === "string") {
+                  all.push({ search: s, replace: r });
+                }
+              }
+            }
+          } catch (e) {}
         }
-        return instruction;
+        return all;
+      }
+
+      function applyPatchesToEditor(patches) {
+        var buf = editorEl.value;
+        for (var i = 0; i < patches.length; i++) {
+          var s = patches[i].search;
+          var r = patches[i].replace;
+          if (!s.length) {
+            return { ok: false, err: "Patch " + (i + 1) + ": empty `search` is not allowed." };
+          }
+          var n = 0;
+          var idx = -1;
+          var j = 0;
+          for (; j <= buf.length - s.length; j++) {
+            if (buf.slice(j, j + s.length) === s) {
+              n++;
+              idx = j;
+            }
+          }
+          if (n !== 1) {
+            return {
+              ok: false,
+              err:
+                "Patch " +
+                (i + 1) +
+                ": `search` must match exactly once (found " +
+                n +
+                ").",
+            };
+          }
+          buf = buf.slice(0, idx) + r + buf.slice(idx + s.length);
+        }
+        editorEl.value = buf;
+        try {
+          localStorage.setItem(STORAGE_ED, buf);
+        } catch (e) {}
+        return { ok: true };
+      }
+
+      function maybeOfferPatches(rootEl, fullText) {
+        var patches = extractPatches(fullText);
+        if (!patches.length || !rootEl) return;
+        var bar = document.createElement("div");
+        bar.className = "patch-bar";
+        var sp = document.createElement("span");
+        sp.textContent =
+          patches.length +
+          " edit(s) — each `search` must match exactly once in the editor.";
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "primary";
+        btn.textContent = "Apply to editor";
+        btn.addEventListener("click", function () {
+          var r = applyPatchesToEditor(patches);
+          if (r.ok) {
+            statusEl.textContent = "Applied " + patches.length + " patch(es).";
+            bar.remove();
+          } else {
+            statusEl.textContent = r.err || "Could not apply patches.";
+          }
+        });
+        bar.appendChild(sp);
+        bar.appendChild(btn);
+        rootEl.appendChild(bar);
+      }
+
+      function runJavaScriptInSandbox(code) {
+        var runId = "pyx" + Date.now();
+        var encoded;
+        try {
+          encoded = btoa(unescape(encodeURIComponent(code)));
+        } catch (e) {
+          runOutEl.value = "Cannot encode source for runner (file too large or invalid Unicode).";
+          return;
+        }
+        var inner =
+          "var __c=decodeURIComponent(escape(atob(" +
+          JSON.stringify(encoded) +
+          ")));" +
+          "var __log=function(){var a=[].slice.call(arguments);if(window.parent)window.parent.postMessage({__pyxRun:1,id:'" +
+          runId +
+          "',line:a.map(String).join(' ')},'*');};" +
+          "console.log=console.error=console.warn=__log;" +
+          "try{new Function(__c)();}catch(e){__log('Error:',e&&e.message||e);}";
+        var doc =
+          "<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body><script>" +
+          inner +
+          "<\/script></body></html>";
+        runOutEl.value = "Running…";
+        var lines = [];
+        function onMsg(e) {
+          if (!e.data || !e.data.__pyxRun || e.data.id !== runId) return;
+          lines.push(e.data.line);
+          runOutEl.value = lines.join("\n");
+        }
+        window.addEventListener("message", onMsg);
+        var iframe = document.createElement("iframe");
+        iframe.setAttribute("sandbox", "allow-scripts");
+        iframe.style.display = "none";
+        iframe.srcdoc = doc;
+        document.body.appendChild(iframe);
+        setTimeout(function () {
+          window.removeEventListener("message", onMsg);
+          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+          if (!lines.length && runOutEl.value === "Running…") {
+            runOutEl.value = "(no output)";
+          }
+        }, 15000);
+      }
+
+      var tsLoadPromise = null;
+      function ensureTypeScript(cb) {
+        if (window.ts) {
+          cb();
+          return;
+        }
+        if (tsLoadPromise) {
+          tsLoadPromise.then(cb).catch(function () {});
+          return;
+        }
+        tsLoadPromise = new Promise(function (resolve, reject) {
+          var s = document.createElement("script");
+          s.src = "https://cdn.jsdelivr.net/npm/typescript@5.4.5/lib/typescript.js";
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+        tsLoadPromise.then(cb).catch(function (e) {
+          runOutEl.value = "Failed to load TypeScript: " + (e && e.message ? e.message : e);
+        });
+      }
+
+      function runTypeScript(src) {
+        ensureTypeScript(function () {
+          try {
+            var js = window.ts.transpileModule(src, {
+              compilerOptions: {
+                module: window.ts.ModuleKind.ESNext,
+                target: window.ts.ScriptTarget.ES2020,
+              },
+            }).outputText;
+            runJavaScriptInSandbox(js);
+          } catch (e) {
+            runOutEl.value = String(e && e.message ? e.message : e);
+          }
+        });
+      }
+
+      var pyodidePromise = null;
+      function ensurePyodide() {
+        if (window.__pyodideApi) return Promise.resolve(window.__pyodideApi);
+        if (pyodidePromise) return pyodidePromise;
+        pyodidePromise = new Promise(function (resolve, reject) {
+          var s = document.createElement("script");
+          s.src = "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js";
+          s.onload = function () {
+            var lp = window.loadPyodide;
+            if (typeof lp !== "function") {
+              reject(new Error("loadPyodide not available"));
+              return;
+            }
+            lp({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/" })
+              .then(function (py) {
+                window.__pyodideApi = py;
+                resolve(py);
+              })
+              .catch(reject);
+          };
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+        return pyodidePromise;
+      }
+
+      function runPython(code) {
+        runOutEl.value = "Loading Pyodide (first run may take a few seconds)…";
+        ensurePyodide()
+          .then(function (py) {
+            var wrapped =
+              "from io import StringIO\nimport sys\n" +
+              "_b = StringIO()\n_so, _se = sys.stdout, sys.stderr\n" +
+              "sys.stdout = sys.stderr = _b\n" +
+              "try:\n" +
+              "    exec(compile(" +
+              JSON.stringify(code) +
+              ", '<editor>', 'exec'), {'__name__': '__main__'})\n" +
+              "finally:\n" +
+              "    sys.stdout, sys.stderr = _so, _se\n" +
+              "_b.getvalue()";
+            return py.runPythonAsync(wrapped);
+          })
+          .then(function (out) {
+            runOutEl.value = out === undefined || out === null ? "(done)" : String(out);
+          })
+          .catch(function (e) {
+            runOutEl.value = String(e && e.message ? e.message : e);
+          });
+      }
+
+      function runEditorCode() {
+        var lang = langEl.value;
+        var code = editorEl.value || "";
+        if (!code.trim()) {
+          runOutEl.value = "(editor is empty)";
+          return;
+        }
+        if (lang === "javascript") runJavaScriptInSandbox(code);
+        else if (lang === "typescript") runTypeScript(code);
+        else if (lang === "python") runPython(code);
+        else {
+          runOutEl.value =
+            "In-browser Run supports JavaScript, TypeScript, and Python. Switch the Language selector, or run this file in your own toolchain.";
+        }
       }
 
       function persist() {
@@ -384,6 +716,7 @@
           localStorage.setItem(STORAGE, JSON.stringify(messages.slice(-40)));
           localStorage.setItem(STORAGE_ED, editorEl.value);
           localStorage.setItem(STORAGE_LANG, langEl.value);
+          localStorage.setItem(STORAGE_AGENT, agentModeEl.checked ? "1" : "0");
         } catch (e) {}
       }
 
@@ -407,12 +740,16 @@
           if (ed) editorEl.value = ed;
           var lg = localStorage.getItem(STORAGE_LANG);
           if (lg && langEl.querySelector('option[value="' + lg + '"]')) langEl.value = lg;
+          if (localStorage.getItem(STORAGE_AGENT) === "1") agentModeEl.checked = true;
         } catch (e) {}
       }
+
+      var btnRun = document.getElementById("btnRun");
 
       function setBusy(b) {
         sendBtn.disabled = b;
         askEl.disabled = b;
+        if (btnRun) btnRun.disabled = b;
       }
 
       function send() {
@@ -423,12 +760,15 @@
         messages.push({ role: "user", content: userContent });
         addBubble(userContent, "user");
         setBusy(true);
-        statusEl.textContent = "GPT-OSS (Groq) — streaming…";
+        statusEl.textContent = agentModeEl.checked
+          ? "Agent mode · GPT-OSS (Groq) — streaming…"
+          : "GPT-OSS (Groq) — streaming…";
 
         var payload = JSON.stringify({
           messages: messages,
           language: langEl.value,
           stream: true,
+          agent: agentModeEl.checked,
         });
 
         fetchPyxHttp("code_chat", payload)
@@ -456,7 +796,10 @@
 
             function onEvt(obj) {
               if (obj.type === "meta") {
-                if (obj.model) statusEl.textContent = "Model: " + obj.model;
+                var bits = [];
+                if (obj.model) bits.push(obj.model);
+                if (obj.agent) bits.push("agent");
+                statusEl.textContent = bits.length ? bits.join(" · ") : "";
                 return;
               }
               if (aborted) return;
@@ -479,6 +822,9 @@
                   if (!aborted) {
                     var reply = streamUi.finalize();
                     messages.push({ role: "assistant", content: reply });
+                    if (agentModeEl.checked) {
+                      maybeOfferPatches(streamUi.rootEl, reply);
+                    }
                     statusEl.textContent = "Ready.";
                     persist();
                   }
@@ -520,6 +866,17 @@
       });
       langEl.addEventListener("change", function () {
         try { localStorage.setItem(STORAGE_LANG, langEl.value); } catch (e) {}
+      });
+      agentModeEl.addEventListener("change", function () {
+        if (agentModeEl.checked) includeEditorEl.checked = true;
+        persist();
+      });
+
+      document.getElementById("btnRun").addEventListener("click", function () {
+        runEditorCode();
+      });
+      document.getElementById("btnClearRun").addEventListener("click", function () {
+        runOutEl.value = "";
       });
 
       document.getElementById("btnCopyEditor").addEventListener("click", function () {

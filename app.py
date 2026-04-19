@@ -498,9 +498,19 @@ _CODE_SYSTEM = os.environ.get(
     "Use fenced markdown code blocks with language tags. Keep prose short; put the answer in code when appropriate. "
     "Call out security and performance pitfalls briefly when relevant.",
 )
+_CODE_SYSTEM_AGENT = os.environ.get(
+    "PYX_CODE_SYSTEM_AGENT",
+    "You are Pyx AI Code in AGENT mode. The user’s source is in the editor context you receive — you must NOT paste the "
+    "entire file back. Never dump a full rewritten file unless the user explicitly asks for the whole file. "
+    "Prefer minimal edits: explain briefly (1–3 sentences), then output a JSON object in a ```json fenced block with this shape:\n"
+    '{"patches":[{"search":"exact substring to find once in the editor","replace":"replacement text"}, ...]}\n'
+    "Rules: each `search` must match exactly ONE occurrence in the current editor buffer (copy from context). "
+    "Use multiple patches for multiple edits. If you cannot produce safe patches, explain and give only a small illustrative snippet — "
+    "still do not paste the whole file.",
+)
 
 
-def _groq_code_prepare(messages_for_api, language="auto"):
+def _groq_code_prepare(messages_for_api, language="auto", agent=False):
     """OpenAI-compatible chat request for coding (GPT-OSS on Groq by default). Returns None if Groq selected but no key."""
     key = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
     url = os.environ.get("PYX_TALK_LLM_URL", _GROQ_CHAT_COMPLETIONS_URL).strip()
@@ -509,22 +519,36 @@ def _groq_code_prepare(messages_for_api, language="auto"):
     if not key and url_norm == groq_norm:
         return None
     model = (os.environ.get("PYX_CODE_MODEL") or "").strip() or _CODE_MODEL_DEFAULT
-    try:
-        max_tokens = int(os.environ.get("PYX_CODE_MAX_TOKENS", "8192"))
-    except ValueError:
-        max_tokens = 8192
-    max_tokens = max(256, min(max_tokens, 16384))
-    try:
-        temperature = float(os.environ.get("PYX_CODE_TEMPERATURE", "0.22"))
-    except ValueError:
-        temperature = 0.22
-    temperature = max(0.05, min(temperature, 1.2))
     lang = language if isinstance(language, str) else "auto"
     lang = (lang or "auto").strip() or "auto"
     lang_hint = ""
     if lang.lower() not in ("auto", "plain", ""):
         lang_hint = f"\n\nEditor / stack context: {lang}. Prefer idioms, build tools, and libraries typical for this environment."
-    system_content = _CODE_SYSTEM + lang_hint
+    if agent:
+        system_base = _CODE_SYSTEM_AGENT
+        try:
+            max_tokens = int(os.environ.get("PYX_CODE_AGENT_MAX_TOKENS", "3072"))
+        except ValueError:
+            max_tokens = 3072
+        max_tokens = max(256, min(max_tokens, 8192))
+        try:
+            temperature = float(os.environ.get("PYX_CODE_AGENT_TEMPERATURE", "0.18"))
+        except ValueError:
+            temperature = 0.18
+        temperature = max(0.05, min(temperature, 0.9))
+    else:
+        system_base = _CODE_SYSTEM
+        try:
+            max_tokens = int(os.environ.get("PYX_CODE_MAX_TOKENS", "4096"))
+        except ValueError:
+            max_tokens = 4096
+        max_tokens = max(256, min(max_tokens, 16384))
+        try:
+            temperature = float(os.environ.get("PYX_CODE_TEMPERATURE", "0.22"))
+        except ValueError:
+            temperature = 0.22
+        temperature = max(0.05, min(temperature, 1.2))
+    system_content = system_base + lang_hint
     body = {
         "model": model,
         "messages": [{"role": "system", "content": system_content}] + messages_for_api,
@@ -556,9 +580,9 @@ def _groq_code_prepare(messages_for_api, language="auto"):
     }
 
 
-def _groq_code_chat(messages_for_api, language="auto"):
+def _groq_code_chat(messages_for_api, language="auto", agent=False):
     """Non-streaming code assistant. Returns (reply_text, model_id) or (None, None) if unconfigured."""
-    prep = _groq_code_prepare(messages_for_api, language)
+    prep = _groq_code_prepare(messages_for_api, language, agent=agent)
     if prep is None:
         return None, None
     headers = {**prep["headers"], "Accept": "application/json"}
@@ -1092,14 +1116,21 @@ def code_chat():
         return jsonify({"error": '"language" must be a string'}), 400
     language = (language or "auto").strip() or "auto"
 
+    agent = _as_bool(data.get("agent"))
     want_stream = _as_bool(data.get("stream"))
     llm_messages = [{"role": m["role"], "content": m["content"]} for m in messages]
 
     if want_stream:
-        prep = _groq_code_prepare(llm_messages, language)
+        prep = _groq_code_prepare(llm_messages, language, agent=agent)
 
         def generate_code():
-            meta = {"type": "meta", "kind": "code", "language": language, "bad": False}
+            meta = {
+                "type": "meta",
+                "kind": "code",
+                "language": language,
+                "agent": agent,
+                "bad": False,
+            }
             if prep:
                 meta["model"] = prep["model"]
             else:
@@ -1145,7 +1176,7 @@ def code_chat():
         )
 
     try:
-        reply, model_used = _groq_code_chat(llm_messages, language=language)
+        reply, model_used = _groq_code_chat(llm_messages, language=language, agent=agent)
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", errors="replace")[:800]
         return jsonify({"error": "LLM request failed", "status": e.code, "detail": detail}), 502
@@ -1164,6 +1195,7 @@ def code_chat():
         "reply": reply,
         "model": model_used or "unknown",
         "language": language,
+        "agent": agent,
     }
     if u_score is not None:
         out["score"] = round(u_score, 4)
