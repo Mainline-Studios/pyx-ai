@@ -5,8 +5,15 @@ const path = require("path");
 const { spawn } = require("child_process");
 const crypto = require("crypto");
 
+const fs = require("fs");
 const root = path.join(__dirname, "..");
 const key = crypto.randomBytes(24).toString("hex");
+
+const venvUnix = path.join(root, ".venv", "bin", "python3");
+const venvWin = path.join(root, ".venv", "Scripts", "python.exe");
+let py = process.platform === "win32" ? "python" : "python3";
+if (fs.existsSync(venvUnix)) py = venvUnix;
+else if (fs.existsSync(venvWin)) py = venvWin;
 
 console.log("\n  Pyx API (dev)\n");
 console.log("  API key (use in your game / client):");
@@ -17,7 +24,6 @@ console.log("  Health: http://localhost:8765/health");
 console.log("  (Ctrl+C to stop)\n");
 
 const env = { ...process.env, PYX_API_KEY: key, PORT: "8765" };
-const py = process.platform === "win32" ? "python" : "python3";
 const child = spawn(py, ["app.py"], {
   env,
   stdio: "inherit",
