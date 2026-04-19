@@ -552,12 +552,15 @@
         var h = (typeof location !== "undefined" && location.hostname) || "";
         return h === "localhost" || h === "127.0.0.1" || h === "";
       }
+      function pyxSleep(ms) {
+        return new Promise(function (r) {
+          setTimeout(r, ms);
+        });
+      }
       /**
-       * Production: try Cloud Run first (avoids broken Firebase rewrites). Then:
-       * - If fetch rejects (Safari “Load failed”, DNS, etc.) → same-origin /api/…
-       * - If HTTP 5xx from Run → try /api/… once; if that also fails, keep first response for error JSON
-       * - If still 502/503 (cold start / gateway), wait 2s and repeat once
-       * Local dev: only Cloud Run (no /api proxy).
+       * Production: same-origin /api first (Firebase Hosting → Cloud Run: no CORS, stable routing).
+       * On 5xx, try direct Cloud Run; on fetch error, direct Run. Up to 4 attempts with backoff on 502/503.
+       * Local dev: Cloud Run only (no /api proxy).
        */
       function fetchPyxHttp(endpoint, bodyString) {
         var opts = {
@@ -573,33 +576,37 @@
         if (pyxIsLocalHost()) {
           return fetch(direct, opts);
         }
-        function directThenProxy() {
-          return fetch(direct, opts)
+        function proxyThenDirect() {
+          return fetch(proxied, opts)
             .then(function (res) {
               if (res.status >= 500 && res.status < 600) {
-                return fetch(proxied, opts).catch(function () {
+                return fetch(direct, opts).catch(function () {
                   return res;
                 });
               }
               return res;
             })
             .catch(function () {
-              return fetch(proxied, opts);
+              return fetch(direct, opts);
             });
         }
-        return directThenProxy().then(function (res) {
-          if (res.status !== 502 && res.status !== 503) return res;
-          return new Promise(function (resolve) {
-            setTimeout(resolve, 2000);
-          }).then(function () {
-            return directThenProxy();
+        function withBackoff(attempt) {
+          var maxAttempts = 4;
+          return proxyThenDirect().then(function (res) {
+            if ((res.status !== 502 && res.status !== 503) || attempt >= maxAttempts - 1) {
+              return res;
+            }
+            return pyxSleep(1000 * Math.pow(2, attempt)).then(function () {
+              return withBackoff(attempt + 1);
+            });
           });
-        });
+        }
+        return withBackoff(0);
       }
-      /** Human hint when the edge returns 502/503 (empty JSON body is common). */
+      /** Extra line when the edge returns 502/503 (body is often empty). */
       function gatewayErrorHint(status) {
         if (status === 503 || status === 502) {
-          return "Service busy or cold-starting — wait a few seconds and retry.";
+          return "Retry in a moment or refresh the page.";
         }
         return "";
       }

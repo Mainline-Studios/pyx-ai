@@ -328,6 +328,9 @@
         var h = (typeof location !== "undefined" && location.hostname) || "";
         return h === "localhost" || h === "127.0.0.1" || h === "";
       }
+      function pyxSleep(ms) {
+        return new Promise(function (r) { setTimeout(r, ms); });
+      }
       function fetchPyxHttp(endpoint, bodyString) {
         var opts = {
           method: "POST",
@@ -340,14 +343,26 @@
         var direct = PYX_CLOUD_RUN + "/" + endpoint;
         var proxied = "/api/" + endpoint;
         if (pyxIsLocalHost()) return fetch(direct, opts);
-        return fetch(direct, opts)
-          .then(function (res) {
-            if (res.status >= 500 && res.status < 600) {
-              return fetch(proxied, opts).catch(function () { return res; });
-            }
-            return res;
-          })
-          .catch(function () { return fetch(proxied, opts); });
+        function proxyThenDirect() {
+          return fetch(proxied, opts)
+            .then(function (res) {
+              if (res.status >= 500 && res.status < 600) {
+                return fetch(direct, opts).catch(function () { return res; });
+              }
+              return res;
+            })
+            .catch(function () { return fetch(direct, opts); });
+        }
+        function withBackoff(attempt) {
+          var maxAttempts = 4;
+          return proxyThenDirect().then(function (res) {
+            if ((res.status !== 502 && res.status !== 503) || attempt >= maxAttempts - 1) return res;
+            return pyxSleep(1000 * Math.pow(2, attempt)).then(function () {
+              return withBackoff(attempt + 1);
+            });
+          });
+        }
+        return withBackoff(0);
       }
 
       var editorEl = document.getElementById("editor");

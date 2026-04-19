@@ -241,10 +241,14 @@
         var h = (typeof location !== "undefined" && location.hostname) || "";
         return h === "localhost" || h === "127.0.0.1" || h === "";
       }
-      /** Same strategy as Pyx Talk: Run first, /api on 5xx, then one 2s retry on 502/503. */
+      function pyxSleep(ms) {
+        return new Promise(function (r) {
+          setTimeout(r, ms);
+        });
+      }
       function gatewayErrorHint(status) {
         if (status === 503 || status === 502) {
-          return "Service busy or cold-starting — wait a few seconds and retry.";
+          return "Retry in a moment or refresh the page.";
         }
         return "";
       }
@@ -262,28 +266,32 @@
         if (pyxIsLocalHost()) {
           return fetch(direct, opts);
         }
-        function directThenProxy() {
-          return fetch(direct, opts)
+        function proxyThenDirect() {
+          return fetch(proxied, opts)
             .then(function (res) {
               if (res.status >= 500 && res.status < 600) {
-                return fetch(proxied, opts).catch(function () {
+                return fetch(direct, opts).catch(function () {
                   return res;
                 });
               }
               return res;
             })
             .catch(function () {
-              return fetch(proxied, opts);
+              return fetch(direct, opts);
             });
         }
-        return directThenProxy().then(function (res) {
-          if (res.status !== 502 && res.status !== 503) return res;
-          return new Promise(function (resolve) {
-            setTimeout(resolve, 2000);
-          }).then(function () {
-            return directThenProxy();
+        function withBackoff(attempt) {
+          var maxAttempts = 4;
+          return proxyThenDirect().then(function (res) {
+            if ((res.status !== 502 && res.status !== 503) || attempt >= maxAttempts - 1) {
+              return res;
+            }
+            return pyxSleep(1000 * Math.pow(2, attempt)).then(function () {
+              return withBackoff(attempt + 1);
+            });
           });
-        });
+        }
+        return withBackoff(0);
       }
       var canvas = document.getElementById("pixelCanvas");
       var placeholder = document.getElementById("placeholder");

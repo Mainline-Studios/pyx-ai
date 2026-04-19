@@ -13,8 +13,10 @@
 # Commits must be saved first; then this pushes the current branch to origin
 # before Cloud Build / Firebase. Skip push: DEPLOY_SKIP_GIT_PUSH=1 npm run deploy
 #
-# API deploy defaults to min-instances=1 (warm instance; fewer 503s). Scale to zero with:
-#   CLOUD_RUN_MIN_INSTANCES=0 npm run deploy:api
+# API deploy defaults: min-instances=1, 1Gi RAM, 900s timeout, --no-cpu-throttling, --cpu-boost.
+# CPU throttling OFF by default (warm instances still throttle CPU between requests unless disabled — a major 503 cause).
+# Opt in to idle CPU throttling (save $): CLOUD_RUN_CPU_THROTTLING=1 npm run deploy:api
+# Scale to zero: CLOUD_RUN_MIN_INSTANCES=0 npm run deploy:api
 #
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -62,9 +64,9 @@ git_push() {
 deploy_api() {
   echo "==> Cloud Build + Cloud Run (${SERVICE})"
   gcloud builds submit . --config=cloudbuild.yaml
-  # Default min-instances=1 keeps one instance warm (override with CLOUD_RUN_MIN_INSTANCES=0).
-  # Optional: CLOUD_RUN_NO_CPU_THROTTLING=1 → --no-cpu-throttling (snappier when scaled up; higher idle cost)
   local min_inst="${CLOUD_RUN_MIN_INSTANCES:-1}"
+  local mem="${CLOUD_RUN_MEMORY:-1Gi}"
+  local tmo="${CLOUD_RUN_TIMEOUT:-900s}"
   local -a run_args=(
     --image="${IMAGE}"
     --region="${REGION}"
@@ -72,11 +74,16 @@ deploy_api() {
     --allow-unauthenticated
     --quiet
     --min-instances="${min_inst}"
+    --memory="${mem}"
+    --timeout="${tmo}"
+    --cpu-boost
   )
-  echo "==> Cloud Run min-instances=${min_inst}"
-  if [[ "${CLOUD_RUN_NO_CPU_THROTTLING:-}" == "1" ]]; then
+  echo "==> Cloud Run min-instances=${min_inst} memory=${mem} timeout=${tmo} --cpu-boost"
+  if [[ "${CLOUD_RUN_CPU_THROTTLING:-}" == "1" ]]; then
+    echo "==> Cloud Run CPU throttling enabled (idle savings; may increase 503s)"
+  else
     run_args+=(--no-cpu-throttling)
-    echo "==> Cloud Run --no-cpu-throttling"
+    echo "==> Cloud Run --no-cpu-throttling (default)"
   fi
   gcloud run deploy "${SERVICE}" "${run_args[@]}"
 }
