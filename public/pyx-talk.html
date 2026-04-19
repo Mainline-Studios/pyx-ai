@@ -550,50 +550,48 @@
   <script>
     (function () {
       var PYX_CLOUD_RUN = "https://pyxaiapi-574247481583.us-central1.run.app";
-      function pyxApiPath(endpoint) {
+      function pyxIsLocalHost() {
         var h = (typeof location !== "undefined" && location.hostname) || "";
-        if (h === "localhost" || h === "127.0.0.1" || h === "") {
-          return PYX_CLOUD_RUN + "/" + endpoint;
+        return h === "localhost" || h === "127.0.0.1" || h === "";
+      }
+      /**
+       * Production: try Cloud Run first (avoids broken Firebase rewrites). Then:
+       * - If fetch rejects (Safari “Load failed”, DNS, etc.) → same-origin /api/…
+       * - If HTTP 5xx from Run → try /api/… once; if that also fails, keep first response for error JSON
+       * Local dev: only Cloud Run (no /api proxy).
+       */
+      function fetchPyxHttp(endpoint, bodyString) {
+        var opts = {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: bodyString,
+          mode: "cors",
+          cache: "no-store",
+          credentials: "omit",
+        };
+        var direct = PYX_CLOUD_RUN + "/" + endpoint;
+        var proxied = "/api/" + endpoint;
+        if (pyxIsLocalHost()) {
+          return fetch(direct, opts);
         }
-        return "/api/" + endpoint;
+        return fetch(direct, opts)
+          .then(function (res) {
+            if (res.status >= 500 && res.status < 600) {
+              return fetch(proxied, opts).catch(function () {
+                return res;
+              });
+            }
+            return res;
+          })
+          .catch(function () {
+            return fetch(proxied, opts);
+          });
       }
       function fetchPyxPost(endpoint, bodyString) {
-        var primary = pyxApiPath(endpoint);
-        var direct = PYX_CLOUD_RUN + "/" + endpoint;
-        var opts = {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: bodyString,
-        };
-        return fetch(primary, opts).then(function (res) {
-          if (
-            res.status >= 500 &&
-            res.status < 600 &&
-            primary.indexOf("/api/") === 0
-          ) {
-            return fetch(direct, opts);
-          }
-          return res;
-        });
+        return fetchPyxHttp(endpoint, bodyString);
       }
       function fetchPyxStream(endpoint, bodyString) {
-        var primary = pyxApiPath(endpoint);
-        var direct = PYX_CLOUD_RUN + "/" + endpoint;
-        var opts = {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: bodyString,
-        };
-        return fetch(primary, opts).then(function (res) {
-          if (
-            res.status >= 500 &&
-            res.status < 600 &&
-            primary.indexOf("/api/") === 0
-          ) {
-            return fetch(direct, opts);
-          }
-          return res;
-        });
+        return fetchPyxHttp(endpoint, bodyString);
       }
       var chatEl = document.getElementById("chat");
       var inputEl = document.getElementById("input");

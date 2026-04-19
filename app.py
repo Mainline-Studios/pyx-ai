@@ -638,7 +638,10 @@ def check_api_key():
 def cors(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-API-Key, Authorization"
+    response.headers["Access-Control-Allow-Headers"] = (
+        "Content-Type, X-API-Key, Authorization, X-Requested-With, Accept"
+    )
+    response.headers["Access-Control-Max-Age"] = "86400"
     return response
 
 

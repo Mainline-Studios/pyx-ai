@@ -236,32 +236,37 @@
   <script>
     (function () {
       var PYX_CLOUD_RUN = "https://pyxaiapi-574247481583.us-central1.run.app";
-      function pyxApiPath(endpoint) {
+      function pyxIsLocalHost() {
         var h = (typeof location !== "undefined" && location.hostname) || "";
-        if (h === "localhost" || h === "127.0.0.1" || h === "") {
-          return PYX_CLOUD_RUN + "/" + endpoint;
-        }
-        return "/api/" + endpoint;
+        return h === "localhost" || h === "127.0.0.1" || h === "";
       }
-      /** If Firebase /api proxy returns 5xx, retry direct Cloud Run (CORS allows it). */
+      /** Same strategy as Pyx Talk: Run first, then /api on failure or 5xx. */
       function fetchPyxPost(endpoint, bodyString) {
-        var primary = pyxApiPath(endpoint);
-        var direct = PYX_CLOUD_RUN + "/" + endpoint;
         var opts = {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: bodyString,
+          mode: "cors",
+          cache: "no-store",
+          credentials: "omit",
         };
-        return fetch(primary, opts).then(function (res) {
-          if (
-            res.status >= 500 &&
-            res.status < 600 &&
-            primary.indexOf("/api/") === 0
-          ) {
-            return fetch(direct, opts);
-          }
-          return res;
-        });
+        var direct = PYX_CLOUD_RUN + "/" + endpoint;
+        var proxied = "/api/" + endpoint;
+        if (pyxIsLocalHost()) {
+          return fetch(direct, opts);
+        }
+        return fetch(direct, opts)
+          .then(function (res) {
+            if (res.status >= 500 && res.status < 600) {
+              return fetch(proxied, opts).catch(function () {
+                return res;
+              });
+            }
+            return res;
+          })
+          .catch(function () {
+            return fetch(proxied, opts);
+          });
       }
       var canvas = document.getElementById("pixelCanvas");
       var placeholder = document.getElementById("placeholder");
