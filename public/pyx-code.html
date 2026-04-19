@@ -343,23 +343,32 @@
         var direct = PYX_CLOUD_RUN + "/" + endpoint;
         var proxied = "/api/" + endpoint;
         if (pyxIsLocalHost()) return fetch(direct, opts);
-        function proxyThenDirect() {
-          return fetch(proxied, opts)
+        function pyxTransientStatus(s) {
+          return s === 502 || s === 503 || s === 429;
+        }
+        function oneRound(proxyFirst) {
+          var first = proxyFirst ? proxied : direct;
+          var second = proxyFirst ? direct : proxied;
+          return fetch(first, opts)
             .then(function (res) {
               if (res.status >= 500 && res.status < 600) {
-                return fetch(direct, opts).catch(function () { return res; });
+                return fetch(second, opts).catch(function () { return res; });
               }
               return res;
             })
-            .catch(function () { return fetch(direct, opts); });
+            .catch(function () { return fetch(second, opts); });
+        }
+        function withNetReplay(proxyFirst) {
+          return oneRound(proxyFirst).catch(function () {
+            return pyxSleep(1200).then(function () { return oneRound(proxyFirst); });
+          });
         }
         function withBackoff(attempt) {
-          var maxAttempts = 4;
-          return proxyThenDirect().then(function (res) {
-            if ((res.status !== 502 && res.status !== 503) || attempt >= maxAttempts - 1) return res;
-            return pyxSleep(1000 * Math.pow(2, attempt)).then(function () {
-              return withBackoff(attempt + 1);
-            });
+          var maxAttempts = 6;
+          var proxyFirst = attempt % 2 === 0;
+          return withNetReplay(proxyFirst).then(function (res) {
+            if (!pyxTransientStatus(res.status) || attempt >= maxAttempts - 1) return res;
+            return pyxSleep(700 * Math.pow(2, attempt)).then(function () { return withBackoff(attempt + 1); });
           });
         }
         return withBackoff(0);

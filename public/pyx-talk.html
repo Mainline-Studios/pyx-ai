@@ -557,10 +557,13 @@
           setTimeout(r, ms);
         });
       }
+      function pyxTransientStatus(s) {
+        return s === 502 || s === 503 || s === 429;
+      }
       /**
-       * Production: same-origin /api first (Firebase Hosting → Cloud Run: no CORS, stable routing).
-       * On 5xx, try direct Cloud Run; on fetch error, direct Run. Up to 4 attempts with backoff on 502/503.
-       * Local dev: Cloud Run only (no /api proxy).
+       * Production: alternate /api vs direct Cloud Run each retry (either path can 503 while the other works).
+       * One immediate replay on network failure; up to 6 rounds with backoff on 502/503/429.
+       * Local dev: Cloud Run only.
        */
       function fetchPyxHttp(endpoint, bodyString) {
         var opts = {
@@ -576,27 +579,37 @@
         if (pyxIsLocalHost()) {
           return fetch(direct, opts);
         }
-        function proxyThenDirect() {
-          return fetch(proxied, opts)
+        function oneRound(proxyFirst) {
+          var first = proxyFirst ? proxied : direct;
+          var second = proxyFirst ? direct : proxied;
+          return fetch(first, opts)
             .then(function (res) {
               if (res.status >= 500 && res.status < 600) {
-                return fetch(direct, opts).catch(function () {
+                return fetch(second, opts).catch(function () {
                   return res;
                 });
               }
               return res;
             })
             .catch(function () {
-              return fetch(direct, opts);
+              return fetch(second, opts);
             });
         }
+        function withNetReplay(proxyFirst) {
+          return oneRound(proxyFirst).catch(function () {
+            return pyxSleep(1200).then(function () {
+              return oneRound(proxyFirst);
+            });
+          });
+        }
         function withBackoff(attempt) {
-          var maxAttempts = 4;
-          return proxyThenDirect().then(function (res) {
-            if ((res.status !== 502 && res.status !== 503) || attempt >= maxAttempts - 1) {
+          var maxAttempts = 6;
+          var proxyFirst = attempt % 2 === 0;
+          return withNetReplay(proxyFirst).then(function (res) {
+            if (!pyxTransientStatus(res.status) || attempt >= maxAttempts - 1) {
               return res;
             }
-            return pyxSleep(1000 * Math.pow(2, attempt)).then(function () {
+            return pyxSleep(700 * Math.pow(2, attempt)).then(function () {
               return withBackoff(attempt + 1);
             });
           });
@@ -624,8 +637,9 @@
         if (parts.length) return parts.join(" ");
         var plain = pyxStripHtml(typeof rawText === "string" ? rawText : "");
         if (plain) return plain.length > 450 ? plain.slice(0, 450) + "…" : plain;
-        if (status === 503) return "Service Unavailable — origin busy or rolling out. Retry shortly.";
+        if (status === 503) return "Service Unavailable — origin busy or rolling out. Retries run automatically; wait a moment.";
         if (status === 502) return "Bad Gateway — upstream or LLM timeout. Retry shortly.";
+        if (status === 429) return "Rate limited — wait a minute and try again.";
         if (status && status >= 500) {
           return "Server error (HTTP " + status + "). Check Cloud Run logs, secrets (PYX_TALK_LLM_KEY), and quotas.";
         }
