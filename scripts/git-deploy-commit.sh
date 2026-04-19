@@ -25,7 +25,11 @@ if ! git rev-parse --git-dir >/dev/null 2>&1; then
   exit 0
 fi
 
-REASON="${*}"
+# With set -u, "$*" / ${*} when $#==0 can error — only join args when present.
+REASON=""
+if [[ $# -gt 0 ]]; then
+  REASON="$*"
+fi
 REASON="${REASON//$'\n'/ }"
 
 if [[ -n "$REASON" ]]; then
