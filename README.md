@@ -25,28 +25,8 @@ Edit `TRAINING_GROUNDS_PHRASES` in `Pyx_ai_moderator.py` to add or remove entrie
 
 - **Prefix rules:** A phrase that ends with `...` acts as a wildcard: that prefix plus *anything* after it gets the same label (banned or allowed).
 
-## Firestore (optional)
-
-Phrases can sync to [Firebase Firestore](https://console.firebase.google.com/project/pyx-ai/firestore/databases/default/data) so the cloud DB stays updated when users override or train.
-
-1. **Create the database:** If you haven’t already, [create a Firestore database](https://console.cloud.google.com/datastore/setup?project=pyx-ai) for project `pyx-ai` (choose Native mode). Without this, the seed will report “database does not exist”.
-2. **Use a virtual environment** (recommended on macOS/Homebrew Python):
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate   # On Windows: .venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-3. **Credentials:** In Firebase Console → Project settings → Service accounts, generate a new private key. Save it as `firebase-key.json` in the project root (or set `GOOGLE_APPLICATION_CREDENTIALS` to its path).
-4. **Seed once:** Run `python3 Pyx_ai_moderator.py seed-firestore` (or `python Pyx_ai_moderator.py seed-firestore` with the venv activated) to upload the built-in phrases to the `phrases` collection.
-5. **Ongoing:** When anyone uses **safe**, **bad**, **override**, or adds words/phrases in code, Pyx writes to Firestore so the database stays in sync.
-
-Without credentials, Pyx runs as before (no Firestore).
-
-**If seed says "database (default) does not exist":**  
-1. Run: `python3 Pyx_ai_moderator.py firestore-check` — it prints your key’s **project ID** and the exact link.  
-2. Open that link in your browser (same Google account as Firebase).  
-3. Click **Create database** → **Firestore in Native mode** → choose a location → Create.  
-4. Wait 1–2 minutes, then run `python3 Pyx_ai_moderator.py seed-firestore` again.
+- **PYX FOR YOUR APP**
+   We have a dedicated provider running a Pyx AI API; as THIS code is stripped down. Our APIs have updated word databases based on slang and trends, and it is more comprehensive. Use this for a great out of the box moderator; and this for full creative access. Also, we are working on a way to add **Pyx Talk, Pyx Code, and Pyxel Images** to our API list. Thanks for considering us for your app! 
 
 ## Getting updated changes
 
