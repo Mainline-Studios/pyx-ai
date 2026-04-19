@@ -603,12 +603,33 @@
         }
         return withBackoff(0);
       }
-      /** Extra line when the edge returns 502/503 (body is often empty). */
-      function gatewayErrorHint(status) {
-        if (status === 503 || status === 502) {
-          return "Retry in a moment or refresh the page.";
+      function pyxStripHtml(s) {
+        if (!s || typeof s !== "string") return "";
+        return s
+          .replace(/<script[\s\S]*?<\/script>/gi, " ")
+          .replace(/<style[\s\S]*?<\/style>/gi, " ")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+      /** Prefer JSON error/detail/error_code; else strip HTML from proxy pages; else status-specific hint. */
+      function pyxFormatHttpError(j, rawText, status) {
+        j = j || {};
+        var parts = [];
+        if (typeof j.error === "string" && j.error) parts.push(j.error);
+        if (typeof j.error_code === "string" && j.error_code) parts.push("[" + j.error_code + "]");
+        if (typeof j.detail === "string" && j.detail) {
+          parts.push(j.detail.length > 600 ? j.detail.slice(0, 600) + "…" : j.detail);
         }
-        return "";
+        if (parts.length) return parts.join(" ");
+        var plain = pyxStripHtml(typeof rawText === "string" ? rawText : "");
+        if (plain) return plain.length > 450 ? plain.slice(0, 450) + "…" : plain;
+        if (status === 503) return "Service Unavailable — origin busy or rolling out. Retry shortly.";
+        if (status === 502) return "Bad Gateway — upstream or LLM timeout. Retry shortly.";
+        if (status && status >= 500) {
+          return "Server error (HTTP " + status + "). Check Cloud Run logs, secrets (PYX_TALK_LLM_KEY), and quotas.";
+        }
+        return "HTTP " + (status || "?");
       }
       function fetchPyxPost(endpoint, bodyString) {
         return fetchPyxHttp(endpoint, bodyString);
@@ -1031,23 +1052,15 @@
               } catch (e) {
                 j = { error: t };
               }
-              return { ok: res.ok, j: j, status: res.status };
+              return { ok: res.ok, j: j, status: res.status, raw: t };
             });
           })
           .then(function (x) {
             if (!x.ok || !x.j || !x.j.ok) {
               var j = x.j || {};
-              var base = j.error || "Request failed";
-              var det = typeof j.detail === "string" ? j.detail : "";
-              if (det && det.length > 400) det = det.slice(0, 400) + "…";
-              var err = det ? base + " — " + det : base;
+              var err = pyxFormatHttpError(j, x.raw, x.status);
               if (j.error_code === "rate_limited") err = "Rate limited — try again shortly. " + err;
-              var gh = gatewayErrorHint(x.status);
-              statusEl.textContent =
-                "Error: " +
-                (typeof err === "string" ? err : JSON.stringify(err)) +
-                (x.status ? " (HTTP " + x.status + ")" : "") +
-                (gh ? " — " + gh : "");
+              statusEl.textContent = "Error: " + err + (x.status ? " (HTTP " + x.status + ")" : "");
               messages.pop();
               if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
               return;
@@ -1116,12 +1129,8 @@
               return res.text().then(function (t) {
                 var j;
                 try { j = JSON.parse(t); } catch (e) { j = { error: t }; }
-                var errLine = [j.error, typeof j.detail === "string" ? j.detail : j.detail ? JSON.stringify(j.detail) : ""]
-                  .filter(Boolean)
-                  .join(" — ");
-                var gh2 = gatewayErrorHint(res.status);
-                statusEl.textContent =
-                  "Error: " + (errLine || "HTTP " + res.status) + (gh2 ? " — " + gh2 : "");
+                var errLine = pyxFormatHttpError(j, t, res.status);
+                statusEl.textContent = "Error: " + errLine;
                 messages.pop();
                 if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
               });

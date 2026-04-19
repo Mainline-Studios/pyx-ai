@@ -1053,7 +1053,20 @@ def talk():
     )
 
     if want_stream:
-        prep = _groq_openai_prepare(llm_messages, mode, web_context, ground_web)
+        try:
+            prep = _groq_openai_prepare(llm_messages, mode, web_context, ground_web)
+        except Exception as e:
+            app.logger.exception("talk: _groq_openai_prepare failed")
+            return (
+                jsonify(
+                    {
+                        "error": "Failed to prepare LLM request",
+                        "detail": str(e),
+                        "error_code": "talk_prepare",
+                    }
+                ),
+                500,
+            )
 
         def generate():
             meta = {"type": "meta", "mode": mode, "web_search": web_meta, "bad": False}
@@ -1168,7 +1181,20 @@ def code_chat():
     llm_messages = [{"role": m["role"], "content": m["content"]} for m in messages]
 
     if want_stream:
-        prep = _groq_code_prepare(llm_messages, language, agent=agent)
+        try:
+            prep = _groq_code_prepare(llm_messages, language, agent=agent)
+        except Exception as e:
+            app.logger.exception("code_chat: _groq_code_prepare failed")
+            return (
+                jsonify(
+                    {
+                        "error": "Failed to prepare LLM request",
+                        "detail": str(e),
+                        "error_code": "code_prepare",
+                    }
+                ),
+                500,
+            )
 
         def generate_code():
             meta = {
