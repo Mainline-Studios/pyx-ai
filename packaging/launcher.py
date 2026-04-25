@@ -1,13 +1,14 @@
 """Pyx 1.5 desktop launcher.
 
 Runs the same Flask app that ships on Cloud Run, serves the static ``public/``
-UI on the same origin, opens the default browser, and stays in the foreground
-so Ctrl-C / closing the console window stops the app.
+UI on the same origin, and opens it in a **native app window** (pywebview —
+WKWebView on macOS, WebView2 on Windows), not the default browser.
 
-Used as the PyInstaller entry point — everything inside ``pyx-ai/`` can reach
-this file via a sibling import. The bundled binary ships Python + deps, so the
-user only needs to install Ollama (or any OpenAI-compatible local server) and
-pull weights. See PYX_1_5_LOCAL.md for links.
+Set ``PYX_USE_BROWSER=1`` to restore the old browser-only behavior (e.g. remote
+debugging). The local server runs in a background thread while the GUI owns
+the main thread.
+
+Used as the PyInstaller entry point — see PYX_1_5_LOCAL.md for Ollama / models.
 """
 
 from __future__ import annotations
@@ -19,7 +20,6 @@ import threading
 import time
 import urllib.error
 import urllib.request
-import webbrowser
 from pathlib import Path
 
 
@@ -50,7 +50,7 @@ def _prep_env(base: Path) -> None:
     sys.path.insert(0, str(base))
 
 
-def _wait_for_health(port: int, timeout: float = 20.0) -> bool:
+def _wait_for_health(port: int, timeout: float = 25.0) -> bool:
     """Return True once ``GET /health`` returns HTTP 200 (server is accepting work)."""
     url = f"http://127.0.0.1:{port}/health"
     deadline = time.time() + timeout
@@ -160,6 +160,91 @@ def _register_bootstrap(app) -> None:
         )
 
 
+def _want_native_window() -> bool:
+    """Native pywebview window unless user opts into a normal browser tab."""
+    v = os.environ.get("PYX_USE_BROWSER", "").strip().lower()
+    return v not in ("1", "true", "yes", "on")
+
+
+def _run_with_webview(url: str, port: int, base: Path) -> int:
+    import webview
+
+    import app as pyx_app
+
+    srv_holder: list = []
+
+    def _serve():
+        from werkzeug.serving import make_server
+
+        s = make_server("127.0.0.1", port, pyx_app.app, threaded=True)
+        srv_holder.append(s)
+        s.serve_forever()
+
+    t = threading.Thread(target=_serve, daemon=True)
+    t.start()
+    # Wait until Werkzeug thread has bound and Flask answers /health.
+    if not _wait_for_health(port):
+        print(
+            f"[pyx] server did not become ready in time.\n"
+            f"  Open manually: {url}",
+            file=sys.stderr,
+        )
+        return 4
+
+    w = int(os.environ.get("PYX_WINDOW_WIDTH", "1280"))
+    h = int(os.environ.get("PYX_WINDOW_HEIGHT", "840"))
+
+    print("Pyx 1.5 desktop (native window)")
+    print(f"  URL   : {url}")
+    print(f"  Bundle: {base}")
+    print("  Stop  : close the Pyx window or press Ctrl+C in this console")
+
+    webview.create_window(
+        "Pyx",
+        url,
+        width=w,
+        height=h,
+        min_size=(720, 480),
+    )
+    try:
+        webview.start()
+    except KeyboardInterrupt:
+        print("\n[pyx] shutting down")
+    return 0
+
+
+def _run_with_browser_tab(url: str, port: int) -> int:
+    import webbrowser
+
+    import app as pyx_app  # noqa: E402
+
+    def _open_when_ready() -> None:
+        if _wait_for_health(port):
+            webbrowser.open_new(url)
+        else:
+            print(
+                f"[pyx] server did not become ready in time.\n"
+                f"  Open manually: {url}",
+                file=sys.stderr,
+            )
+
+    threading.Thread(target=_open_when_ready, daemon=True).start()
+
+    print("Pyx 1.5 desktop (system browser — PYX_USE_BROWSER=1)")
+    print(f"  URL   : {url}")
+    print("  Stop  : Ctrl+C / close this window")
+
+    try:
+        from werkzeug.serving import make_server
+
+        srv = make_server("127.0.0.1", port, pyx_app.app, threaded=True)
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        print("\n[pyx] shutting down")
+        return 0
+    return 0
+
+
 def main() -> int:
     base = _base_dir()
     _prep_env(base)
@@ -184,13 +269,10 @@ def main() -> int:
 
     _register_bootstrap(pyx_app.app)
 
-    # Decide first-load URL: if Ollama isn't running or any required model is
-    # missing, go to /pyx-setup.html so the user can download in-browser.
     try:
         from packaging import bootstrap  # type: ignore
     except Exception:
         import bootstrap  # type: ignore
-    # Best-effort cold start so the setup page can show "Running" instantly.
     if not bootstrap.ollama_is_up():
         bootstrap.ollama_serve_background()
 
@@ -201,32 +283,19 @@ def main() -> int:
     port = _pick_port(int(os.environ.get("PORT", "8765")))
     url = f"http://127.0.0.1:{port}/{first_page}"
 
-    def _open_when_ready() -> None:
-        if _wait_for_health(port):
-            webbrowser.open_new(url)
-        else:
+    if _want_native_window():
+        try:
+            return _run_with_webview(url, port, base)
+        except ImportError:
             print(
-                f"[pyx] server did not become ready in time.\n"
-                f"  Open manually: {url}",
+                "[pyx] pywebview is not installed — falling back to system browser.\n"
+                "  Install desktop deps: pip install -r packaging/requirements-desktop.txt",
                 file=sys.stderr,
             )
+        except Exception as e:  # pragma: no cover
+            print(f"[pyx] native window failed ({e}); falling back to system browser.", file=sys.stderr)
 
-    threading.Thread(target=_open_when_ready, daemon=True).start()
-
-    print("Pyx 1.5 desktop")
-    print(f"  URL   : {url}")
-    print(f"  Bundle: {base}")
-    print("  Stop  : Ctrl+C / close this window")
-
-    try:
-        from werkzeug.serving import make_server
-
-        srv = make_server("127.0.0.1", port, pyx_app.app, threaded=True)
-        srv.serve_forever()
-    except KeyboardInterrupt:
-        print("\n[pyx] shutting down")
-        return 0
-    return 0
+    return _run_with_browser_tab(url, port)
 
 
 if __name__ == "__main__":

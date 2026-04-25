@@ -27,6 +27,7 @@ if (-not (Test-Path .venv)) { python -m venv .venv }
 $py = Join-Path $Root ".venv\Scripts\python.exe"
 & $py -m pip install --upgrade pip | Out-Null
 & $py -m pip install -r requirements.txt
+& $py -m pip install -r packaging/requirements-desktop.txt
 & $py -m pip install "pyinstaller>=6.3"
 
 Write-Host "==> PyInstaller"

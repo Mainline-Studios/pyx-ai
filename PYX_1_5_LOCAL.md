@@ -43,6 +43,10 @@ On first launch Pyx opens a built-in **setup page** (`/pyx-setup.html`) that:
    (~2 GB Llama 3.2 3B + ~5 GB Llama 3.1 8B + ~16 GB GPT-OSS 20B).
 4. Opens Pyx Talk automatically when everything is ready.
 
+The desktop build uses a **native window** (pywebview — not Safari/Chrome as the
+main shell). Set **`PYX_USE_BROWSER=1`** if you want the old behavior (system
+browser tab, easier DevTools).
+
 You can also force the setup page any time with `PYX_FORCE_SETUP=1` before
 launching, or visit `http://127.0.0.1:8765/pyx-setup.html` directly.
 

@@ -9,8 +9,12 @@ Produces dist/Pyx (one-folder bundle). macOS post-step wraps it as Pyx.app.
 
 from pathlib import Path
 
+from PyInstaller.utils.hooks import collect_all
+
 ROOT = Path(SPECPATH).resolve().parent
 ENTRY = str(ROOT / "packaging" / "launcher.py")
+
+_wv_datas, _wv_binaries, _wv_hidden = collect_all("webview")
 
 datas = [
     (str(ROOT / "public"), "public"),
@@ -20,7 +24,7 @@ datas = [
     (str(ROOT / "Pyx_ai_check.py"), "."),
     (str(ROOT / "Pyx_ai_analyze.py"), "."),
     (str(ROOT / "packaging" / "bootstrap.py"), "."),
-]
+] + _wv_datas
 
 # Keep bundle lean — Firebase / GCP SDKs aren't used in local mode and add ~150 MB.
 excludes = [
@@ -43,12 +47,13 @@ hiddenimports = [
     "itsdangerous",
     "click",
     "blinker",
-]
+    "webview",
+] + list(_wv_hidden)
 
 a = Analysis(
     [ENTRY],
     pathex=[str(ROOT)],
-    binaries=[],
+    binaries=_wv_binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],

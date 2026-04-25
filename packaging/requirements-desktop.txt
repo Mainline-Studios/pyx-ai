@@ -1,0 +1,2 @@
+# Extra deps for the PyInstaller desktop bundle only (not Cloud Run).
+pywebview>=5.0

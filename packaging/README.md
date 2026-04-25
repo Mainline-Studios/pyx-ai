@@ -23,8 +23,9 @@ After the workflow finishes:
 | `Pyx-<version>-setup.exe`  | Windows 10 / 11 (x64)         | Inno Setup installer |
 
 Once installed, Pyx launches a small local web server (127.0.0.1:8765) and
-opens the Pyx Talk UI in the default browser. A console window stays open —
-close it to stop the server.
+opens the UI in a **native app window** (pywebview), not your default browser.
+A console window stays open for logs — close the Pyx window or the console to
+stop the server. Set **`PYX_USE_BROWSER=1`** to use a normal browser tab instead.
 
 ## Build locally
 
