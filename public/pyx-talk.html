@@ -125,6 +125,29 @@
       .badge { background: rgba(129, 140, 248, 0.15); }
     }
 
+    .pyx15-banner {
+      display: none;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(14, 165, 233, 0.10));
+      border: 1px solid rgba(129, 140, 248, 0.35);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin: 0 0 18px;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #1f2244;
+    }
+    .pyx15-banner.is-shown { display: block; }
+    .pyx15-banner strong { color: #4c3bd8; }
+    .pyx15-banner a { color: #4338ca; text-decoration: none; font-weight: 600; }
+    .pyx15-banner a:hover { text-decoration: underline; }
+    .pyx15-banner .pills { font-size: 11px; color: #4c3bd8; margin-left: 4px; }
+    @media (prefers-color-scheme: dark) {
+      .pyx15-banner { color: #d9dcff; }
+      .pyx15-banner strong { color: #c7d2fe; }
+      .pyx15-banner a { color: #a5b4fc; }
+      .pyx15-banner .pills { color: #a5b4fc; }
+    }
+
     h1 {
       font-size: 1.65rem;
       font-weight: 700;
@@ -508,6 +531,13 @@
       </div>
     </div>
 
+    <div class="pyx15-banner" id="pyx15Banner" role="note">
+      <strong>Get the Pyx 1.5+ app</strong> to run Pyx Talk locally on Llama + GPT-OSS.
+      Up to <strong>90% faster</strong> and <strong>~90% more environmentally friendly</strong>* than the cloud build.
+      <a href="https://github.com/Mainline-Studios/pyx-ai/releases/latest" target="_blank" rel="noopener">Download Pyx 1.5 →</a>
+      <span class="pills">* vs. typical cloud chat round-trip</span>
+    </div>
+
     <h1>Pyx AI Talk</h1>
     <p class="lede">PYX TALK LIVE COMING SOON</p>
 
@@ -656,6 +686,17 @@
       function fetchPyxStream(endpoint, bodyString) {
         return fetchPyxHttp(endpoint, bodyString);
       }
+      // Banner auto-hide: show only if /bootstrap/status isn't reachable (i.e. not inside
+      // the Pyx 1.5+ desktop launcher). Running against the desktop build = no banner.
+      (function () {
+        var banner = document.getElementById("pyx15Banner");
+        if (!banner) return;
+        fetch("/bootstrap/status", { cache: "no-store" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (j) { if (!j) banner.classList.add("is-shown"); })
+          .catch(function () { banner.classList.add("is-shown"); });
+      })();
+
       var chatEl = document.getElementById("chat");
       var inputEl = document.getElementById("input");
       var sendBtn = document.getElementById("send");

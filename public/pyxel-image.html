@@ -200,6 +200,17 @@
       </div>
     </div>
 
+    <div id="pyx15Banner" role="note"
+      style="display:none; margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.45;
+             background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(14, 165, 233, 0.10));
+             border: 1px solid rgba(129, 140, 248, 0.4); color: #1f2244;">
+      <strong style="color:#4c3bd8">Get the Pyx 1.5+ app</strong> to run Pyxel locally on GPT-OSS.
+      Up to <strong>90% faster</strong> and <strong>~90% more environmentally friendly</strong>* than the cloud build.
+      <a href="https://github.com/Mainline-Studios/pyx-ai/releases/latest" target="_blank" rel="noopener"
+         style="color:#4338ca; font-weight: 600; text-decoration: none; margin-left: 4px;">Download Pyx 1.5 →</a>
+      <span style="font-size:11px; color:#4c3bd8; margin-left: 4px;">* vs. typical cloud chat round-trip</span>
+    </div>
+
     <h1>Pyx AI Image Generation</h1>
 
     <div class="model-bar">
@@ -241,6 +252,14 @@
         var h = (typeof location !== "undefined" && location.hostname) || "";
         return h === "localhost" || h === "127.0.0.1" || h === "";
       }
+      (function () {
+        var b = document.getElementById("pyx15Banner");
+        if (!b) return;
+        fetch("/bootstrap/status", { cache: "no-store" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (j) { if (!j) b.style.display = "block"; })
+          .catch(function () { b.style.display = "block"; });
+      })();
       function pyxSleep(ms) {
         return new Promise(function (r) {
           setTimeout(r, ms);

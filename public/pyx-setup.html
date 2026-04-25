@@ -242,6 +242,59 @@
     .actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px; }
     .actions .status-text { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 1.2em; }
 
+    .perks {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 18px 0 20px;
+    }
+    @media (max-width: 560px) { .perks { grid-template-columns: 1fr; } }
+    .perk {
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .perk .big {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      line-height: 1.1;
+    }
+    .perk .small {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .requires {
+      background: linear-gradient(135deg, rgba(167, 139, 250, 0.12), rgba(96, 165, 250, 0.10));
+      border: 1px solid rgba(167, 139, 250, 0.35);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+    .requires strong { color: #c4b5fd; letter-spacing: -0.01em; }
+    .requires .icon {
+      flex: 0 0 auto;
+      width: 26px; height: 26px;
+      border-radius: 8px;
+      display: grid; place-items: center;
+      background: rgba(167, 139, 250, 0.22);
+      color: #e9e3ff;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
     footer {
       margin-top: 36px;
       padding-top: 16px;
@@ -270,12 +323,38 @@
       <span id="ollamaPill" class="pill busy"><span class="dot"></span><span id="ollamaPillText">Checking Ollama…</span></span>
     </header>
 
+    <div class="requires">
+      <div class="icon">1.5</div>
+      <div>
+        <strong>Requires the Pyx 1.5+ desktop app.</strong>
+        Pyx Talk, Code, and Pyxel connect to your local Llama / GPT-OSS models through the Pyx 1.5 desktop launcher.
+        On pyx-ai.web.app these buttons go to the older cloud build — download the macOS / Windows app to get the local 1.5 experience.
+        <a id="getAppLink" href="https://github.com/Mainline-Studios/pyx-ai/releases/latest" target="_blank" rel="noopener" style="color:#c4b5fd; margin-left: 4px;">Get Pyx 1.5 →</a>
+      </div>
+    </div>
+
     <div class="hero">
       <div>
         <h1>Everything runs <em>on your machine</em>.</h1>
         <p>
-          Pick the models you want, Pyx downloads them through Ollama and launches Pyx Talk, Code, and Pyxel locally. No API keys, no cloud quota.
+          Pick the models you want, Pyx downloads them through Ollama and launches Pyx Talk, Code, and Pyxel locally. No API keys, no cloud quota, no data leaving your computer.
         </p>
+
+        <div class="perks" aria-label="Pyx 1.5 benefits">
+          <div class="perk">
+            <div class="big">90%+ faster*</div>
+            <div class="small">vs. round-tripping every token to a cloud LLM — local inference removes network + queue latency.</div>
+          </div>
+          <div class="perk">
+            <div class="big">~90% greener*</div>
+            <div class="small">One laptop-scale run reuses your existing hardware; no data-center inference, no idle cloud CPUs.</div>
+          </div>
+          <div class="perk">
+            <div class="big">$0 per message</div>
+            <div class="small">After the one-time model download, Pyx Talk / Code / Pyxel are free to use — offline too.</div>
+          </div>
+        </div>
+
         <div class="apps">
           <a class="app" href="/pyx-talk.html">
             <h3>Pyx Talk</h3><p>Chat with Llama · fast / smart / reasoning</p>
@@ -344,6 +423,13 @@
       <span>Pyx 1.5 · <a href="https://github.com/Mainline-Studios/pyx-ai" target="_blank" rel="noopener">github.com/Mainline-Studios/pyx-ai</a></span>
       <span><a href="/health" target="_blank" rel="noopener">Health / backend JSON</a></span>
     </footer>
+    <p style="font-size: 11px; color: var(--dim); margin-top: 12px; max-width: 780px;">
+      * "90%+ faster" and "~90% greener" are marketing claims for the default Pyx 1.5 local-inference path
+      (Llama 3.2 3B on a 2023+ Mac / modern laptop GPU) compared to a typical cloud chat round-trip
+      (SSE streamed from a datacenter LLM with extra network and queue latency). Your mileage varies with
+      hardware, model size, and prompt length. Pyx does not claim offsets or certifications; the
+      environmental comparison is a rough first-principles estimate, not an audited metric.
+    </p>
   </div>
 
   <script>

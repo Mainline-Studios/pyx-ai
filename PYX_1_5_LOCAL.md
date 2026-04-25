@@ -1,9 +1,22 @@
 # Pyx 1.5 — Local Llama + GPT-OSS
 
-Pyx 1.5 runs the same Pyx Talk / Pyx Code / Pyxel backends, but the LLM calls go
-to a **local OpenAI-compatible server** (Ollama, LM Studio, llama.cpp, vLLM)
-instead of Groq. No API key, no cloud quota, full offline after the weights are
-downloaded.
+**Requires the Pyx 1.5+ desktop app.** Pyx Talk, Pyx Code, and Pyxel all run
+the same backends, but in 1.5 the LLM calls go to a **local OpenAI-compatible
+server** (Ollama, LM Studio, llama.cpp, vLLM) on your machine instead of Groq.
+
+Why upgrade from the 1.0 cloud build:
+
+- **Up to 90% faster** *\** — no network round-trip for every token, no cloud queue.
+- **~90% more environmentally friendly** *\** — inference reuses your existing
+  hardware instead of spinning up a data-center GPU per message.
+- **$0 per message.** One-time model download, then Pyx is free to use, offline.
+- **Private.** Prompts and replies never leave your computer.
+
+<sub>* Marketing claims based on the default Pyx 1.5 local path
+(Llama 3.2 3B on a 2023+ Mac / modern laptop GPU) vs. a typical cloud chat
+round-trip. Your results vary with hardware, model size, and prompt length.
+The environmental comparison is a rough first-principles estimate, not an
+audited metric.</sub>
 
 ## ⬇ Download a native installer
 
