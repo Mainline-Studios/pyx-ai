@@ -9,7 +9,7 @@
 #endif
 
 [Setup]
-AppId={{7B4BB3C9-96F1-4A59-9B4B-PYXDESKTOP0000}}
+AppId={{7B4BB3C9-96F1-4A59-9B4B-B0F5D1A2E6C8}}
 AppName=Pyx
 AppVersion={#PyxVersion}
 AppVerName=Pyx {#PyxVersion}
