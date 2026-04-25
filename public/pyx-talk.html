@@ -580,9 +580,9 @@
       <div class="model-row">
         <label for="talkMode">Model</label>
         <select id="talkMode" name="talkMode" aria-label="Pyx Talk model">
-          <option value="fast">Pyx Mini 1.5</option>
-          <option value="smart">Pyx 1.5</option>
-          <option value="thinking">Pyx Reasoning 1.5</option>
+          <option value="fast">Pyx Talk Mini 1.0</option>
+          <option value="smart">Pyx Talk 1.0</option>
+          <option value="thinking">Pyx Talk Reasoning 1.0</option>
         </select>
       </div>
 
@@ -710,20 +710,32 @@
       function fetchPyxStream(endpoint, bodyString) {
         return fetchPyxHttp(endpoint, bodyString);
       }
-      // Banner + "Download Pyx 1.5" button auto-hide: only shown when we're NOT inside the
-      // Pyx 1.5+ desktop launcher (which exposes /bootstrap/status). On the cloud build
-      // both show; on the desktop build both hide.
+      // Cloud (no /bootstrap/status) ⇒ show download button + 1.5 upgrade banner, keep 1.0 labels.
+      // Desktop app (Pyx 1.5 launcher) ⇒ hide banner + button, upgrade all labels to the 1.5 line.
       (function () {
         var banner = document.getElementById("pyx15Banner");
         var dlBtn  = document.getElementById("getPyx15");
+
+        function applyDesktopLabels() {
+          MODE_LABELS = MODE_LABELS_15;
+          var sel = document.getElementById("talkMode");
+          if (sel) {
+            var map15 = { fast: "Pyx Mini 1.5", smart: "Pyx 1.5", thinking: "Pyx Reasoning 1.5" };
+            Array.prototype.forEach.call(sel.options, function (opt) {
+              if (map15[opt.value]) opt.textContent = map15[opt.value];
+            });
+          }
+        }
+
         fetch("/bootstrap/status", { cache: "no-store" })
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (j) {
             if (!j) {
               if (banner) banner.classList.add("is-shown");
-            } else if (dlBtn) {
-              dlBtn.style.display = "none";
+              return;
             }
+            if (dlBtn) dlBtn.style.display = "none";
+            applyDesktopLabels();
           })
           .catch(function () {
             if (banner) banner.classList.add("is-shown");
@@ -742,7 +754,14 @@
       var useWebEl = document.getElementById("useWeb");
       var useWebAutoEl = document.getElementById("useWebAuto");
 
+      // Cloud (web) labels — 1.0 line. Desktop app rewrites these to the 1.5 line
+      // after /bootstrap/status confirms we're inside the Pyx 1.5 launcher.
       var MODE_LABELS = {
+        fast: "Pyx Talk Mini 1.0",
+        smart: "Pyx Talk 1.0",
+        thinking: "Pyx Talk Reasoning 1.0",
+      };
+      var MODE_LABELS_15 = {
         fast: "Pyx Mini 1.5",
         smart: "Pyx 1.5",
         thinking: "Pyx Reasoning 1.5",

@@ -222,7 +222,7 @@
     <div class="model-bar">
       <span>Model</span>
       <select id="pyxelModel" aria-label="Pyxel model">
-        <option value="1.0" selected>Pyxel 1.0</option>
+        <option value="0.5" selected>Pyxel 0.5</option>
       </select>
     </div>
 
@@ -261,11 +261,20 @@
       (function () {
         var b = document.getElementById("pyx15Banner");
         var dl = document.getElementById("getPyx15");
+        function applyDesktopLabels() {
+          window.__pyxDesktop = true;
+          var sel = document.getElementById("pyxelModel");
+          if (sel && sel.options[0]) {
+            sel.options[0].value = "1.0";
+            sel.options[0].textContent = "Pyxel 1.0";
+          }
+        }
         fetch("/bootstrap/status", { cache: "no-store" })
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (j) {
-            if (!j) { if (b) b.style.display = "block"; }
-            else if (dl) { dl.style.display = "none"; }
+            if (!j) { if (b) b.style.display = "block"; return; }
+            if (dl) dl.style.display = "none";
+            applyDesktopLabels();
           })
           .catch(function () { if (b) b.style.display = "block"; });
       })();
@@ -502,7 +511,7 @@
           if (!blob) return;
           var a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
-          a.download = "pyxel-1.0.png";
+          a.download = "pyxel-" + ((window.__pyxDesktop) ? "1.0" : "0.5") + ".png";
           a.click();
           URL.revokeObjectURL(a.href);
         });
