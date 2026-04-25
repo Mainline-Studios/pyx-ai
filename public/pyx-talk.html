@@ -1180,7 +1180,13 @@
                   return;
                 }
                 var modeLabel = evt.mode ? modeDisplayName(evt.mode) : "";
-                var m = [modeLabel, evt.model ? evt.model : ""].filter(Boolean).join(" · ");
+                var backendLabel =
+                  evt.backend && typeof evt.backend.label === "string" && evt.backend.label
+                    ? evt.backend.label
+                    : "";
+                var m = [backendLabel, modeLabel, evt.model ? evt.model : ""]
+                  .filter(Boolean)
+                  .join(" · ");
                 if (evt.web_search && evt.web_search.used && evt.web_search.provider) {
                   m = [m, "web:" + evt.web_search.provider].filter(Boolean).join(" · ");
                 }

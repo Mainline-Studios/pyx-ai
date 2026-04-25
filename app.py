@@ -806,15 +806,66 @@ def handle_unexpected_exception(e):
     raise
 
 
+def _talk_backend_info():
+    """Classify the configured LLM backend for UI badges and /health.
+    - cloud (Groq)         : default PYX_TALK_LLM_URL + key present
+    - cloud (Groq, unset)  : default URL + no key  (talk_llm_configured=False)
+    - local (ollama)       : URL host is 127.0.0.1 / localhost (11434 by default)
+    - local (lmstudio)     : URL host localhost on 1234
+    - custom               : any other PYX_TALK_LLM_URL
+    """
+    key = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
+    url = os.environ.get("PYX_TALK_LLM_URL", _GROQ_CHAT_COMPLETIONS_URL).strip()
+    un = url.rstrip("/").lower()
+    gn = _GROQ_CHAT_COMPLETIONS_URL.rstrip("/").lower()
+    if un == gn:
+        return {
+            "backend": "groq",
+            "backend_kind": "cloud",
+            "label": "Pyx 1.0 (Groq cloud)",
+            "configured": bool(key),
+            "url_host": "api.groq.com",
+        }
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except Exception:
+        parsed = None
+    host = (parsed.hostname if parsed else "") or ""
+    port = parsed.port if parsed else None
+    local = host in ("localhost", "127.0.0.1", "0.0.0.0", "::1")
+    kind = "local" if local else "custom"
+    backend = "custom"
+    label = "Pyx 1.5 (custom)"
+    if local:
+        if port == 11434 or "ollama" in host:
+            backend = "ollama"
+            label = "Pyx 1.5 (local · Ollama)"
+        elif port == 1234:
+            backend = "lmstudio"
+            label = "Pyx 1.5 (local · LM Studio)"
+        elif port == 8080:
+            backend = "llama.cpp"
+            label = "Pyx 1.5 (local · llama.cpp)"
+        elif port == 8000:
+            backend = "vllm"
+            label = "Pyx 1.5 (local · vLLM)"
+        else:
+            backend = "local"
+            label = "Pyx 1.5 (local)"
+    return {
+        "backend": backend,
+        "backend_kind": kind,
+        "label": label,
+        "configured": True,  # non-Groq URLs treat key as optional
+        "url_host": host + (f":{port}" if port else ""),
+    }
+
+
 @app.route("/health")
 @app.route("/")
 def health():
     firebase_connected = bool(getattr(pyx, "_db", None))
-    _k = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
-    _u = os.environ.get("PYX_TALK_LLM_URL", _GROQ_CHAT_COMPLETIONS_URL).strip()
-    _un = _u.rstrip("/").lower()
-    _gn = _GROQ_CHAT_COMPLETIONS_URL.rstrip("/").lower()
-    talk_llm_ready = bool(_k) or (_un != _gn)
+    backend = _talk_backend_info()
     return jsonify({
         "status": "ok",
         "services": {
@@ -828,7 +879,8 @@ def health():
             "firebase": "connected" if firebase_connected else "offline",
         },
         "firebase_connected": firebase_connected,
-        "talk_llm_configured": talk_llm_ready,
+        "talk_llm_configured": bool(backend.get("configured")),
+        "backend": backend,
     })
 
 
@@ -1082,7 +1134,13 @@ def talk():
             )
 
         def generate():
-            meta = {"type": "meta", "mode": mode, "web_search": web_meta, "bad": False}
+            meta = {
+                "type": "meta",
+                "mode": mode,
+                "web_search": web_meta,
+                "bad": False,
+                "backend": _talk_backend_info(),
+            }
             if prep:
                 meta["model"] = prep["model"]
             else:
@@ -1216,6 +1274,7 @@ def code_chat():
                 "language": language,
                 "agent": agent,
                 "bad": False,
+                "backend": _talk_backend_info(),
             }
             if prep:
                 meta["model"] = prep["model"]
