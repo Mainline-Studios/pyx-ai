@@ -40,6 +40,75 @@ OLLAMA_BASE = "http://127.0.0.1:11434"
 PULL_TIMEOUT = 60 * 60  # NDJSON stream timeout (1h cap)
 
 
+# Curated catalog the main screen renders as cards. Approx sizes are Q4 quants
+# Ollama ships by default (so Ollama's own numbers are the source of truth —
+# we only show them to help the user budget disk).
+CATALOG: List[Dict[str, object]] = [
+    # ---- Llama (Meta) ----
+    {
+        "id": "llama3.2:1b",
+        "name": "Llama 3.2 1B",
+        "family": "llama",
+        "family_label": "Llama",
+        "size_gb": 1.3,
+        "role": "test",
+        "tags": ["test", "tiny"],
+        "blurb": "Tiny Llama 3.2 — instant replies, great for trying Pyx on a laptop CPU.",
+    },
+    {
+        "id": "llama3.2:3b-instruct",
+        "name": "Llama 3.2 3B Instruct",
+        "family": "llama",
+        "family_label": "Llama",
+        "size_gb": 2.0,
+        "role": "fast",
+        "tags": ["default", "talk-fast"],
+        "blurb": "Default for Pyx Talk fast mode. Fits easily in 8 GB RAM.",
+    },
+    {
+        "id": "llama3.1:8b-instruct",
+        "name": "Llama 3.1 8B Instruct",
+        "family": "llama",
+        "family_label": "Llama",
+        "size_gb": 4.7,
+        "role": "smart",
+        "tags": ["default", "talk-smart", "talk-thinking"],
+        "blurb": "Default for Pyx Talk smart + reasoning. Best balance on consumer GPUs.",
+    },
+    {
+        "id": "llama3.3:70b-instruct",
+        "name": "Llama 3.3 70B Instruct",
+        "family": "llama",
+        "family_label": "Llama",
+        "size_gb": 40.0,
+        "role": "flagship",
+        "tags": ["optional", "heavy"],
+        "blurb": "Meta's flagship 70B. Needs 48 GB VRAM (Q4) or heavy CPU offload.",
+    },
+    # ---- GPT-OSS (OpenAI, 2025) ----
+    {
+        "id": "gpt-oss:20b",
+        "name": "GPT-OSS 20B",
+        "family": "gpt-oss",
+        "family_label": "GPT-OSS",
+        "size_gb": 13.0,
+        "role": "code",
+        "tags": ["default", "code", "pixel"],
+        "blurb": "Default for Pyx Code + Pyxel. Excellent at code completion and structured output.",
+    },
+    {
+        "id": "gpt-oss:120b",
+        "name": "GPT-OSS 120B",
+        "family": "gpt-oss",
+        "family_label": "GPT-OSS",
+        "size_gb": 65.0,
+        "role": "flagship",
+        "tags": ["optional", "heavy"],
+        "blurb": "OpenAI's flagship open-weight model. 80 GB+ VRAM or big-RAM CPU offload.",
+    },
+]
+
+
 # ---------------------------------------------------------------------------
 # Platform helpers
 # ---------------------------------------------------------------------------
@@ -180,10 +249,37 @@ def pull_model(name: str) -> Iterator[Dict[str, object]]:
 def snapshot() -> Dict[str, object]:
     binary = ollama_binary()
     running = ollama_is_up()
-    installed = set(installed_model_names()) if running else set()
+    installed_names = set(installed_model_names()) if running else set()
     wanted = required_models()
-    missing = [m for m in wanted if m not in installed]
+    missing = [m for m in wanted if m not in installed_names]
     all_ready = running and not missing
+
+    # Catalog enriched with per-model install state, so one fetch powers the UI.
+    catalog_out: List[Dict[str, object]] = []
+    catalog_ids = {item["id"] for item in CATALOG}
+    for item in CATALOG:
+        mid = item["id"]  # type: ignore[index]
+        catalog_out.append({
+            **item,
+            "installed": mid in installed_names,
+            "required": mid in wanted,
+        })
+    # Include any model the user already pulled that we don't know about.
+    for name in sorted(installed_names):
+        if name not in catalog_ids:
+            catalog_out.append({
+                "id": name,
+                "name": name,
+                "family": "other",
+                "family_label": "Other",
+                "size_gb": 0,
+                "role": "custom",
+                "tags": ["custom"],
+                "blurb": "Manually installed model.",
+                "installed": True,
+                "required": name in wanted,
+            })
+
     return {
         "ollama": {
             "installed": bool(binary),
@@ -191,11 +287,14 @@ def snapshot() -> Dict[str, object]:
             "running": running,
             "base_url": OLLAMA_BASE,
             "download_url": ollama_download_url(),
+            "platform": platform.system().lower(),
         },
         "models": {
             "required": wanted,
-            "installed": sorted(installed),
+            "installed": sorted(installed_names),
             "missing": missing,
+            "catalog": catalog_out,
+            "defaults": dict(DEFAULT_MODELS),
         },
         "ready": bool(all_ready),
     }
