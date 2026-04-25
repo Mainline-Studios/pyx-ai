@@ -5,6 +5,25 @@ to a **local OpenAI-compatible server** (Ollama, LM Studio, llama.cpp, vLLM)
 instead of Groq. No API key, no cloud quota, full offline after the weights are
 downloaded.
 
+## ⬇ Download a native installer
+
+Prebuilt installers ship from [GitHub Releases](https://github.com/Mainline-Studios/pyx-ai/releases/latest):
+
+| File | Platform | Notes |
+|------|----------|-------|
+| **`Pyx-<version>.dmg`**       | macOS 11+ (Apple Silicon + Intel) | Drag-to-Applications disk image |
+| **`Pyx-<version>.pkg`**       | macOS                             | Double-click installer → `/Applications` |
+| **`Pyx-<version>-setup.exe`** | Windows 10 / 11 (x64)             | Inno Setup installer with Start-menu entry |
+
+Once installed, Pyx starts a local server (`127.0.0.1:8765`) and opens Pyx Talk
+in your browser. **Install [Ollama](https://ollama.com/download) before the
+first launch** and pull at least one model (see below); without it Pyx 1.5 has
+nothing to talk to.
+
+Don't see a download yet? They appear after the `release.yml` workflow runs on
+a new tag — or build locally from `packaging/` (see
+[`packaging/README.md`](packaging/README.md)).
+
 The server code already supports this through two env vars:
 
 | Variable | What it does |

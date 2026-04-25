@@ -577,7 +577,12 @@
         var direct = PYX_CLOUD_RUN + "/" + endpoint;
         var proxied = "/api/" + endpoint;
         if (pyxIsLocalHost()) {
-          return fetch(direct, opts);
+          // Standalone / dev: hit same-origin first (e.g. Pyx 1.5 local installer),
+          // fall back to the public Cloud Run URL if same-origin isn't the API.
+          var sameOrigin = "/" + endpoint;
+          return fetch(sameOrigin, opts).catch(function () {
+            return fetch(direct, opts);
+          });
         }
         function oneRound(proxyFirst) {
           var first = proxyFirst ? proxied : direct;

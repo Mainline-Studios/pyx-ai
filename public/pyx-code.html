@@ -342,7 +342,10 @@
         };
         var direct = PYX_CLOUD_RUN + "/" + endpoint;
         var proxied = "/api/" + endpoint;
-        if (pyxIsLocalHost()) return fetch(direct, opts);
+        if (pyxIsLocalHost()) {
+          var sameOrigin = "/" + endpoint;
+          return fetch(sameOrigin, opts).catch(function () { return fetch(direct, opts); });
+        }
         function pyxTransientStatus(s) {
           return s === 502 || s === 503 || s === 429;
         }
