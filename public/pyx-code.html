@@ -240,7 +240,13 @@
   <div class="page">
     <div class="top">
       <a class="home" href="/pyx-talk.html">← Pyx AI Talk</a>
-      <div class="badges">
+      <div class="badges" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <a id="getPyx15" href="https://github.com/Mainline-Studios/pyx-ai/releases/latest"
+           target="_blank" rel="noopener"
+           style="display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:600; color:#fff;
+                  background:linear-gradient(135deg,#6366f1,#0ea5e9); padding:6px 12px; border-radius:999px;
+                  text-decoration:none; box-shadow:0 4px 14px rgba(99,102,241,0.35);"
+           title="Download the Pyx 1.5 desktop app — local GPT-OSS, no cloud">↓ Download Pyx 1.5</a>
         <span class="badge">GPT-OSS</span>
         <span class="badge">Groq</span>
         <span class="badge badge--soft">Coding studio</span>
@@ -344,11 +350,14 @@
       }
       (function () {
         var b = document.getElementById("pyx15Banner");
-        if (!b) return;
+        var dl = document.getElementById("getPyx15");
         fetch("/bootstrap/status", { cache: "no-store" })
           .then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (j) { if (!j) b.style.display = "block"; })
-          .catch(function () { b.style.display = "block"; });
+          .then(function (j) {
+            if (!j) { if (b) b.style.display = "block"; }
+            else if (dl) { dl.style.display = "none"; }
+          })
+          .catch(function () { if (b) b.style.display = "block"; });
       })();
       function fetchPyxHttp(endpoint, bodyString) {
         var opts = {

@@ -109,6 +109,24 @@
       color: var(--primary);
       border-color: rgba(79, 70, 229, 0.25);
     }
+    .home.download {
+      color: #fff;
+      background: linear-gradient(135deg, #6366f1, #0ea5e9);
+      border-color: transparent;
+      font-weight: 600;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    }
+    .home.download:hover {
+      filter: brightness(1.06);
+      color: #fff;
+      border-color: transparent;
+    }
+    .home.download::before {
+      content: "↓";
+      font-weight: 700;
+      font-size: 13px;
+      margin-right: 2px;
+    }
 
     .badge {
       font-size: 11px;
@@ -527,6 +545,12 @@
       <div class="top-right">
         <a class="home home--small" href="/pyx-code.html">Pyx AI Code</a>
         <a class="home home--small" href="/pyxel-image.html">Pyxel Image</a>
+        <a class="home home--small download" id="getPyx15"
+           href="https://github.com/Mainline-Studios/pyx-ai/releases/latest"
+           target="_blank" rel="noopener"
+           title="Download the Pyx 1.5 desktop app — local Llama + GPT-OSS">
+          Download Pyx 1.5
+        </a>
         <span class="badge">Llama · Groq</span>
       </div>
     </div>
@@ -556,9 +580,9 @@
       <div class="model-row">
         <label for="talkMode">Model</label>
         <select id="talkMode" name="talkMode" aria-label="Pyx Talk model">
-          <option value="fast">Pyx Talk Mini 1.0</option>
-          <option value="smart">Pyx Talk 1.0</option>
-          <option value="thinking">Pyx Talk Reasoning 1.0</option>
+          <option value="fast">Pyx Mini 1.5</option>
+          <option value="smart">Pyx 1.5</option>
+          <option value="thinking">Pyx Reasoning 1.5</option>
         </select>
       </div>
 
@@ -686,15 +710,24 @@
       function fetchPyxStream(endpoint, bodyString) {
         return fetchPyxHttp(endpoint, bodyString);
       }
-      // Banner auto-hide: show only if /bootstrap/status isn't reachable (i.e. not inside
-      // the Pyx 1.5+ desktop launcher). Running against the desktop build = no banner.
+      // Banner + "Download Pyx 1.5" button auto-hide: only shown when we're NOT inside the
+      // Pyx 1.5+ desktop launcher (which exposes /bootstrap/status). On the cloud build
+      // both show; on the desktop build both hide.
       (function () {
         var banner = document.getElementById("pyx15Banner");
-        if (!banner) return;
+        var dlBtn  = document.getElementById("getPyx15");
         fetch("/bootstrap/status", { cache: "no-store" })
           .then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (j) { if (!j) banner.classList.add("is-shown"); })
-          .catch(function () { banner.classList.add("is-shown"); });
+          .then(function (j) {
+            if (!j) {
+              if (banner) banner.classList.add("is-shown");
+            } else if (dlBtn) {
+              dlBtn.style.display = "none";
+            }
+          })
+          .catch(function () {
+            if (banner) banner.classList.add("is-shown");
+          });
       })();
 
       var chatEl = document.getElementById("chat");
@@ -710,9 +743,9 @@
       var useWebAutoEl = document.getElementById("useWebAuto");
 
       var MODE_LABELS = {
-        fast: "Pyx Talk Mini 1.0",
-        smart: "Pyx Talk 1.0",
-        thinking: "Pyx Talk Reasoning 1.0",
+        fast: "Pyx Mini 1.5",
+        smart: "Pyx 1.5",
+        thinking: "Pyx Reasoning 1.5",
       };
 
       function modeDisplayName(key) {
