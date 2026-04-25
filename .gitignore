@@ -19,3 +19,9 @@ firebase-debug.log
 # Repo config (do not ignore)
 !package.json
 !firebase.json
+!public/downloads/manifest.json
+
+# Release CI stages installers here before Firebase deploy (large binaries — do not commit)
+public/downloads/*.dmg
+public/downloads/*.pkg
+public/downloads/*-setup.exe

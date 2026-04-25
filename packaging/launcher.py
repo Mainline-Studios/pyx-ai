@@ -17,6 +17,8 @@ import socket
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 import webbrowser
 from pathlib import Path
 
@@ -46,6 +48,20 @@ def _prep_env(base: Path) -> None:
 
     # Make sure imports find the bundled modules.
     sys.path.insert(0, str(base))
+
+
+def _wait_for_health(port: int, timeout: float = 20.0) -> bool:
+    """Return True once ``GET /health`` returns HTTP 200 (server is accepting work)."""
+    url = f"http://127.0.0.1:{port}/health"
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=0.75) as resp:
+                if getattr(resp, "status", 200) == 200:
+                    return True
+        except (urllib.error.URLError, OSError, TimeoutError):
+            time.sleep(0.12)
+    return False
 
 
 def _pick_port(preferred: int = 8765) -> int:
@@ -154,11 +170,17 @@ def main() -> int:
         print(f"[pyx] failed to import Flask app: {e}", file=sys.stderr)
         return 2
 
-    public_dir = base / "public"
+    _pub_override = os.environ.get("PYX_PUBLIC_DIR", "").strip()
+    public_dir = Path(_pub_override).expanduser() if _pub_override else (base / "public")
     if public_dir.is_dir():
         _register_static(pyx_app.app, public_dir)
     else:
-        print(f"[pyx] warning: public/ not found at {public_dir} — UI routes disabled")
+        print(
+            f"[pyx] error: public/ not found at {public_dir} — cannot serve the local UI.\n"
+            f"  If you moved files, set PYX_PUBLIC_DIR to the folder that contains pyx-talk.html.",
+            file=sys.stderr,
+        )
+        return 3
 
     _register_bootstrap(pyx_app.app)
 
@@ -180,14 +202,14 @@ def main() -> int:
     url = f"http://127.0.0.1:{port}/{first_page}"
 
     def _open_when_ready() -> None:
-        deadline = time.time() + 8.0
-        while time.time() < deadline:
-            try:
-                with socket.create_connection(("127.0.0.1", port), timeout=0.3):
-                    break
-            except OSError:
-                time.sleep(0.15)
-        webbrowser.open(url)
+        if _wait_for_health(port):
+            webbrowser.open_new(url)
+        else:
+            print(
+                f"[pyx] server did not become ready in time.\n"
+                f"  Open manually: {url}",
+                file=sys.stderr,
+            )
 
     threading.Thread(target=_open_when_ready, daemon=True).start()
 

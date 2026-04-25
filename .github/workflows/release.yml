@@ -88,3 +88,81 @@ jobs:
             artifacts/pyx-macos/*
             artifacts/pyx-windows/*
           generate_release_notes: true
+
+  # Mirrors the same .dmg / .pkg / .exe files to Firebase Hosting so users can
+  # download from https://pyx-ai.web.app/pyx-download.html (not only GitHub).
+  # Requires repo secret FIREBASE_SERVICE_ACCOUNT_PYX_AI (JSON for a service
+  # account with Firebase Hosting Admin). The deploy step uses continue-on-error
+  # so the workflow stays green if the secret is not configured yet.
+  host-site-downloads:
+    name: Publish installers to Hosting (/downloads/)
+    needs: [version, macos, windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Stage installers + manifest
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p public/downloads
+          shopt -s nullglob
+          for f in artifacts/pyx-macos/*; do cp -f "$f" public/downloads/; done
+          for f in artifacts/pyx-windows/*; do cp -f "$f" public/downloads/; done
+          python3 <<'PY'
+          import json, os
+          from pathlib import Path
+          v = os.environ["VERSION"]
+          base = Path("public/downloads")
+          files = {}
+          for p in sorted(base.iterdir()):
+              if p.name in (".gitkeep", "manifest.json") or p.is_dir():
+                  continue
+              n = p.name
+              if n.endswith(".dmg"):
+                  files["mac_dmg"] = n
+              elif n.endswith(".pkg"):
+                  files["mac_pkg"] = n
+              elif n.endswith("-setup.exe"):
+                  files["win_setup"] = n
+          owner_repo = "Mainline-Studios/pyx-ai"
+          tag = f"v{v}"
+          mirror = {
+              "mac_dmg": f"https://github.com/{owner_repo}/releases/download/{tag}/Pyx-{v}.dmg",
+              "mac_pkg": f"https://github.com/{owner_repo}/releases/download/{tag}/Pyx-{v}.pkg",
+              "win_setup": f"https://github.com/{owner_repo}/releases/download/{tag}/Pyx-{v}-setup.exe",
+          }
+          manifest = {
+              "version": v,
+              "base_path": "/downloads/",
+              "files": files,
+              "mirror": mirror,
+          }
+          (base / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          print(json.dumps(manifest, indent=2))
+          PY
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        id: firebase_hosting
+        continue-on-error: true
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PYX_AI }}
+          projectId: pyx-ai
+          channelId: live
+
+      - name: Hosting mirror status
+        if: always()
+        run: |
+          if [ "${{ steps.firebase_hosting.outcome }}" != "success" ]; then
+            echo "::notice:: Firebase Hosting mirror did not run (add repo secret FIREBASE_SERVICE_ACCOUNT_PYX_AI with Hosting Admin JSON, or check logs). Installers are still on GitHub Releases."
+          else
+            echo "Hosting deploy finished."
+          fi

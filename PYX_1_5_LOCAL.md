@@ -20,7 +20,13 @@ audited metric.</sub>
 
 ## ⬇ Download a native installer
 
-Prebuilt installers ship from [GitHub Releases](https://github.com/Mainline-Studios/pyx-ai/releases/latest):
+**Primary:** same files are listed on the site at **`https://pyx-ai.web.app/pyx-download.html`**.
+`public/downloads/manifest.json` is always deployed: it lists **GitHub release asset URLs** in
+`mirror` so downloads work even before the `host-site-downloads` job copies blobs into
+`/downloads/`. After each new `v*` tag, update `version` and the `mirror` paths in that file
+(or rely on CI to rewrite the manifest when Hosting mirror runs).
+
+**Mirror:** [GitHub Releases](https://github.com/Mainline-Studios/pyx-ai/releases/latest)
 
 | File | Platform | Notes |
 |------|----------|-------|
@@ -40,9 +46,16 @@ On first launch Pyx opens a built-in **setup page** (`/pyx-setup.html`) that:
 You can also force the setup page any time with `PYX_FORCE_SETUP=1` before
 launching, or visit `http://127.0.0.1:8765/pyx-setup.html` directly.
 
-Don't see a download yet? They appear after the `release.yml` workflow runs on
-a new tag — or build locally from `packaging/` (see
+Don't see a download on the site yet? Push a `v*` tag so `release.yml` runs,
+add the GitHub secret **`FIREBASE_SERVICE_ACCOUNT_PYX_AI`** (service account
+JSON with **Firebase Hosting Admin**) so the **`host-site-downloads`** job can
+mirror artifacts to Hosting — or build locally from `packaging/` (see
 [`packaging/README.md`](packaging/README.md)).
+
+**Why models are not inside the installer:** default Llama + GPT-OSS weights are
+many gigabytes (Firebase Hosting also caps a single file around 2 GB). The app
+ships code only; the first-run setup page pulls models through Ollama after you
+install Ollama once.
 
 The server code already supports this through two env vars:
 

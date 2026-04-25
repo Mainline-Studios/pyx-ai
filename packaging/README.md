@@ -5,12 +5,16 @@ desktop app that runs Pyx 1.5 locally. It expects a local OpenAI-compatible
 server (Ollama by default) on `http://127.0.0.1:11434`; see
 [`PYX_1_5_LOCAL.md`](../PYX_1_5_LOCAL.md) for model download links.
 
-## Download (GitHub Releases)
+## Download (site + GitHub)
 
 Installers are built automatically by `.github/workflows/release.yml` when a
 version tag is pushed (e.g. `git tag v1.5.0 && git push origin v1.5.0`).
-After the workflow finishes, downloads appear on the
-[Releases page](https://github.com/Mainline-Studios/pyx-ai/releases/latest):
+After the workflow finishes:
+
+- **Site:** `https://pyx-ai.web.app/pyx-download.html` (files under `/downloads/`,
+  mirrored by the `host-site-downloads` job — requires repo secret
+  `FIREBASE_SERVICE_ACCOUNT_PYX_AI`).
+- **GitHub:** [Releases](https://github.com/Mainline-Studios/pyx-ai/releases/latest)
 
 | File | Platform | Installer type |
 |------|----------|----------------|

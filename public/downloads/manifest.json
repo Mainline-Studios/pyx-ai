@@ -1,0 +1,10 @@
+{
+  "version": "1.5.0",
+  "base_path": "/downloads/",
+  "files": {},
+  "mirror": {
+    "mac_dmg": "https://github.com/Mainline-Studios/pyx-ai/releases/download/v1.5.0/Pyx-1.5.0.dmg",
+    "mac_pkg": "https://github.com/Mainline-Studios/pyx-ai/releases/download/v1.5.0/Pyx-1.5.0.pkg",
+    "win_setup": "https://github.com/Mainline-Studios/pyx-ai/releases/download/v1.5.0/Pyx-1.5.0-setup.exe"
+  }
+}
