@@ -19,6 +19,7 @@ datas = [
     (str(ROOT / "Pyx_ai_code.py"), "."),
     (str(ROOT / "Pyx_ai_check.py"), "."),
     (str(ROOT / "Pyx_ai_analyze.py"), "."),
+    (str(ROOT / "packaging" / "bootstrap.py"), "."),
 ]
 
 # Keep bundle lean — Firebase / GCP SDKs aren't used in local mode and add ~150 MB.

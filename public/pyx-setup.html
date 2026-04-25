@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pyx 1.5 — first-run setup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0b0b10;
+      color: #eaeaf1;
+      font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+    .shell { width: min(640px, 100%); }
+    h1 {
+      font-size: 1.8rem;
+      margin: 0 0 4px;
+      letter-spacing: -0.02em;
+    }
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #a5a8c5;
+      border: 1px solid #2c2c3b;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-bottom: 18px;
+    }
+    p { color: #c9cbdc; margin: 6px 0 18px; }
+    .card {
+      background: #13131a;
+      border: 1px solid #24243a;
+      border-radius: 10px;
+      padding: 18px 18px 12px;
+      margin-bottom: 16px;
+    }
+    .card h2 {
+      font-size: 1rem;
+      margin: 0 0 10px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: #cdd0e5;
+      margin: 6px 0;
+    }
+    .row .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #4b4b6a;
+      flex: 0 0 auto;
+    }
+    .row.ok .dot    { background: #4ade80; }
+    .row.warn .dot  { background: #fbbf24; }
+    .row.err .dot   { background: #f87171; }
+    .row.busy .dot  { background: #60a5fa; animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: 0.35; } }
+    code {
+      background: #1c1c28;
+      border: 1px solid #2a2a3d;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .model {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 12px;
+      align-items: baseline;
+      padding: 10px 0;
+      border-top: 1px solid #1e1e2c;
+    }
+    .model:first-of-type { border-top: 0; }
+    .model .name { font-weight: 600; }
+    .model .meta { font-size: 12px; color: #8c90ab; font-variant-numeric: tabular-nums; }
+    .bar {
+      grid-column: 1 / -1;
+      height: 6px;
+      background: #1b1b28;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .bar > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #60a5fa, #a78bfa);
+      transition: width 140ms linear;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    button, a.btn {
+      appearance: none;
+      font: inherit;
+      font-weight: 600;
+      color: #0b0b10;
+      background: #a78bfa;
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 16px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+    button.secondary, a.btn.secondary {
+      background: transparent;
+      color: #cdd0e5;
+      border: 1px solid #2c2c3b;
+    }
+    button[disabled] { opacity: 0.5; cursor: not-allowed; }
+    small { color: #8c90ab; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <span class="tag">Pyx 1.5 · Local install</span>
+    <h1>One-time setup</h1>
+    <p>Pyx 1.5 runs entirely on your computer. It uses <strong>Ollama</strong> to host Llama &amp; GPT-OSS locally, then Pyx Talk / Pyx Code / Pyxel call it through an OpenAI-compatible API. Nothing leaves your machine.</p>
+
+    <div class="card">
+      <h2>Ollama</h2>
+      <div id="ollamaStatus" class="row busy"><span class="dot"></span><span id="ollamaLabel">Checking…</span></div>
+      <div id="ollamaHelp" style="display:none; margin-top: 8px;">
+        <p><small>Ollama isn't installed yet. Grab it, run it once, then come back to this tab.</small></p>
+        <div class="actions">
+          <a id="ollamaDl" class="btn" target="_blank" rel="noopener">Download Ollama</a>
+          <button class="secondary" id="recheck">I installed it — re-check</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Models</h2>
+      <div id="models"></div>
+      <div class="actions" style="margin-top: 8px;">
+        <button id="pullBtn" disabled>Download missing models</button>
+        <button class="secondary" id="skipBtn">Skip — open Pyx Talk anyway</button>
+      </div>
+      <p style="margin-top:10px"><small>Tip: you can change model choices later with env vars like <code>PYX_TALK_MODEL_FAST</code>. See <code>PYX_1_5_LOCAL.md</code>.</small></p>
+    </div>
+
+    <div id="doneCard" class="card" style="display:none">
+      <h2>Ready</h2>
+      <p>All models are installed. Opening Pyx Talk…</p>
+      <div class="actions">
+        <a class="btn" href="/pyx-talk.html">Open Pyx Talk</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var modelsEl  = document.getElementById("models");
+      var pullBtn   = document.getElementById("pullBtn");
+      var skipBtn   = document.getElementById("skipBtn");
+      var recheck   = document.getElementById("recheck");
+      var ollamaRow = document.getElementById("ollamaStatus");
+      var ollamaLbl = document.getElementById("ollamaLabel");
+      var ollamaHelp = document.getElementById("ollamaHelp");
+      var ollamaDl  = document.getElementById("ollamaDl");
+      var doneCard  = document.getElementById("doneCard");
+
+      var state = { required: [], installed: [], missing: [], rows: {}, pulling: false };
+
+      function setOllama(status, label) {
+        ollamaRow.className = "row " + status;
+        ollamaLbl.textContent = label;
+      }
+
+      function fmtSize(n) {
+        if (!n || n <= 0) return "";
+        var units = ["B", "KB", "MB", "GB", "TB"];
+        var v = n, i = 0;
+        while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+        return v.toFixed(1) + " " + units[i];
+      }
+
+      function renderModels() {
+        modelsEl.innerHTML = "";
+        state.required.forEach(function (name) {
+          var wrap = document.createElement("div");
+          wrap.className = "model";
+          wrap.innerHTML =
+            '<div class="name">' + name + '</div>' +
+            '<div class="meta" data-meta></div>' +
+            '<div class="bar"><span data-fill></span></div>';
+          modelsEl.appendChild(wrap);
+          var meta = wrap.querySelector("[data-meta]");
+          var fill = wrap.querySelector("[data-fill]");
+          state.rows[name] = { el: wrap, meta: meta, fill: fill };
+          if (state.installed.indexOf(name) >= 0) {
+            meta.textContent = "Installed";
+            fill.style.width = "100%";
+            wrap.classList.add("ok");
+          } else {
+            meta.textContent = "Not downloaded yet";
+          }
+        });
+        pullBtn.disabled = state.missing.length === 0 || !state.ollamaRunning || state.pulling;
+        if (state.missing.length === 0 && state.ollamaRunning) allDone();
+      }
+
+      function allDone() {
+        doneCard.style.display = "";
+        setTimeout(function () { window.location.href = "/pyx-talk.html"; }, 1400);
+      }
+
+      function refresh() {
+        return fetch("/bootstrap/status", { cache: "no-store" })
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            state.required  = (j.models && j.models.required)  || [];
+            state.installed = (j.models && j.models.installed) || [];
+            state.missing   = (j.models && j.models.missing)   || [];
+            state.ollamaRunning = !!(j.ollama && j.ollama.running);
+            if (j.ollama && j.ollama.download_url) ollamaDl.href = j.ollama.download_url;
+
+            if (state.ollamaRunning) {
+              setOllama("ok", "Running on " + (j.ollama.base_url || "127.0.0.1:11434"));
+              ollamaHelp.style.display = "none";
+            } else if (j.ollama && j.ollama.installed) {
+              setOllama("warn", "Installed but not running — starting…");
+              ollamaHelp.style.display = "none";
+              return fetch("/bootstrap/start", { method: "POST" })
+                .then(function () { return refresh(); });
+            } else {
+              setOllama("err", "Not installed on this machine");
+              ollamaHelp.style.display = "";
+            }
+            renderModels();
+          })
+          .catch(function (e) {
+            setOllama("err", "Launcher unreachable — " + (e.message || e));
+          });
+      }
+
+      function pullOne(name) {
+        return new Promise(function (resolve) {
+          var row = state.rows[name];
+          if (!row) return resolve();
+          row.el.classList.remove("ok");
+          row.el.classList.add("busy");
+          row.meta.textContent = "Starting…";
+
+          var url = "/bootstrap/pull?model=" + encodeURIComponent(name);
+          var es = new EventSource(url);
+          var lastDigest = "";
+          es.onmessage = function (ev) {
+            try {
+              var d = JSON.parse(ev.data);
+              if (d.status === "downloading") {
+                var pct = d.total ? Math.max(1, Math.floor((d.completed / d.total) * 100)) : 0;
+                row.fill.style.width = pct + "%";
+                var digest = (d.digest || "").slice(7, 13);
+                if (digest && digest !== lastDigest) lastDigest = digest;
+                row.meta.textContent =
+                  fmtSize(d.completed || 0) + " / " + fmtSize(d.total || 0) +
+                  (lastDigest ? "  ·  " + lastDigest : "");
+              } else if (d.status && d.status !== "success" && d.status !== "done") {
+                row.meta.textContent = d.status;
+              } else if (d.status === "error") {
+                row.meta.textContent = "Error: " + (d.detail || d.code || "failed");
+                row.el.classList.remove("busy");
+                row.el.classList.add("err");
+              } else if (d.done) {
+                row.fill.style.width = "100%";
+                row.el.classList.remove("busy");
+                row.el.classList.add(d.ok ? "ok" : "err");
+                row.meta.textContent = d.ok ? "Installed" : "Failed";
+                es.close();
+                resolve();
+              }
+            } catch (e) { /* ignore malformed */ }
+          };
+          es.onerror = function () {
+            row.meta.textContent = "Connection lost — retry by re-opening setup.";
+            row.el.classList.remove("busy");
+            row.el.classList.add("err");
+            es.close();
+            resolve();
+          };
+        });
+      }
+
+      pullBtn.addEventListener("click", function () {
+        if (!state.missing.length || state.pulling) return;
+        state.pulling = true;
+        pullBtn.disabled = true;
+        var list = state.missing.slice();
+        (function next() {
+          var m = list.shift();
+          if (!m) {
+            state.pulling = false;
+            refresh();
+            return;
+          }
+          pullOne(m).then(next);
+        })();
+      });
+      skipBtn.addEventListener("click", function () { window.location.href = "/pyx-talk.html"; });
+      recheck.addEventListener("click", refresh);
+
+      refresh();
+      setInterval(function () { if (!state.pulling) refresh(); }, 5000);
+    })();
+  </script>
+</body>
+</html>

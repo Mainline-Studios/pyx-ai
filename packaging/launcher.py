@@ -30,13 +30,15 @@ def _base_dir() -> Path:
 
 
 def _prep_env(base: Path) -> None:
-    """Default to local Ollama with a sensible Pyx 1.5 model mix if caller didn't set envs."""
+    """Default to local Ollama with a laptop-friendly Pyx 1.5 model mix."""
     os.environ.setdefault(
         "PYX_TALK_LLM_URL", "http://127.0.0.1:11434/v1/chat/completions"
     )
-    os.environ.setdefault("PYX_TALK_MODEL_FAST", "llama3.1:8b-instruct")
-    os.environ.setdefault("PYX_TALK_MODEL_SMART", "llama3.3:70b-instruct")
-    os.environ.setdefault("PYX_TALK_MODEL_THINKING", "llama3.3:70b-instruct")
+    # Smaller defaults than the cloud mix so the first-run download is a few GB,
+    # not tens of GB. Users can bump these later with env vars (see docs).
+    os.environ.setdefault("PYX_TALK_MODEL_FAST", "llama3.2:3b-instruct")
+    os.environ.setdefault("PYX_TALK_MODEL_SMART", "llama3.1:8b-instruct")
+    os.environ.setdefault("PYX_TALK_MODEL_THINKING", "llama3.1:8b-instruct")
     os.environ.setdefault("PYX_CODE_MODEL", "gpt-oss:20b")
     os.environ.setdefault("PYX_PIXEL_MODEL", "gpt-oss:20b")
     os.environ.setdefault("PYX_TALK_TIMEOUT", "600")
@@ -84,6 +86,64 @@ def _register_static(app, public_dir: Path) -> None:
         return ("", 404)
 
 
+def _register_bootstrap(app) -> None:
+    """First-run setup routes: detect Ollama, auto-start, pull missing models with progress."""
+    import json
+    from flask import Response, jsonify, request, stream_with_context
+
+    try:
+        from packaging import bootstrap  # type: ignore
+    except Exception:
+        import bootstrap  # type: ignore  # works when launcher/ dir is flattened by PyInstaller
+
+    @app.route("/bootstrap/status", methods=["GET"])
+    def _bs_status():
+        return jsonify(bootstrap.snapshot())
+
+    @app.route("/bootstrap/start", methods=["POST"])
+    def _bs_start():
+        started = False
+        if not bootstrap.ollama_is_up():
+            started = bootstrap.ollama_serve_background()
+        return jsonify({"started": started, "running": bootstrap.ollama_is_up()})
+
+    @app.route("/bootstrap/pull", methods=["GET"])
+    def _bs_pull():
+        model = (request.args.get("model") or "").strip()
+        if not model:
+            return jsonify({"error": "missing ?model"}), 400
+        if not bootstrap.ollama_is_up():
+            bootstrap.ollama_serve_background()
+
+        def sse(obj):
+            return "data: " + json.dumps(obj) + "\n\n"
+
+        def gen():
+            ok = False
+            try:
+                for evt in bootstrap.pull_model(model):
+                    yield sse(evt)
+                    if evt.get("status") == "success":
+                        ok = True
+                    if evt.get("status") == "error":
+                        ok = False
+            except GeneratorExit:
+                return
+            except Exception as e:  # pragma: no cover
+                yield sse({"status": "error", "detail": str(e)})
+            yield sse({"done": True, "ok": ok, "model": model})
+
+        return Response(
+            stream_with_context(gen()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+            },
+        )
+
+
 def main() -> int:
     base = _base_dir()
     _prep_env(base)
@@ -100,8 +160,24 @@ def main() -> int:
     else:
         print(f"[pyx] warning: public/ not found at {public_dir} — UI routes disabled")
 
+    _register_bootstrap(pyx_app.app)
+
+    # Decide first-load URL: if Ollama isn't running or any required model is
+    # missing, go to /pyx-setup.html so the user can download in-browser.
+    try:
+        from packaging import bootstrap  # type: ignore
+    except Exception:
+        import bootstrap  # type: ignore
+    # Best-effort cold start so the setup page can show "Running" instantly.
+    if not bootstrap.ollama_is_up():
+        bootstrap.ollama_serve_background()
+
+    snap = bootstrap.snapshot()
+    force_setup = os.environ.get("PYX_FORCE_SETUP", "").strip() in ("1", "true", "yes")
+    first_page = "pyx-setup.html" if (force_setup or not snap.get("ready")) else "pyx-talk.html"
+
     port = _pick_port(int(os.environ.get("PORT", "8765")))
-    url = f"http://127.0.0.1:{port}/pyx-talk.html"
+    url = f"http://127.0.0.1:{port}/{first_page}"
 
     def _open_when_ready() -> None:
         deadline = time.time() + 8.0

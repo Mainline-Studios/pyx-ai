@@ -15,10 +15,17 @@ Prebuilt installers ship from [GitHub Releases](https://github.com/Mainline-Stud
 | **`Pyx-<version>.pkg`**       | macOS                             | Double-click installer → `/Applications` |
 | **`Pyx-<version>-setup.exe`** | Windows 10 / 11 (x64)             | Inno Setup installer with Start-menu entry |
 
-Once installed, Pyx starts a local server (`127.0.0.1:8765`) and opens Pyx Talk
-in your browser. **Install [Ollama](https://ollama.com/download) before the
-first launch** and pull at least one model (see below); without it Pyx 1.5 has
-nothing to talk to.
+On first launch Pyx opens a built-in **setup page** (`/pyx-setup.html`) that:
+
+1. Detects [Ollama](https://ollama.com/download) — if missing, gives you the
+   one-click download link for your OS.
+2. Starts `ollama serve` in the background (no terminal needed).
+3. Streams real progress bars while it downloads the default model set
+   (~2 GB Llama 3.2 3B + ~5 GB Llama 3.1 8B + ~16 GB GPT-OSS 20B).
+4. Opens Pyx Talk automatically when everything is ready.
+
+You can also force the setup page any time with `PYX_FORCE_SETUP=1` before
+launching, or visit `http://127.0.0.1:8765/pyx-setup.html` directly.
 
 Don't see a download yet? They appear after the `release.yml` workflow runs on
 a new tag — or build locally from `packaging/` (see
