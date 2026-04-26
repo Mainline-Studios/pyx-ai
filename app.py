@@ -872,7 +872,6 @@ def _talk_backend_info():
 
 
 @app.route("/health")
-@app.route("/")
 def health():
     firebase_connected = bool(getattr(pyx, "_db", None))
     backend = _talk_backend_info()
@@ -892,6 +891,14 @@ def health():
         "talk_llm_configured": bool(backend.get("configured")),
         "backend": backend,
     })
+
+
+@app.route("/")
+def homepage():
+    try:
+        return send_from_directory("public", "pyx-launcher.html")
+    except Exception:
+        return jsonify({"status": "ok", "service": "pyx"}), 200
 
 
 @app.route("/score", methods=["GET", "POST", "OPTIONS"])

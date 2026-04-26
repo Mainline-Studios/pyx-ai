@@ -52,6 +52,18 @@ def _prep_ollama_defaults() -> None:
     os.environ.setdefault("PYX_PIXEL_MODEL", "gpt-oss:20b")
 
 
+def _prefer_ollama_defaults() -> None:
+    """Desktop default: Ollama multi-model routing (Llama 2 + Llama 4 Scout)."""
+    # Respect explicit opt-out to GGUF-only flow.
+    if os.environ.get("PYX_USE_GGUF", "").strip().lower() in ("1", "true", "yes", "on"):
+        os.environ["PYX_USE_OLLAMA"] = "0"
+        return
+    # If user explicitly sets PYX_USE_OLLAMA, keep their choice.
+    if "PYX_USE_OLLAMA" in os.environ:
+        return
+    os.environ["PYX_USE_OLLAMA"] = "1"
+
+
 def _wait_for_health(port: int, timeout: float = 25.0) -> bool:
     """Return True once ``GET /health`` returns HTTP 200 (server is accepting work)."""
     url = f"http://127.0.0.1:{port}/health"
@@ -223,7 +235,13 @@ def _register_bootstrap(app) -> None:
 
 def _want_native_window() -> bool:
     """Native pywebview window unless user opts into a normal browser tab."""
-    v = os.environ.get("PYX_USE_BROWSER", "").strip().lower()
+    # In packaged desktop builds we default to native even if a shell session
+    # exported PYX_USE_BROWSER earlier. Opt into browser explicitly with
+    # PYX_FORCE_BROWSER=1.
+    if getattr(sys, "frozen", False):
+        v = os.environ.get("PYX_FORCE_BROWSER", "").strip().lower()
+    else:
+        v = os.environ.get("PYX_USE_BROWSER", "").strip().lower()
     return v not in ("1", "true", "yes", "on")
 
 
@@ -323,6 +341,7 @@ def _run_with_browser_tab(url: str, port: int) -> int:
 def main() -> int:
     base = _base_dir()
     _prep_env(base)
+    _prefer_ollama_defaults()
 
     try:
         from packaging import gguf_engine  # type: ignore
@@ -380,8 +399,12 @@ def main() -> int:
                 "  Install desktop deps: pip install -r packaging/requirements-desktop.txt",
                 file=sys.stderr,
             )
+            if getattr(sys, "frozen", False):
+                return 5
         except Exception as e:  # pragma: no cover
             print(f"[pyx] native window failed ({e}); falling back to system browser.", file=sys.stderr)
+            if getattr(sys, "frozen", False):
+                return 6
 
     return _run_with_browser_tab(url, port)
 

@@ -1,10 +1,10 @@
 # Pyx 1.5 desktop — installers
 
 The same Flask app (`app.py` + moderator + `public/` UI) packaged as a native
-desktop app. **Default:** Llama + GPT-OSS as **`.gguf` files** in your Pyx models
-folder, plus **[llama.cpp](https://github.com/ggerganov/llama.cpp) `llama-server`**
-on `PATH` (or set `PYX_LLAMA_SERVER` to the binary). Optional: **`PYX_USE_OLLAMA=1`**
-for the legacy Ollama flow. See [`PYX_1_5_LOCAL.md`](../PYX_1_5_LOCAL.md).
+desktop app. **Default:** Ollama local routing with **Llama 2 (`llama2:7b`)**
+for Pyx Mini and **Llama 4 Scout (`llama4:scout`)** for Pyx 1.5 / Reasoning
+(plus GPT-OSS for Code/Pyxel). Optional: set **`PYX_USE_GGUF=1`** to use
+GGUF files + `llama-server` instead. See [`PYX_1_5_LOCAL.md`](../PYX_1_5_LOCAL.md).
 
 **Branding:** wordmark and app mark live in [`public/brand/`](../public/brand/)
 (`pyx-wordmark.png`, `pyx-app-icon.png`). macOS bundles use
@@ -34,7 +34,8 @@ Once installed, Pyx launches a small local web server (127.0.0.1:8765) and
 opens the UI in a **native app window** (pywebview), not your default browser.
 When models are ready, the first screen is **`pyx-launcher.html`** (white hub with Talk / Code / Pyxel); first-run still opens **`pyx-setup.html`**.
 A console window stays open for logs — close the Pyx window or the console to
-stop the server. Set **`PYX_USE_BROWSER=1`** to use a normal browser tab instead.
+stop the server. In dev, set **`PYX_USE_BROWSER=1`** to use a normal browser tab;
+in packaged desktop builds, use **`PYX_FORCE_BROWSER=1`** to force that behavior.
 
 ## Build locally
 
