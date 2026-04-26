@@ -71,6 +71,22 @@ EOF
 
 echo "==> .app ready: $APP_DIR"
 
+# Optional: Developer ID / Apple Distribution codesign + hardened runtime.
+# export PYX_CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+if [[ -n "${PYX_CODESIGN_IDENTITY:-}" ]]; then
+  ENT="$ROOT/packaging/macos/Pyx.entitlements.plist"
+  echo "==> codesign (identity: $PYX_CODESIGN_IDENTITY)"
+  codesign --force --deep --timestamp --options runtime \
+    --sign "$PYX_CODESIGN_IDENTITY" \
+    --entitlements "$ENT" \
+    "$APP_DIR" || {
+      echo "codesign failed — fix signing identity / entitlements and retry." >&2
+      exit 1
+    }
+else
+  echo "==> (skip codesign — set PYX_CODESIGN_IDENTITY to sign the .app for distribution)"
+fi
+
 DMG="$DIST/${APP_NAME}-${VERSION}.dmg"
 if command -v create-dmg >/dev/null 2>&1; then
   echo "==> building .dmg (create-dmg)"

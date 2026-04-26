@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pyx 1.5 — Home</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --bg: #07080d;
+      --bg-soft: #0d0f16;
+      --panel: #12141d;
+      --panel-2: #171a26;
+      --border: #232635;
+      --border-soft: #1a1d29;
+      --text: #eef0fb;
+      --muted: #a4a8c2;
+      --dim: #7a7f9b;
+      --brand: #a78bfa;
+      --brand-2: #60a5fa;
+      --ok: #4ade80;
+      --warn: #fbbf24;
+      --err: #f87171;
+    }
+    html, body { background: var(--bg); color: var(--text); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(1100px 600px at 15% -10%, rgba(167, 139, 250, 0.20), transparent 60%),
+        radial-gradient(900px 500px at 110% 0%,  rgba(96, 165, 250, 0.16), transparent 60%),
+        var(--bg);
+      background-attachment: fixed;
+    }
+    .shell {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 28px 24px 72px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .brand .mark {
+      width: 32px; height: 32px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      display: grid; place-items: center;
+      font-weight: 800; color: #0b0b10;
+    }
+    .brand small { color: var(--muted); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; font-size: 10px; }
+    .brand .name { font-size: 18px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .pill .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--dim);
+    }
+    .pill.ok   .dot { background: var(--ok); }
+    .pill.warn .dot { background: var(--warn); }
+    .pill.err  .dot { background: var(--err); }
+    .pill.busy .dot { background: var(--brand-2); animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: 0.35; } }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 900px) { .hero { grid-template-columns: 1fr; } }
+    .hero h1 {
+      margin: 4px 0 8px;
+      font-size: 2.1rem;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    .hero h1 em { font-style: normal; color: var(--brand); }
+    .hero p { color: var(--muted); margin: 0 0 18px; max-width: 46ch; }
+    .apps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    @media (max-width: 560px) { .apps { grid-template-columns: 1fr; } }
+    .app {
+      display: block;
+      padding: 14px;
+      border-radius: 12px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: inherit;
+      text-decoration: none;
+      transition: transform 80ms ease, border-color 120ms ease, background 120ms ease;
+    }
+    .app:hover { transform: translateY(-1px); border-color: var(--brand); }
+    .app h3 { margin: 0 0 4px; font-size: 15px; }
+    .app p  { margin: 0; font-size: 12px; color: var(--muted); }
+
+    .status-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 0;
+      border-top: 1px solid var(--border-soft);
+      font-size: 13px;
+    }
+    .status-row:first-of-type { border-top: 0; }
+    .status-row .k { color: var(--muted); }
+    .status-row .v { font-variant-numeric: tabular-nums; }
+    .status-row.err  .v { color: var(--err); }
+    .status-row.ok   .v { color: var(--ok); }
+    .btnrow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+    button, a.btn {
+      appearance: none;
+      font: inherit;
+      font-weight: 600;
+      padding: 9px 14px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+    button.primary, a.btn.primary {
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      color: #0b0b10;
+      border-color: transparent;
+    }
+    button.primary:hover, a.btn.primary:hover { filter: brightness(1.05); }
+    button[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+    section h2 {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 26px 0 12px;
+    }
+
+    .family {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px 18px 6px;
+      margin-bottom: 16px;
+    }
+    .family header {
+      margin: 0 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .family header h3 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: -0.01em;
+    }
+    .family header small { color: var(--muted); font-size: 12px; }
+
+    .models { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding-bottom: 10px; }
+    @media (max-width: 720px) { .models { grid-template-columns: 1fr; } }
+
+    .model {
+      background: var(--panel-2);
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .model.installed { border-color: rgba(74, 222, 128, 0.35); }
+    .model.busy      { border-color: rgba(96, 165, 250, 0.5); }
+    .model.err       { border-color: rgba(248, 113, 113, 0.45); }
+
+    .model-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .model-head h4 { margin: 0; font-size: 15px; }
+    .model-head .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip {
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--bg-soft);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .chip.default { color: #c4b5fd; border-color: rgba(167, 139, 250, 0.5); }
+    .chip.heavy   { color: #fde68a; border-color: rgba(251, 191, 36, 0.5); }
+    .chip.ok      { color: #86efac; border-color: rgba(74, 222, 128, 0.45); }
+
+    .model p { margin: 0; color: var(--muted); font-size: 13px; }
+    .model .meta { font-size: 12px; color: var(--dim); display: flex; gap: 10px; }
+    .bar { height: 6px; background: var(--bg-soft); border-radius: 3px; overflow: hidden; }
+    .bar > span {
+      display: block; height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--brand-2), var(--brand));
+      transition: width 140ms linear;
+    }
+    .actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px; }
+    .actions .status-text { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 1.2em; }
+
+    .perks {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 18px 0 20px;
+    }
+    @media (max-width: 560px) { .perks { grid-template-columns: 1fr; } }
+    .perk {
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .perk .big {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      line-height: 1.1;
+    }
+    .perk .small {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .requires {
+      background: linear-gradient(135deg, rgba(167, 139, 250, 0.12), rgba(96, 165, 250, 0.10));
+      border: 1px solid rgba(167, 139, 250, 0.35);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+    .requires strong { color: #c4b5fd; letter-spacing: -0.01em; }
+    .requires .icon {
+      flex: 0 0 auto;
+      width: 26px; height: 26px;
+      border-radius: 8px;
+      display: grid; place-items: center;
+      background: rgba(167, 139, 250, 0.22);
+      color: #e9e3ff;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    footer {
+      margin-top: 36px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-soft);
+      color: var(--dim);
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">
+        <div class="mark">P</div>
+        <div>
+          <div class="name">Pyx <span style="color: var(--muted); font-weight: 500;">1.5</span></div>
+          <small>Local AI · Llama + GPT-OSS</small>
+        </div>
+      </div>
+      <span id="ollamaPill" class="pill busy"><span class="dot"></span><span id="ollamaPillText">Checking Ollama…</span></span>
+    </header>
+
+    <div class="requires">
+      <div class="icon">1.5</div>
+      <div>
+        <strong>Requires the Pyx 1.5+ desktop app.</strong>
+        Pyx Talk, Code, and Pyxel connect to your local Llama / GPT-OSS models through the Pyx 1.5 desktop launcher.
+        On pyx-ai.web.app, use the download page for macOS / Windows installers (same files as GitHub Releases).
+        <a id="getAppLink" href="/pyx-download.html" style="color:#c4b5fd; margin-left: 4px;">Get Pyx 1.5 →</a>
+      </div>
+    </div>
+
+    <div class="hero">
+      <div>
+        <h1>Everything runs <em>on your machine</em>.</h1>
+        <p>
+          Pick the models you want, Pyx downloads them through Ollama and launches Pyx Talk, Code, and Pyxel locally. No API keys, no cloud quota, no data leaving your computer.
+        </p>
+
+        <div class="perks" aria-label="Pyx 1.5 benefits">
+          <div class="perk">
+            <div class="big">90%+ faster*</div>
+            <div class="small">vs. round-tripping every token to a cloud LLM — local inference removes network + queue latency.</div>
+          </div>
+          <div class="perk">
+            <div class="big">~90% greener*</div>
+            <div class="small">One laptop-scale run reuses your existing hardware; no data-center inference, no idle cloud CPUs.</div>
+          </div>
+          <div class="perk">
+            <div class="big">$0 per message</div>
+            <div class="small">After the one-time model download, Pyx Talk / Code / Pyxel are free to use — offline too.</div>
+          </div>
+        </div>
+
+        <div class="apps">
+          <a class="app" href="/pyx-talk.html">
+            <h3>Pyx Talk</h3><p>Pyx Mini 1.5 · Pyx 1.5 · Pyx Reasoning 1.5 (Llama)</p>
+          </a>
+          <a class="app" href="/pyx-code.html">
+            <h3>Pyx Code</h3><p>Coding assistant · GPT-OSS</p>
+          </a>
+          <a class="app" href="/pyxel-image.html">
+            <h3>Pyxel 1.0</h3><p>10×10 pixel art · GPT-OSS</p>
+          </a>
+        </div>
+      </div>
+
+      <div class="status-card">
+        <div class="status-row" id="rowOllama">
+          <span class="k">Ollama</span>
+          <span class="v" id="vOllama">…</span>
+        </div>
+        <div class="status-row">
+          <span class="k">Backend URL</span>
+          <span class="v" id="vBase">http://127.0.0.1:11434</span>
+        </div>
+        <div class="status-row" id="rowInstalled">
+          <span class="k">Installed models</span>
+          <span class="v" id="vInstalled">—</span>
+        </div>
+        <div class="status-row" id="rowMissing">
+          <span class="k">Missing (defaults)</span>
+          <span class="v" id="vMissing">—</span>
+        </div>
+        <div class="btnrow">
+          <button id="btnInstallAll" class="primary">Install default set</button>
+          <a class="btn" id="btnGetOllama" target="_blank" rel="noopener">Get Ollama</a>
+        </div>
+      </div>
+    </div>
+
+    <section>
+      <h2>Llama models</h2>
+      <div id="famLlama" class="family">
+        <header>
+          <h3>Meta Llama</h3>
+          <small>Instruction-tuned chat models · used by Pyx Talk</small>
+        </header>
+        <div class="models" data-family="llama"></div>
+      </div>
+
+      <h2>GPT-OSS models</h2>
+      <div id="famGptoss" class="family">
+        <header>
+          <h3>OpenAI GPT-OSS</h3>
+          <small>Open-weight 2025 release · used by Pyx Code &amp; Pyxel</small>
+        </header>
+        <div class="models" data-family="gpt-oss"></div>
+      </div>
+
+      <div id="famOtherWrap" style="display:none">
+        <h2>Other installed</h2>
+        <div class="family">
+          <div class="models" data-family="other"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span>Pyx 1.5 · <a href="https://github.com/Mainline-Studios/pyx-ai" target="_blank" rel="noopener">github.com/Mainline-Studios/pyx-ai</a></span>
+      <span><a href="/health" target="_blank" rel="noopener">Health / backend JSON</a></span>
+    </footer>
+    <p style="font-size: 11px; color: var(--dim); margin-top: 12px; max-width: 780px;">
+      * "90%+ faster" and "~90% greener" are marketing claims for the default Pyx 1.5 local-inference path
+      (Llama 3.2 3B on a 2023+ Mac / modern laptop GPU) compared to a typical cloud chat round-trip
+      (SSE streamed from a datacenter LLM with extra network and queue latency). Your mileage varies with
+      hardware, model size, and prompt length. Pyx does not claim offsets or certifications; the
+      environmental comparison is a rough first-principles estimate, not an audited metric.
+    </p>
+  </div>
+
+  <script>
+    (function () {
+      var $  = function (id) { return document.getElementById(id); };
+      var qs = function (sel, root) { return (root || document).querySelector(sel); };
+
+      var pill      = $("ollamaPill");
+      var pillText  = $("ollamaPillText");
+      var vOllama   = $("vOllama");
+      var rowOllama = $("rowOllama");
+      var vBase     = $("vBase");
+      var vInstalled= $("vInstalled");
+      var vMissing  = $("vMissing");
+      var rowMissing= $("rowMissing");
+      var btnInstallAll = $("btnInstallAll");
+      var btnGetOllama  = $("btnGetOllama");
+
+      var state = { snap: null, pulling: {}, rows: {} };
+
+      function fmtSize(n) {
+        if (!n || n <= 0) return "";
+        var units = ["B", "KB", "MB", "GB", "TB"], v = n, i = 0;
+        while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+        return v.toFixed(1) + " " + units[i];
+      }
+      function setPill(cls, text) {
+        pill.className = "pill " + cls;
+        pillText.textContent = text;
+      }
+
+      function renderStatus(j) {
+        var o = j.ollama || {};
+        vBase.textContent = o.base_url || "—";
+        btnGetOllama.href = o.download_url || "https://ollama.com/download";
+
+        if (o.running) {
+          setPill("ok", "Ollama running");
+          vOllama.textContent = "Running";
+          rowOllama.classList.remove("err"); rowOllama.classList.add("ok");
+        } else if (o.installed) {
+          setPill("warn", "Starting Ollama…");
+          vOllama.textContent = "Installed, starting…";
+          rowOllama.classList.remove("ok", "err");
+          fetch("/bootstrap/start", { method: "POST" }).catch(function(){}).finally(refresh);
+        } else {
+          setPill("err", "Ollama not installed");
+          vOllama.textContent = "Not installed";
+          rowOllama.classList.remove("ok"); rowOllama.classList.add("err");
+        }
+
+        var inst = (j.models && j.models.installed) || [];
+        var miss = (j.models && j.models.missing)   || [];
+        vInstalled.textContent = inst.length ? inst.length + "  ·  " + inst.join(", ") : "none yet";
+        vMissing.textContent   = miss.length ? miss.join(", ") : "all present";
+        rowMissing.classList.toggle("err", miss.length > 0);
+        rowMissing.classList.toggle("ok",  miss.length === 0);
+
+        btnInstallAll.disabled = !o.running || miss.length === 0;
+      }
+
+      function renderCatalog(j) {
+        var catalog = (j.models && j.models.catalog) || [];
+        var groups = { llama: [], "gpt-oss": [], other: [] };
+        catalog.forEach(function (m) {
+          (groups[m.family] || groups.other).push(m);
+        });
+        renderFamily("llama", groups.llama);
+        renderFamily("gpt-oss", groups["gpt-oss"]);
+        var others = groups.other.filter(function (m) { return m.installed; });
+        renderFamily("other", others);
+        $("famOtherWrap").style.display = others.length ? "" : "none";
+      }
+
+      function chip(text, cls) {
+        return '<span class="chip ' + (cls || "") + '">' + text + '</span>';
+      }
+
+      function renderFamily(key, list) {
+        var holder = document.querySelector('.models[data-family="' + key + '"]');
+        if (!holder) return;
+        holder.innerHTML = "";
+        list.forEach(function (m) {
+          var chips = "";
+          if ((m.tags || []).indexOf("default") >= 0) chips += chip("Default", "default");
+          if ((m.tags || []).indexOf("heavy")   >= 0) chips += chip("Heavy",   "heavy");
+          if (m.installed) chips += chip("Installed", "ok");
+
+          var meta = '';
+          if (m.size_gb) meta += '<span>~' + m.size_gb.toFixed(1) + ' GB</span>';
+          if (m.role)    meta += '<span>· ' + m.role + '</span>';
+
+          var el = document.createElement("div");
+          el.className = "model" + (m.installed ? " installed" : "");
+          el.dataset.id = m.id;
+          el.innerHTML =
+            '<div class="model-head">' +
+              '<h4>' + m.name + '</h4>' +
+              '<div class="chips">' + chips + '</div>' +
+            '</div>' +
+            '<p>' + (m.blurb || "") + '</p>' +
+            '<div class="meta">' + meta + '</div>' +
+            '<div class="bar"><span data-fill></span></div>' +
+            '<div class="actions">' +
+              '<div class="status-text" data-status></div>' +
+              '<div>' +
+                '<button data-install>' + (m.installed ? 'Re-pull' : 'Install') + '</button>' +
+              '</div>' +
+            '</div>';
+          holder.appendChild(el);
+          var fill = el.querySelector("[data-fill]");
+          if (m.installed) fill.style.width = "100%";
+          state.rows[m.id] = { el: el, fill: fill, status: el.querySelector("[data-status]"), btn: el.querySelector("[data-install]") };
+          el.querySelector("[data-install]").addEventListener("click", function () { pullOne(m.id); });
+        });
+      }
+
+      function pullOne(id) {
+        if (state.pulling[id]) return;
+        state.pulling[id] = true;
+        var row = state.rows[id];
+        if (!row) return;
+        row.el.classList.remove("err", "installed");
+        row.el.classList.add("busy");
+        row.btn.disabled = true;
+        row.btn.textContent = "…";
+        row.status.textContent = "Starting…";
+
+        var es = new EventSource("/bootstrap/pull?model=" + encodeURIComponent(id));
+        es.onmessage = function (ev) {
+          try {
+            var d = JSON.parse(ev.data);
+            if (d.status === "downloading") {
+              var pct = d.total ? Math.max(1, Math.floor((d.completed / d.total) * 100)) : 0;
+              row.fill.style.width = pct + "%";
+              row.status.textContent = fmtSize(d.completed || 0) + " / " + fmtSize(d.total || 0);
+            } else if (d.status === "error") {
+              row.status.textContent = "Error: " + (d.detail || d.code || "failed");
+              row.el.classList.remove("busy"); row.el.classList.add("err");
+              row.btn.disabled = false; row.btn.textContent = "Retry";
+              es.close(); state.pulling[id] = false;
+            } else if (d.done) {
+              row.fill.style.width = "100%";
+              row.el.classList.remove("busy");
+              row.el.classList.add(d.ok ? "installed" : "err");
+              row.btn.disabled = false;
+              row.btn.textContent = d.ok ? "Re-pull" : "Retry";
+              row.status.textContent = d.ok ? "Installed" : "Failed";
+              es.close(); state.pulling[id] = false;
+              refresh();
+            } else if (d.status) {
+              row.status.textContent = d.status;
+            }
+          } catch (e) {}
+        };
+        es.onerror = function () {
+          row.status.textContent = "Connection lost — retry.";
+          row.el.classList.remove("busy"); row.el.classList.add("err");
+          row.btn.disabled = false; row.btn.textContent = "Retry";
+          es.close(); state.pulling[id] = false;
+        };
+      }
+
+      btnInstallAll.addEventListener("click", function () {
+        if (!state.snap) return;
+        var miss = (state.snap.models && state.snap.models.missing) || [];
+        (function next() {
+          var m = miss.shift();
+          if (!m) { btnInstallAll.disabled = true; return; }
+          var row = state.rows[m];
+          if (!row) return next();
+          var watcher = setInterval(function () {
+            if (!state.pulling[m]) { clearInterval(watcher); next(); }
+          }, 400);
+          pullOne(m);
+        })();
+      });
+
+      function refresh() {
+        return fetch("/bootstrap/status", { cache: "no-store" })
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            state.snap = j;
+            renderStatus(j);
+            renderCatalog(j);
+          })
+          .catch(function () {
+            setPill("err", "Pyx launcher unreachable");
+          });
+      }
+      refresh();
+      setInterval(function () { if (!Object.values(state.pulling).some(Boolean)) refresh(); }, 8000);
+    })();
+  </script>
+</body>
+</html>

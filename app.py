@@ -533,7 +533,10 @@ _CODE_SYSTEM_AGENT = os.environ.get(
 def _groq_code_prepare(messages_for_api, language="auto", agent=False):
     """OpenAI-compatible chat request for coding (GPT-OSS on Groq by default). Returns None if Groq selected but no key."""
     key = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
-    url = os.environ.get("PYX_TALK_LLM_URL", _GROQ_CHAT_COMPLETIONS_URL).strip()
+    url = (
+        os.environ.get("PYX_CODE_LLM_URL", "").strip()
+        or os.environ.get("PYX_TALK_LLM_URL", _GROQ_CHAT_COMPLETIONS_URL).strip()
+    )
     url_norm = url.rstrip("/").lower()
     groq_norm = _GROQ_CHAT_COMPLETIONS_URL.rstrip("/").lower()
     if not key and url_norm == groq_norm:
@@ -662,7 +665,11 @@ def _upscale_nearest(px: list, gw: int, gh: int, W: int, H: int):
 def _groq_pixel_art_completion(user_prompt: str, gen_w: int, gen_h: int):
     """Single non-streaming completion for pixel-line output. Returns (text, model) or (None, None)."""
     key = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
-    url = os.environ.get("PYX_TALK_LLM_URL", _GROQ_CHAT_COMPLETIONS_URL).strip()
+    url = (
+        os.environ.get("PYX_PIXEL_LLM_URL", "").strip()
+        or os.environ.get("PYX_CODE_LLM_URL", "").strip()
+        or os.environ.get("PYX_TALK_LLM_URL", _GROQ_CHAT_COMPLETIONS_URL).strip()
+    )
     url_norm = url.rstrip("/").lower()
     groq_norm = _GROQ_CHAT_COMPLETIONS_URL.rstrip("/").lower()
     if not key and url_norm == groq_norm:

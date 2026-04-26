@@ -320,7 +320,7 @@
           <small>Local AI · Llama + GPT-OSS</small>
         </div>
       </div>
-      <span id="ollamaPill" class="pill busy"><span class="dot"></span><span id="ollamaPillText">Checking Ollama…</span></span>
+      <span id="ollamaPill" class="pill busy"><span class="dot"></span><span id="ollamaPillText">Checking…</span></span>
     </header>
 
     <div class="requires">
@@ -337,7 +337,9 @@
       <div>
         <h1>Everything runs <em>on your machine</em>.</h1>
         <p>
-          Pick the models you want, Pyx downloads them through Ollama and launches Pyx Talk, Code, and Pyxel locally. No API keys, no cloud quota, no data leaving your computer.
+          Pyx downloads <strong>Llama</strong> and <strong>GPT-OSS</strong> weights as <code>.gguf</code> files (no Ollama app required).
+          Put <code>pyx-llama.gguf</code> and <code>pyx-gpt-oss.gguf</code> in your Pyx models folder, or set download URLs in <code>gguf_manifest.json</code>.
+          Install <a href="https://github.com/ggerganov/llama.cpp/releases" target="_blank" rel="noopener" style="color:var(--brand-2);">llama.cpp</a> <code>llama-server</code> on your PATH, or set <code>PYX_LLAMA_SERVER</code> to its full path. Optional: <code>PYX_USE_OLLAMA=1</code> restores the legacy Ollama flow.
         </p>
 
         <div class="perks" aria-label="Pyx 1.5 benefits">
@@ -368,7 +370,7 @@
         </div>
       </div>
 
-      <div class="status-card">
+      <div class="status-card" id="cardOllama">
         <div class="status-row" id="rowOllama">
           <span class="k">Ollama</span>
           <span class="v" id="vOllama">…</span>
@@ -390,9 +392,32 @@
           <a class="btn" id="btnGetOllama" target="_blank" rel="noopener">Get Ollama</a>
         </div>
       </div>
+
+      <div class="status-card" id="cardGguf" style="display:none;">
+        <div class="status-row">
+          <span class="k">Models folder</span>
+          <span class="v" id="vGgufDir" style="font-size:11px;word-break:break-all;">—</span>
+        </div>
+        <div class="status-row" id="rowLlamaBin">
+          <span class="k">llama-server</span>
+          <span class="v" id="vLlamaBin">—</span>
+        </div>
+        <div class="status-row">
+          <span class="k">Talk backend</span>
+          <span class="v" id="vTalkPort">—</span>
+        </div>
+        <div class="status-row">
+          <span class="k">Code backend</span>
+          <span class="v" id="vCodePort">—</span>
+        </div>
+        <div id="ggufSlots"></div>
+        <div class="btnrow">
+          <button type="button" id="btnGgufRetry" class="primary">Retry servers</button>
+        </div>
+      </div>
     </div>
 
-    <section>
+    <section id="sectionCatalog">
       <h2>Llama models</h2>
       <div id="famLlama" class="family">
         <header>
@@ -439,6 +464,8 @@
 
       var pill      = $("ollamaPill");
       var pillText  = $("ollamaPillText");
+      var cardOllama = $("cardOllama");
+      var cardGguf   = $("cardGguf");
       var vOllama   = $("vOllama");
       var rowOllama = $("rowOllama");
       var vBase     = $("vBase");
@@ -461,7 +488,52 @@
         pillText.textContent = text;
       }
 
-      function renderStatus(j) {
+      function renderGguf(j) {
+        cardOllama.style.display = "none";
+        cardGguf.style.display = "";
+        $("sectionCatalog").style.display = "none";
+        var g = j.gguf || {};
+        $("vGgufDir").textContent = g.models_dir || "—";
+        var bin = (g.servers && g.servers.binary) || "";
+        $("vLlamaBin").textContent = bin ? bin : "not found (install llama.cpp or set PYX_LLAMA_SERVER)";
+        $("rowLlamaBin").classList.toggle("err", !bin);
+        $("rowLlamaBin").classList.toggle("ok", !!bin);
+        var sp = g.servers || {};
+        $("vTalkPort").textContent = (sp.talk_up ? "up " : "down ") + "· http://127.0.0.1:" + (sp.talk_port || "11441");
+        $("vCodePort").textContent = (sp.code_up ? "up " : "down ") + "· http://127.0.0.1:" + (sp.code_port || "11442");
+        if (j.ready) {
+          setPill("ok", "Llama / GPT-OSS ready");
+        } else if (bin) {
+          setPill("warn", "Starting or missing .gguf files");
+        } else {
+          setPill("err", "llama-server not found");
+        }
+        var holder = $("ggufSlots");
+        holder.innerHTML = "";
+        (g.slots || []).forEach(function (s) {
+          var row = document.createElement("div");
+          row.className = "status-row" + (s.exists ? " ok" : " err");
+          row.innerHTML = '<span class="k">' + (s.label || s.slot) + '</span><span class="v">' +
+            (s.exists ? "✓ " + s.filename : "✗ " + s.filename) + "</span>";
+          holder.appendChild(row);
+          var act = document.createElement("div");
+          act.className = "btnrow";
+          if (s.download_url) {
+            var b = document.createElement("button");
+            b.textContent = "Download " + s.filename;
+            b.onclick = function () { pullGguf(s.slot); };
+            act.appendChild(b);
+          } else {
+            act.innerHTML = '<span style="font-size:12px;color:var(--muted);">Add <code>download_url</code> in manifest to download here, or copy the file into the folder above.</span>';
+          }
+          holder.appendChild(act);
+        });
+      }
+
+      function renderOllama(j) {
+        cardGguf.style.display = "none";
+        cardOllama.style.display = "";
+        $("sectionCatalog").style.display = "";
         var o = j.ollama || {};
         vBase.textContent = o.base_url || "—";
         btnGetOllama.href = o.download_url || "https://ollama.com/download";
@@ -491,7 +563,34 @@
         btnInstallAll.disabled = !o.running || miss.length === 0;
       }
 
+      function renderStatus(j) {
+        if (j.engine === "ollama") {
+          renderOllama(j);
+        } else {
+          renderGguf(j);
+        }
+      }
+
+      function pullGguf(slot) {
+        var es = new EventSource("/bootstrap/gguf-pull?slot=" + encodeURIComponent(slot));
+        es.onmessage = function (ev) {
+          try {
+            var d = JSON.parse(ev.data);
+            if (d.done) {
+              es.close();
+              refresh();
+            } else if (d.status === "error") {
+              alert(d.detail || "Download failed");
+              es.close();
+              refresh();
+            }
+          } catch (e) {}
+        };
+        es.onerror = function () { es.close(); refresh(); };
+      }
+
       function renderCatalog(j) {
+        if (j.engine !== "ollama") return;
         var catalog = (j.models && j.models.catalog) || [];
         var groups = { llama: [], "gpt-oss": [], other: [] };
         catalog.forEach(function (m) {
@@ -593,8 +692,12 @@
         };
       }
 
+      $("btnGgufRetry").addEventListener("click", function () {
+        fetch("/bootstrap/start", { method: "POST" }).catch(function(){}).finally(refresh);
+      });
+
       btnInstallAll.addEventListener("click", function () {
-        if (!state.snap) return;
+        if (!state.snap || state.snap.engine !== "ollama") return;
         var miss = (state.snap.models && state.snap.models.missing) || [];
         (function next() {
           var m = miss.shift();

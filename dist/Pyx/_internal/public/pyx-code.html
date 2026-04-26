@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pyx AI Code — Coding studio</title>
+  <style>
+    :root {
+      --bg: #0c1018;
+      --bg2: #111827;
+      --surface: #151c2c;
+      --surface2: #1e293b;
+      --border: rgba(148, 163, 184, 0.15);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #34d399;
+      --accent2: #2dd4bf;
+      --danger: #f87171;
+      --code-font: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+      --ui-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --radius: 12px;
+      --shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f4f6fa;
+        --bg2: #eef1f7;
+        --surface: #ffffff;
+        --surface2: #f8fafc;
+        --border: rgba(15, 23, 42, 0.1);
+        --text: #0f172a;
+        --muted: #64748b;
+        --accent: #059669;
+        --accent2: #0d9488;
+        --danger: #dc2626;
+        --shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+      }
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--ui-font);
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text);
+      background: radial-gradient(ellipse 120% 80% at 50% -20%, rgba(52, 211, 153, 0.12), transparent),
+        radial-gradient(ellipse 80% 50% at 100% 50%, rgba(45, 212, 191, 0.08), transparent),
+        var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+    .page { max-width: 1400px; margin: 0 auto; padding: 16px 16px 32px; }
+    .top {
+      display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+      gap: 12px; margin-bottom: 16px;
+    }
+    .top a.home {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; font-size: 13px; font-weight: 500;
+      color: var(--muted); text-decoration: none; border-radius: 999px;
+      background: var(--surface); border: 1px solid var(--border);
+    }
+    .top a.home:hover { color: var(--accent); border-color: rgba(52, 211, 153, 0.35); }
+    .title-block h1 {
+      margin: 0 0 4px; font-size: 1.45rem; font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .title-block .sub {
+      margin: 0; font-size: 13px; color: var(--muted); max-width: 42em;
+    }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .badge {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 5px 10px; border-radius: 999px;
+      background: rgba(52, 211, 153, 0.15); color: var(--accent);
+      border: 1px solid rgba(52, 211, 153, 0.25);
+    }
+    .badge--soft { background: var(--surface2); color: var(--muted); border-color: var(--border); font-weight: 600; }
+
+    .studio {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 400px);
+      gap: 14px;
+      align-items: stretch;
+      min-height: min(78vh, 900px);
+    }
+    @media (max-width: 960px) {
+      .studio { grid-template-columns: 1fr; min-height: 0; }
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      display: flex; flex-direction: column;
+      min-height: 0;
+    }
+    .panel-h {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 10px; padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .panel-h h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .toolbar label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    select, button {
+      font-family: var(--ui-font); font-size: 13px;
+      border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text);
+      padding: 6px 10px;
+    }
+    button {
+      cursor: pointer; font-weight: 600;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    button:hover { border-color: rgba(52, 211, 153, 0.4); }
+    button.primary {
+      background: linear-gradient(135deg, rgba(52, 211, 153, 0.2), rgba(45, 212, 191, 0.15));
+      border-color: rgba(52, 211, 153, 0.35); color: var(--accent);
+    }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .editor-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 10px; }
+    #editor {
+      flex: 1; width: 100%; min-height: 240px;
+      resize: vertical;
+      font-family: var(--code-font); font-size: 13px; line-height: 1.45;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg2); color: var(--text);
+      tab-size: 2;
+    }
+    #editor:focus {
+      outline: none;
+      border-color: rgba(52, 211, 153, 0.45);
+      box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.12);
+    }
+
+    .chat-panel { min-height: 420px; }
+    #chat {
+      flex: 1; overflow-y: auto; padding: 12px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .msg { max-width: 100%; padding: 10px 12px; border-radius: 10px; font-size: 13px; }
+    .msg--user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, rgba(52, 211, 153, 0.22), rgba(45, 212, 191, 0.12));
+      border: 1px solid rgba(52, 211, 153, 0.25);
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .msg--bot {
+      align-self: stretch;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+    }
+    .msg--bot.msg--rich :where(pre, code) { font-family: var(--code-font); font-size: 12.5px; }
+    .msg--bot.msg--rich pre {
+      overflow-x: auto; padding: 10px; border-radius: 8px;
+      background: var(--bg); border: 1px solid var(--border);
+    }
+    .composer {
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    #ask {
+      width: 100%; min-height: 72px; resize: vertical;
+      font-family: var(--ui-font); font-size: 14px;
+      padding: 10px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg2); color: var(--text);
+    }
+    #ask:focus { outline: none; border-color: rgba(52, 211, 153, 0.45); }
+    .composer-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+    .hint { font-size: 11px; color: var(--muted); }
+    #status { font-size: 12px; color: var(--muted); min-height: 1.2em; margin-top: 4px; }
+    .kbd {
+      font-family: var(--code-font); font-size: 11px;
+      padding: 2px 6px; border-radius: 4px;
+      border: 1px solid var(--border); background: var(--surface2);
+    }
+    .run-panel {
+      border-top: 1px solid var(--border);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--surface2);
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+    .run-panel h3 {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    #runOut {
+      width: 100%;
+      min-height: 100px;
+      max-height: 220px;
+      resize: vertical;
+      font-family: var(--code-font);
+      font-size: 12px;
+      line-height: 1.4;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+    }
+    .patch-bar {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(52, 211, 153, 0.35);
+      background: rgba(52, 211, 153, 0.08);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .patch-bar span { color: var(--muted); flex: 1; min-width: 120px; }
+    .agent-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top">
+      <a class="home" href="/pyx-talk.html">← Pyx AI Talk</a>
+      <div class="badges" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <a id="getPyx15" href="/pyx-download.html"
+           style="display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:600; color:#fff;
+                  background:linear-gradient(135deg,#6366f1,#0ea5e9); padding:6px 12px; border-radius:999px;
+                  text-decoration:none; box-shadow:0 4px 14px rgba(99,102,241,0.35);"
+           title="Download the Pyx 1.5 desktop app — local GPT-OSS, no cloud">↓ Download Pyx 1.5</a>
+        <span class="badge">GPT-OSS</span>
+        <span class="badge">Groq</span>
+        <span class="badge badge--soft">Coding studio</span>
+      </div>
+    </div>
+    <div id="pyx15Banner" role="note"
+      style="display:none; margin: 0 0 18px; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.45;
+             background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(14, 165, 233, 0.10));
+             border: 1px solid rgba(129, 140, 248, 0.4); color: #1f2244;">
+      <strong style="color:#4c3bd8">Get the Pyx 1.5+ app</strong> to run Pyx Code locally on GPT-OSS.
+      Up to <strong>90% faster</strong> and <strong>~90% more environmentally friendly</strong>* than the cloud build.
+      <a href="/pyx-download.html"
+         style="color:#4338ca; font-weight: 600; text-decoration: none; margin-left: 4px;">Download Pyx 1.5 →</a>
+      <span style="font-size:11px; color:#4c3bd8; margin-left: 4px;">* vs. typical cloud chat round-trip</span>
+    </div>
+
+    <div class="title-block">
+      <h1>Pyx AI Code</h1>
+      <p class="sub">
+        Studio mode: editor + assistant. <strong>Agent</strong> mode asks the model for minimal JSON patches instead of pasting the whole file.
+        <strong>Run</strong> executes JavaScript or Python in your browser. Powered by <strong>GPT-OSS</strong> on <strong>Groq</strong> (or your local Pyx 1.5 install).
+      </p>
+    </div>
+
+    <div class="studio">
+      <section class="panel" aria-label="Code editor">
+        <div class="panel-h">
+          <h2>Editor</h2>
+          <div class="toolbar">
+            <label>
+              Language
+              <select id="lang" aria-label="Editor language">
+                <option value="javascript">JavaScript</option>
+                <option value="typescript">TypeScript</option>
+                <option value="python">Python</option>
+                <option value="rust">Rust</option>
+                <option value="go">Go</option>
+                <option value="glsl">GLSL</option>
+                <option value="html">HTML</option>
+                <option value="css">CSS</option>
+                <option value="json">JSON</option>
+                <option value="plaintext">Plain</option>
+              </select>
+            </label>
+            <button type="button" id="btnCopyEditor">Copy all</button>
+            <button type="button" id="btnClearEditor">Clear</button>
+          </div>
+        </div>
+        <div class="editor-wrap">
+          <textarea id="editor" spellcheck="false" placeholder="// Write or paste code. Toggle “Include editor” when you want the model to see this buffer." aria-label="Code editor"></textarea>
+        </div>
+        <div class="run-panel" aria-label="Run output">
+          <h3>Run <span style="font-weight:500;text-transform:none;color:var(--muted);">(browser)</span></h3>
+          <div class="toolbar" style="margin:0;">
+            <button type="button" class="primary" id="btnRun">Run</button>
+            <button type="button" id="btnClearRun">Clear output</button>
+          </div>
+          <textarea id="runOut" readonly placeholder="stdout / logs appear here…" aria-label="Program output"></textarea>
+          <p class="hint" style="margin:0;">JavaScript runs in a sandboxed iframe. Python uses Pyodide (downloaded on first run). Other languages: run locally.</p>
+        </div>
+      </section>
+
+      <section class="panel chat-panel" aria-label="Assistant chat">
+        <div class="panel-h">
+          <h2>Assistant</h2>
+          <div class="agent-row">
+            <label>
+              <input type="checkbox" id="agentMode" />
+              <strong>Agent</strong> — search/replace JSON edits (no full-file dumps)
+            </label>
+            <label>
+              <input type="checkbox" id="includeEditor" checked />
+              Include editor
+            </label>
+          </div>
+        </div>
+        <div id="chat" aria-live="polite"></div>
+        <div class="composer">
+          <textarea id="ask" rows="3" placeholder="Ask anything: explain this, add error handling, write tests…" aria-label="Message to Pyx AI Code"></textarea>
+          <div class="composer-row">
+            <span class="hint"><span class="kbd">⌘</span> + <span class="kbd">Enter</span> to send</span>
+            <button type="button" class="primary" id="send">Send</button>
+          </div>
+        </div>
+      </section>
+    </div>
+    <p id="status" role="status"></p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js" crossorigin="anonymous"></script>
+  <script>
+    (function () {
+      var PYX_CLOUD_RUN = "https://pyxaiapi-574247481583.us-central1.run.app";
+      function pyxIsLocalHost() {
+        var h = (typeof location !== "undefined" && location.hostname) || "";
+        return h === "localhost" || h === "127.0.0.1" || h === "";
+      }
+      function pyxSleep(ms) {
+        return new Promise(function (r) { setTimeout(r, ms); });
+      }
+      (function () {
+        var b = document.getElementById("pyx15Banner");
+        var dl = document.getElementById("getPyx15");
+        fetch("/bootstrap/status", { cache: "no-store" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (j) {
+            if (!j) { if (b) b.style.display = "block"; }
+            else if (dl) { dl.style.display = "none"; }
+          })
+          .catch(function () { if (b) b.style.display = "block"; });
+      })();
+      function fetchPyxHttp(endpoint, bodyString) {
+        var opts = {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: bodyString,
+          mode: "cors",
+          cache: "no-store",
+          credentials: "omit",
+        };
+        var direct = PYX_CLOUD_RUN + "/" + endpoint;
+        var proxied = "/api/" + endpoint;
+        if (pyxIsLocalHost()) {
+          var sameOrigin = "/" + endpoint;
+          return fetch(sameOrigin, opts).catch(function () { return fetch(direct, opts); });
+        }
+        function pyxTransientStatus(s) {
+          return s === 502 || s === 503 || s === 429;
+        }
+        function oneRound(proxyFirst) {
+          var first = proxyFirst ? proxied : direct;
+          var second = proxyFirst ? direct : proxied;
+          return fetch(first, opts)
+            .then(function (res) {
+              if (res.status >= 500 && res.status < 600) {
+                return fetch(second, opts).catch(function () { return res; });
+              }
+              return res;
+            })
+            .catch(function () { return fetch(second, opts); });
+        }
+        function withNetReplay(proxyFirst) {
+          return oneRound(proxyFirst).catch(function () {
+            return pyxSleep(1200).then(function () { return oneRound(proxyFirst); });
+          });
+        }
+        function withBackoff(attempt) {
+          var maxAttempts = 6;
+          var proxyFirst = attempt % 2 === 0;
+          return withNetReplay(proxyFirst).then(function (res) {
+            if (!pyxTransientStatus(res.status) || attempt >= maxAttempts - 1) return res;
+            return pyxSleep(700 * Math.pow(2, attempt)).then(function () { return withBackoff(attempt + 1); });
+          });
+        }
+        return withBackoff(0);
+      }
+
+      var editorEl = document.getElementById("editor");
+      var askEl = document.getElementById("ask");
+      var chatEl = document.getElementById("chat");
+      var sendBtn = document.getElementById("send");
+      var statusEl = document.getElementById("status");
+      var langEl = document.getElementById("lang");
+      var includeEditorEl = document.getElementById("includeEditor");
+      var agentModeEl = document.getElementById("agentMode");
+      var runOutEl = document.getElementById("runOut");
+      var messages = [];
+      var STORAGE = "pyx.code.messages";
+      var STORAGE_ED = "pyx.code.editor";
+      var STORAGE_LANG = "pyx.code.lang";
+      var STORAGE_AGENT = "pyx.code.agent";
+      var MAX_CTX_CHARS = 12000;
+
+      function mdToSafeHtml(md) {
+        return DOMPurify.sanitize(
+          marked.parse(md || "", { breaks: true, gfm: true }),
+          { USE_PROFILES: { html: true }, ADD_TAGS: ["details", "summary"], ADD_ATTR: ["class"] }
+        );
+      }
+
+      function addBubble(text, role) {
+        var d = document.createElement("div");
+        d.className = "msg msg--" + role + (role === "bot" ? " msg--rich" : "");
+        if (role === "user") d.textContent = text;
+        else d.innerHTML = mdToSafeHtml(text);
+        chatEl.appendChild(d);
+        chatEl.scrollTop = chatEl.scrollHeight;
+      }
+
+      function wireLinks(container) {
+        var links = container.querySelectorAll("a[href]");
+        for (var i = 0; i < links.length; i++) {
+          links[i].setAttribute("target", "_blank");
+          links[i].setAttribute("rel", "noopener noreferrer");
+        }
+      }
+
+      function beginStream() {
+        var d = document.createElement("div");
+        d.className = "msg msg--bot msg--rich";
+        var inner = document.createElement("div");
+        inner.className = "msg-stream";
+        d.appendChild(inner);
+        chatEl.appendChild(d);
+        var full = "";
+        return {
+          rootEl: d,
+          append: function (t) {
+            full += t;
+            inner.textContent = full;
+            chatEl.scrollTop = chatEl.scrollHeight;
+          },
+          finalize: function () {
+            inner.innerHTML = mdToSafeHtml(full);
+            wireLinks(inner);
+            chatEl.scrollTop = chatEl.scrollHeight;
+            return full;
+          },
+          abort: function () {
+            if (d.parentNode) d.parentNode.removeChild(d);
+          },
+        };
+      }
+
+      function drainSseBuffer(buf, onDataObj) {
+        var i;
+        while ((i = buf.indexOf("\n\n")) >= 0) {
+          var block = buf.slice(0, i);
+          buf = buf.slice(i + 2);
+          var lines = block.split(/\r?\n/);
+          for (var li = 0; li < lines.length; li++) {
+            var L = lines[li];
+            if (L.indexOf("data: ") !== 0) continue;
+            var raw = L.slice(6);
+            try { onDataObj(JSON.parse(raw)); } catch (e) {}
+          }
+        }
+        return buf;
+      }
+
+      function fenceLang() {
+        var v = langEl.value || "javascript";
+        if (v === "plaintext") return "";
+        return v;
+      }
+
+      function truncateEditorForContext(raw) {
+        if (!raw || raw.length <= MAX_CTX_CHARS) return raw;
+        var head = Math.floor(MAX_CTX_CHARS * 0.55);
+        var tail = MAX_CTX_CHARS - head - 140;
+        if (tail < 200) tail = 200;
+        var omitted = raw.length - head - tail;
+        return (
+          raw.slice(0, head) +
+          "\n\n/* … Pyx: " +
+          omitted +
+          " characters omitted; tail below … */\n\n" +
+          raw.slice(raw.length - tail)
+        );
+      }
+
+      function buildUserContent(instruction) {
+        var raw = editorEl.value || "";
+        var inc = includeEditorEl.checked;
+        var agent = agentModeEl.checked;
+        if (!inc || !raw.trim()) return instruction;
+        var body = agent ? truncateEditorForContext(raw) : raw;
+        var fence = fenceLang();
+        var header = agent
+          ? "[Agent mode: apply SEARCH/REPLACE JSON or short prose — never paste the full file unless explicitly asked.]\n\n"
+          : "";
+        return (
+          header +
+          "Context — code in editor:\n```" +
+          fence +
+          "\n" +
+          body +
+          "\n```\n\nInstruction:\n" +
+          instruction
+        );
+      }
+
+      function extractPatches(text) {
+        if (!text) return [];
+        var re = /```(?:json)?\s*([\s\S]*?)```/gi;
+        var m;
+        var all = [];
+        while ((m = re.exec(text)) !== null) {
+          try {
+            var obj = JSON.parse(m[1].trim());
+            if (obj && Array.isArray(obj.patches)) {
+              for (var i = 0; i < obj.patches.length; i++) {
+                var p = obj.patches[i];
+                var s = p.search != null ? p.search : p.old;
+                var r = p.replace != null ? p.replace : p.new;
+                if (typeof s === "string" && typeof r === "string") {
+                  all.push({ search: s, replace: r });
+                }
+              }
+            }
+          } catch (e) {}
+        }
+        return all;
+      }
+
+      function applyPatchesToEditor(patches) {
+        var buf = editorEl.value;
+        for (var i = 0; i < patches.length; i++) {
+          var s = patches[i].search;
+          var r = patches[i].replace;
+          if (!s.length) {
+            return { ok: false, err: "Patch " + (i + 1) + ": empty `search` is not allowed." };
+          }
+          var n = 0;
+          var idx = -1;
+          var j = 0;
+          for (; j <= buf.length - s.length; j++) {
+            if (buf.slice(j, j + s.length) === s) {
+              n++;
+              idx = j;
+            }
+          }
+          if (n !== 1) {
+            return {
+              ok: false,
+              err:
+                "Patch " +
+                (i + 1) +
+                ": `search` must match exactly once (found " +
+                n +
+                ").",
+            };
+          }
+          buf = buf.slice(0, idx) + r + buf.slice(idx + s.length);
+        }
+        editorEl.value = buf;
+        try {
+          localStorage.setItem(STORAGE_ED, buf);
+        } catch (e) {}
+        return { ok: true };
+      }
+
+      function maybeOfferPatches(rootEl, fullText) {
+        var patches = extractPatches(fullText);
+        if (!patches.length || !rootEl) return;
+        var bar = document.createElement("div");
+        bar.className = "patch-bar";
+        var sp = document.createElement("span");
+        sp.textContent =
+          patches.length +
+          " edit(s) — each `search` must match exactly once in the editor.";
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "primary";
+        btn.textContent = "Apply to editor";
+        btn.addEventListener("click", function () {
+          var r = applyPatchesToEditor(patches);
+          if (r.ok) {
+            statusEl.textContent = "Applied " + patches.length + " patch(es).";
+            bar.remove();
+          } else {
+            statusEl.textContent = r.err || "Could not apply patches.";
+          }
+        });
+        bar.appendChild(sp);
+        bar.appendChild(btn);
+        rootEl.appendChild(bar);
+      }
+
+      function runJavaScriptInSandbox(code) {
+        var runId = "pyx" + Date.now();
+        var encoded;
+        try {
+          encoded = btoa(unescape(encodeURIComponent(code)));
+        } catch (e) {
+          runOutEl.value = "Cannot encode source for runner (file too large or invalid Unicode).";
+          return;
+        }
+        var inner =
+          "var __c=decodeURIComponent(escape(atob(" +
+          JSON.stringify(encoded) +
+          ")));" +
+          "var __log=function(){var a=[].slice.call(arguments);if(window.parent)window.parent.postMessage({__pyxRun:1,id:'" +
+          runId +
+          "',line:a.map(String).join(' ')},'*');};" +
+          "console.log=console.error=console.warn=__log;" +
+          "try{new Function(__c)();}catch(e){__log('Error:',e&&e.message||e);}";
+        var doc =
+          "<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body><script>" +
+          inner +
+          "<\/script></body></html>";
+        runOutEl.value = "Running…";
+        var lines = [];
+        function onMsg(e) {
+          if (!e.data || !e.data.__pyxRun || e.data.id !== runId) return;
+          lines.push(e.data.line);
+          runOutEl.value = lines.join("\n");
+        }
+        window.addEventListener("message", onMsg);
+        var iframe = document.createElement("iframe");
+        iframe.setAttribute("sandbox", "allow-scripts");
+        iframe.style.display = "none";
+        iframe.srcdoc = doc;
+        document.body.appendChild(iframe);
+        setTimeout(function () {
+          window.removeEventListener("message", onMsg);
+          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+          if (!lines.length && runOutEl.value === "Running…") {
+            runOutEl.value = "(no output)";
+          }
+        }, 15000);
+      }
+
+      var tsLoadPromise = null;
+      function ensureTypeScript(cb) {
+        if (window.ts) {
+          cb();
+          return;
+        }
+        if (tsLoadPromise) {
+          tsLoadPromise.then(cb).catch(function () {});
+          return;
+        }
+        tsLoadPromise = new Promise(function (resolve, reject) {
+          var s = document.createElement("script");
+          s.src = "https://cdn.jsdelivr.net/npm/typescript@5.4.5/lib/typescript.js";
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+        tsLoadPromise.then(cb).catch(function (e) {
+          runOutEl.value = "Failed to load TypeScript: " + (e && e.message ? e.message : e);
+        });
+      }
+
+      function runTypeScript(src) {
+        ensureTypeScript(function () {
+          try {
+            var js = window.ts.transpileModule(src, {
+              compilerOptions: {
+                module: window.ts.ModuleKind.ESNext,
+                target: window.ts.ScriptTarget.ES2020,
+              },
+            }).outputText;
+            runJavaScriptInSandbox(js);
+          } catch (e) {
+            runOutEl.value = String(e && e.message ? e.message : e);
+          }
+        });
+      }
+
+      var pyodidePromise = null;
+      function ensurePyodide() {
+        if (window.__pyodideApi) return Promise.resolve(window.__pyodideApi);
+        if (pyodidePromise) return pyodidePromise;
+        pyodidePromise = new Promise(function (resolve, reject) {
+          var s = document.createElement("script");
+          s.src = "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js";
+          s.onload = function () {
+            var lp = window.loadPyodide;
+            if (typeof lp !== "function") {
+              reject(new Error("loadPyodide not available"));
+              return;
+            }
+            lp({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/" })
+              .then(function (py) {
+                window.__pyodideApi = py;
+                resolve(py);
+              })
+              .catch(reject);
+          };
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+        return pyodidePromise;
+      }
+
+      function runPython(code) {
+        runOutEl.value = "Loading Pyodide (first run may take a few seconds)…";
+        ensurePyodide()
+          .then(function (py) {
+            var wrapped =
+              "from io import StringIO\nimport sys\n" +
+              "_b = StringIO()\n_so, _se = sys.stdout, sys.stderr\n" +
+              "sys.stdout = sys.stderr = _b\n" +
+              "try:\n" +
+              "    exec(compile(" +
+              JSON.stringify(code) +
+              ", '<editor>', 'exec'), {'__name__': '__main__'})\n" +
+              "finally:\n" +
+              "    sys.stdout, sys.stderr = _so, _se\n" +
+              "_b.getvalue()";
+            return py.runPythonAsync(wrapped);
+          })
+          .then(function (out) {
+            runOutEl.value = out === undefined || out === null ? "(done)" : String(out);
+          })
+          .catch(function (e) {
+            runOutEl.value = String(e && e.message ? e.message : e);
+          });
+      }
+
+      function runEditorCode() {
+        var lang = langEl.value;
+        var code = editorEl.value || "";
+        if (!code.trim()) {
+          runOutEl.value = "(editor is empty)";
+          return;
+        }
+        if (lang === "javascript") runJavaScriptInSandbox(code);
+        else if (lang === "typescript") runTypeScript(code);
+        else if (lang === "python") runPython(code);
+        else {
+          runOutEl.value =
+            "In-browser Run supports JavaScript, TypeScript, and Python. Switch the Language selector, or run this file in your own toolchain.";
+        }
+      }
+
+      function persist() {
+        try {
+          localStorage.setItem(STORAGE, JSON.stringify(messages.slice(-40)));
+          localStorage.setItem(STORAGE_ED, editorEl.value);
+          localStorage.setItem(STORAGE_LANG, langEl.value);
+          localStorage.setItem(STORAGE_AGENT, agentModeEl.checked ? "1" : "0");
+        } catch (e) {}
+      }
+
+      function load() {
+        try {
+          var raw = localStorage.getItem(STORAGE);
+          if (raw) {
+            var arr = JSON.parse(raw);
+            if (Array.isArray(arr)) {
+              messages = arr.filter(function (m) {
+                return m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string";
+              });
+              for (var i = 0; i < messages.length; i++) {
+                addBubble(messages[i].content, messages[i].role === "user" ? "user" : "bot");
+              }
+            }
+          }
+        } catch (e) {}
+        try {
+          var ed = localStorage.getItem(STORAGE_ED);
+          if (ed) editorEl.value = ed;
+          var lg = localStorage.getItem(STORAGE_LANG);
+          if (lg && langEl.querySelector('option[value="' + lg + '"]')) langEl.value = lg;
+          if (localStorage.getItem(STORAGE_AGENT) === "1") agentModeEl.checked = true;
+        } catch (e) {}
+      }
+
+      var btnRun = document.getElementById("btnRun");
+
+      function setBusy(b) {
+        sendBtn.disabled = b;
+        askEl.disabled = b;
+        if (btnRun) btnRun.disabled = b;
+      }
+
+      function send() {
+        var instruction = (askEl.value || "").trim();
+        if (!instruction) return;
+        var userContent = buildUserContent(instruction);
+        askEl.value = "";
+        messages.push({ role: "user", content: userContent });
+        addBubble(userContent, "user");
+        setBusy(true);
+        statusEl.textContent = agentModeEl.checked
+          ? "Agent mode · GPT-OSS (Groq) — streaming…"
+          : "GPT-OSS (Groq) — streaming…";
+
+        var payload = JSON.stringify({
+          messages: messages,
+          language: langEl.value,
+          stream: true,
+          agent: agentModeEl.checked,
+        });
+
+        fetchPyxHttp("code_chat", payload)
+          .then(function (res) {
+            if (!res.ok) {
+              return res.text().then(function (t) {
+                var j;
+                try { j = JSON.parse(t); } catch (e) { j = { error: t }; }
+                statusEl.textContent = "Error: " + (j.error || "HTTP " + res.status);
+                messages.pop();
+                if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
+              });
+            }
+            if (!res.body || !res.body.getReader) {
+              statusEl.textContent = "Streaming not supported in this browser.";
+              messages.pop();
+              if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
+              return;
+            }
+            var reader = res.body.getReader();
+            var dec = new TextDecoder();
+            var buf = "";
+            var streamUi = beginStream();
+            var aborted = false;
+
+            function onEvt(obj) {
+              if (obj.type === "meta") {
+                var bits = [];
+                if (obj.model) bits.push(obj.model);
+                if (obj.agent) bits.push("agent");
+                statusEl.textContent = bits.length ? bits.join(" · ") : "";
+                return;
+              }
+              if (aborted) return;
+              if (obj.type === "delta" && obj.t) streamUi.append(obj.t);
+              else if (obj.type === "error") {
+                aborted = true;
+                streamUi.abort();
+                if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
+                messages.pop();
+                statusEl.textContent =
+                  "Error: " + [obj.message, obj.detail].filter(Boolean).join(" — ");
+              }
+            }
+
+            function readLoop() {
+              return reader.read().then(function (rd) {
+                if (aborted) return;
+                if (rd.done) {
+                  buf = drainSseBuffer(buf, onEvt);
+                  if (!aborted) {
+                    var reply = streamUi.finalize();
+                    messages.push({ role: "assistant", content: reply });
+                    if (agentModeEl.checked) {
+                      maybeOfferPatches(streamUi.rootEl, reply);
+                    }
+                    statusEl.textContent = "Ready.";
+                    persist();
+                  }
+                  return;
+                }
+                buf += dec.decode(rd.value, { stream: true });
+                buf = drainSseBuffer(buf, onEvt);
+                if (aborted) return;
+                return readLoop();
+              });
+            }
+            return readLoop().catch(function (e) {
+              if (aborted) return;
+              streamUi.abort();
+              if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
+              messages.pop();
+              statusEl.textContent = "Network: " + (e.message || String(e));
+            });
+          })
+          .catch(function (e) {
+            statusEl.textContent = "Network: " + (e.message || String(e));
+            messages.pop();
+            if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
+          })
+          .finally(function () {
+            setBusy(false);
+          });
+      }
+
+      sendBtn.addEventListener("click", send);
+      askEl.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          send();
+        }
+      });
+      editorEl.addEventListener("input", function () {
+        try { localStorage.setItem(STORAGE_ED, editorEl.value); } catch (e) {}
+      });
+      langEl.addEventListener("change", function () {
+        try { localStorage.setItem(STORAGE_LANG, langEl.value); } catch (e) {}
+      });
+      agentModeEl.addEventListener("change", function () {
+        if (agentModeEl.checked) includeEditorEl.checked = true;
+        persist();
+      });
+
+      document.getElementById("btnRun").addEventListener("click", function () {
+        runEditorCode();
+      });
+      document.getElementById("btnClearRun").addEventListener("click", function () {
+        runOutEl.value = "";
+      });
+
+      document.getElementById("btnCopyEditor").addEventListener("click", function () {
+        var t = editorEl.value || "";
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(t).then(function () {
+            statusEl.textContent = "Editor copied.";
+          });
+        }
+      });
+      document.getElementById("btnClearEditor").addEventListener("click", function () {
+        editorEl.value = "";
+        statusEl.textContent = "Editor cleared.";
+        persist();
+      });
+
+      load();
+    })();
+  </script>
+</body>
+</html>

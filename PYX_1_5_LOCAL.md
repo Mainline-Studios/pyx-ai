@@ -1,8 +1,9 @@
 # Pyx 1.5 — Local Llama + GPT-OSS
 
-**Requires the Pyx 1.5+ desktop app.** Pyx Talk, Pyx Code, and Pyxel all run
-the same backends, but in 1.5 the LLM calls go to a **local OpenAI-compatible
-server** (Ollama, LM Studio, llama.cpp, vLLM) on your machine instead of Groq.
+**Requires the Pyx 1.5+ desktop app.** By default, LLM calls go to **llama.cpp
+`llama-server`** loading **`.gguf`** weights (Llama for Talk, GPT-OSS for Code /
+Pyxel). You can still point `PYX_TALK_LLM_URL` at any OpenAI-compatible host
+(LM Studio, vLLM, etc.) or set **`PYX_USE_OLLAMA=1`** for the legacy Ollama flow.
 
 Why upgrade from the 1.0 cloud build:
 
@@ -36,12 +37,21 @@ audited metric.</sub>
 
 On first launch Pyx opens a built-in **setup page** (`/pyx-setup.html`) that:
 
-1. Detects [Ollama](https://ollama.com/download) — if missing, gives you the
-   one-click download link for your OS.
-2. Starts `ollama serve` in the background (no terminal needed).
-3. Streams real progress bars while it downloads the default model set
-   (~2 GB Llama 3.2 3B + ~5 GB Llama 3.1 8B + ~16 GB GPT-OSS 20B).
+1. Shows your **models folder** (override with `PYX_MODELS_DIR`) and expects
+   **`pyx-llama.gguf`** + **`pyx-gpt-oss.gguf`** by default (edit
+   `packaging/gguf_manifest.json` to rename or add `download_url` for in-app HTTP
+   downloads — no Ollama app involved).
+2. Looks for **`llama-server`** on `PATH` or **`PYX_LLAMA_SERVER`** (install from
+   [llama.cpp releases](https://github.com/ggerganov/llama.cpp/releases)).
+3. Starts one or two `llama-server` processes on ports **11441** (talk) and
+   **11442** (code) when the files exist; if you only ship one GGUF, Pyx reuses
+   it for both.
 4. Opens Pyx Talk automatically when everything is ready.
+
+**macOS distribution signing:** when building, set
+`export PYX_CODESIGN_IDENTITY="Developer ID Application: …"` so
+`packaging/build-macos.sh` runs **`codesign --deep --options runtime`** with
+`packaging/macos/Pyx.entitlements.plist`.
 
 The desktop build uses a **native window** (pywebview — not Safari/Chrome as the
 main shell). Set **`PYX_USE_BROWSER=1`** if you want the old behavior (system

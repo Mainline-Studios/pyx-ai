@@ -24,6 +24,8 @@ datas = [
     (str(ROOT / "Pyx_ai_check.py"), "."),
     (str(ROOT / "Pyx_ai_analyze.py"), "."),
     (str(ROOT / "packaging" / "bootstrap.py"), "."),
+    (str(ROOT / "packaging" / "gguf_engine.py"), "."),
+    (str(ROOT / "packaging" / "gguf_manifest.json"), "."),
 ] + _wv_datas
 
 # Keep bundle lean — Firebase / GCP SDKs aren't used in local mode and add ~150 MB.

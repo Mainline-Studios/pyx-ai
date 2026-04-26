@@ -8,7 +8,9 @@ Set ``PYX_USE_BROWSER=1`` to restore the old browser-only behavior (e.g. remote
 debugging). The local server runs in a background thread while the GUI owns
 the main thread.
 
-Used as the PyInstaller entry point — see PYX_1_5_LOCAL.md for Ollama / models.
+Used as the PyInstaller entry point — see PYX_1_5_LOCAL.md. Default desktop
+engine is **GGUF + llama-server** (Llama / GPT-OSS files). Set ``PYX_USE_OLLAMA=1``
+for the legacy Ollama flow.
 """
 
 from __future__ import annotations
@@ -32,22 +34,22 @@ def _base_dir() -> Path:
 
 
 def _prep_env(base: Path) -> None:
-    """Default to local Ollama with a laptop-friendly Pyx 1.5 model mix."""
+    """Shared env: path, timeouts, no cloud key."""
+    sys.path.insert(0, str(base))
+    os.environ.setdefault("PYX_TALK_TIMEOUT", "600")
+    os.environ.pop("PYX_TALK_LLM_KEY", None)
+
+
+def _prep_ollama_defaults() -> None:
+    """Legacy engine: local Ollama OpenAI-compat + registry model names."""
     os.environ.setdefault(
         "PYX_TALK_LLM_URL", "http://127.0.0.1:11434/v1/chat/completions"
     )
-    # Smaller defaults than the cloud mix so the first-run download is a few GB,
-    # not tens of GB. Users can bump these later with env vars (see docs).
     os.environ.setdefault("PYX_TALK_MODEL_FAST", "llama3.2:3b-instruct")
     os.environ.setdefault("PYX_TALK_MODEL_SMART", "llama3.1:8b-instruct")
     os.environ.setdefault("PYX_TALK_MODEL_THINKING", "llama3.1:8b-instruct")
     os.environ.setdefault("PYX_CODE_MODEL", "gpt-oss:20b")
     os.environ.setdefault("PYX_PIXEL_MODEL", "gpt-oss:20b")
-    os.environ.setdefault("PYX_TALK_TIMEOUT", "600")
-    os.environ.pop("PYX_TALK_LLM_KEY", None)  # local mode — no Groq key
-
-    # Make sure imports find the bundled modules.
-    sys.path.insert(0, str(base))
 
 
 def _wait_for_health(port: int, timeout: float = 25.0) -> bool:
@@ -118,13 +120,72 @@ def _register_bootstrap(app) -> None:
 
     @app.route("/bootstrap/start", methods=["POST"])
     def _bs_start():
-        started = False
-        if not bootstrap.ollama_is_up():
-            started = bootstrap.ollama_serve_background()
-        return jsonify({"started": started, "running": bootstrap.ollama_is_up()})
+        try:
+            from packaging import gguf_engine  # type: ignore
+        except Exception:
+            import gguf_engine  # type: ignore
+        if gguf_engine.use_ollama_engine():
+            started = False
+            if not bootstrap.ollama_is_up():
+                started = bootstrap.ollama_serve_background()
+            return jsonify({"started": started, "running": bootstrap.ollama_is_up(), "engine": "ollama"})
+        gguf_engine.ensure_llama_servers(_base_dir())
+        gguf_engine.apply_default_llm_env()
+        return jsonify(
+            {
+                "started": True,
+                "running": gguf_engine.gguf_ready(),
+                "engine": "gguf",
+            }
+        )
+
+    @app.route("/bootstrap/gguf-pull", methods=["GET"])
+    def _bs_gguf_pull():
+        try:
+            from packaging import gguf_engine  # type: ignore
+        except Exception:
+            import gguf_engine  # type: ignore
+        slot = (request.args.get("slot") or "").strip()
+        if slot not in ("talk", "code"):
+            return jsonify({"error": "slot must be talk or code"}), 400
+        url = (request.args.get("url") or "").strip() or None
+
+        def sse(obj):
+            return "data: " + json.dumps(obj) + "\n\n"
+
+        def gen():
+            ok = False
+            try:
+                for evt in gguf_engine.download_slot(slot, url):
+                    yield sse(evt)
+                    if evt.get("status") == "success":
+                        ok = True
+                    if evt.get("status") == "error":
+                        ok = False
+            except GeneratorExit:
+                return
+            except Exception as e:  # pragma: no cover
+                yield sse({"status": "error", "detail": str(e)})
+            yield sse({"done": True, "ok": ok, "slot": slot})
+
+        return Response(
+            stream_with_context(gen()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+            },
+        )
 
     @app.route("/bootstrap/pull", methods=["GET"])
     def _bs_pull():
+        try:
+            from packaging import gguf_engine  # type: ignore
+        except Exception:
+            import gguf_engine  # type: ignore
+        if not gguf_engine.use_ollama_engine():
+            return jsonify({"error": "Ollama pull disabled — use /bootstrap/gguf-pull?slot=talk|code"}), 400
         model = (request.args.get("model") or "").strip()
         if not model:
             return jsonify({"error": "missing ?model"}), 400
@@ -250,6 +311,18 @@ def main() -> int:
     _prep_env(base)
 
     try:
+        from packaging import gguf_engine  # type: ignore
+    except Exception:
+        import gguf_engine  # type: ignore
+
+    if gguf_engine.use_ollama_engine():
+        _prep_ollama_defaults()
+    else:
+        gguf_engine.ensure_models_dir()
+        gguf_engine.ensure_llama_servers(base)
+        gguf_engine.apply_default_llm_env()
+
+    try:
         import app as pyx_app  # noqa: E402
     except Exception as e:  # pragma: no cover
         print(f"[pyx] failed to import Flask app: {e}", file=sys.stderr)
@@ -273,8 +346,9 @@ def main() -> int:
         from packaging import bootstrap  # type: ignore
     except Exception:
         import bootstrap  # type: ignore
-    if not bootstrap.ollama_is_up():
-        bootstrap.ollama_serve_background()
+    if gguf_engine.use_ollama_engine():
+        if not bootstrap.ollama_is_up():
+            bootstrap.ollama_serve_background()
 
     snap = bootstrap.snapshot()
     force_setup = os.environ.get("PYX_FORCE_SETUP", "").strip() in ("1", "true", "yes")

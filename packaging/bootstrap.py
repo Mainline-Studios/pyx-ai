@@ -1,15 +1,11 @@
-"""Pyx 1.5 first-run model bootstrap.
+"""Pyx 1.5 first-run model bootstrap (local launcher only).
 
-Everything in this module is local-only: it talks to Ollama's HTTP API on
-``http://127.0.0.1:11434`` (no OpenAI-compat layer) because the native API
-emits streaming pull progress as NDJSON — perfect for a progress page.
+Default engine is **GGUF files + llama-server** (see ``gguf_engine``). Set
+``PYX_USE_OLLAMA=1`` to use the legacy flow: Ollama on ``http://127.0.0.1:11434``
+with ``POST /api/pull`` NDJSON for the setup page progress bars.
 
-The launcher imports this, exposes routes on the same Flask app, and the
-setup page (``public/pyx-setup.html``) drives it from the browser.
-
-No hard dependency on ``ollama`` on PATH: if it's installed we can cold-start
-``ollama serve`` ourselves; if not, the status endpoint reports the correct
-download URL for the user's platform.
+The launcher imports this, exposes routes on the same Flask app, and
+``public/pyx-setup.html`` drives it from the browser.
 """
 
 from __future__ import annotations
@@ -23,6 +19,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
 
 
@@ -247,56 +244,85 @@ def pull_model(name: str) -> Iterator[Dict[str, object]]:
 # ---------------------------------------------------------------------------
 
 def snapshot() -> Dict[str, object]:
-    binary = ollama_binary()
-    running = ollama_is_up()
-    installed_names = set(installed_model_names()) if running else set()
-    wanted = required_models()
-    missing = [m for m in wanted if m not in installed_names]
-    all_ready = running and not missing
+    try:
+        from packaging import gguf_engine
+    except Exception:
+        import gguf_engine  # type: ignore
 
-    # Catalog enriched with per-model install state, so one fetch powers the UI.
-    catalog_out: List[Dict[str, object]] = []
-    catalog_ids = {item["id"] for item in CATALOG}
-    for item in CATALOG:
-        mid = item["id"]  # type: ignore[index]
-        catalog_out.append({
-            **item,
-            "installed": mid in installed_names,
-            "required": mid in wanted,
-        })
-    # Include any model the user already pulled that we don't know about.
-    for name in sorted(installed_names):
-        if name not in catalog_ids:
+    if gguf_engine.use_ollama_engine():
+        binary = ollama_binary()
+        running = ollama_is_up()
+        installed_names = set(installed_model_names()) if running else set()
+        wanted = required_models()
+        missing = [m for m in wanted if m not in installed_names]
+        all_ready = running and not missing
+
+        catalog_out: List[Dict[str, object]] = []
+        catalog_ids = {item["id"] for item in CATALOG}
+        for item in CATALOG:
+            mid = item["id"]  # type: ignore[index]
             catalog_out.append({
-                "id": name,
-                "name": name,
-                "family": "other",
-                "family_label": "Other",
-                "size_gb": 0,
-                "role": "custom",
-                "tags": ["custom"],
-                "blurb": "Manually installed model.",
-                "installed": True,
-                "required": name in wanted,
+                **item,
+                "installed": mid in installed_names,
+                "required": mid in wanted,
             })
+        for name in sorted(installed_names):
+            if name not in catalog_ids:
+                catalog_out.append({
+                    "id": name,
+                    "name": name,
+                    "family": "other",
+                    "family_label": "Other",
+                    "size_gb": 0,
+                    "role": "custom",
+                    "tags": ["custom"],
+                    "blurb": "Manually installed model.",
+                    "installed": True,
+                    "required": name in wanted,
+                })
 
+        return {
+            "engine": "ollama",
+            "gguf": None,
+            "ollama": {
+                "installed": bool(binary),
+                "binary": binary,
+                "running": running,
+                "base_url": OLLAMA_BASE,
+                "download_url": ollama_download_url(),
+                "platform": platform.system().lower(),
+            },
+            "models": {
+                "required": wanted,
+                "installed": sorted(installed_names),
+                "missing": missing,
+                "catalog": catalog_out,
+                "defaults": dict(DEFAULT_MODELS),
+            },
+            "ready": bool(all_ready),
+        }
+
+    base = Path(__file__).resolve().parent.parent
+    gg = gguf_engine.gguf_snapshot(base)
     return {
+        "engine": "gguf",
+        "gguf": gg,
         "ollama": {
-            "installed": bool(binary),
-            "binary": binary,
-            "running": running,
+            "installed": False,
+            "binary": None,
+            "running": False,
             "base_url": OLLAMA_BASE,
             "download_url": ollama_download_url(),
             "platform": platform.system().lower(),
         },
         "models": {
-            "required": wanted,
-            "installed": sorted(installed_names),
-            "missing": missing,
-            "catalog": catalog_out,
+            "required": [],
+            "installed": [],
+            "missing": [],
+            "catalog": [],
             "defaults": dict(DEFAULT_MODELS),
         },
-        "ready": bool(all_ready),
+        "ready": bool(gg.get("ready")),
     }
 
 

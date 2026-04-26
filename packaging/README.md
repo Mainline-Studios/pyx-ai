@@ -1,9 +1,10 @@
 # Pyx 1.5 desktop — installers
 
 The same Flask app (`app.py` + moderator + `public/` UI) packaged as a native
-desktop app that runs Pyx 1.5 locally. It expects a local OpenAI-compatible
-server (Ollama by default) on `http://127.0.0.1:11434`; see
-[`PYX_1_5_LOCAL.md`](../PYX_1_5_LOCAL.md) for model download links.
+desktop app. **Default:** Llama + GPT-OSS as **`.gguf` files** in your Pyx models
+folder, plus **[llama.cpp](https://github.com/ggerganov/llama.cpp) `llama-server`**
+on `PATH` (or set `PYX_LLAMA_SERVER` to the binary). Optional: **`PYX_USE_OLLAMA=1`**
+for the legacy Ollama flow. See [`PYX_1_5_LOCAL.md`](../PYX_1_5_LOCAL.md).
 
 ## Download (site + GitHub)
 
@@ -33,9 +34,15 @@ stop the server. Set **`PYX_USE_BROWSER=1`** to use a normal browser tab instead
 
 ```bash
 brew install create-dmg            # only needed for the prettier .dmg; hdiutil fallback works without it
+# Optional Apple distribution codesign (Developer ID or Apple Distribution):
+#   export PYX_CODESIGN_IDENTITY="Developer ID Application: Your Team (XXXXXXXXXX)"
 bash packaging/build-macos.sh      # PYX_VERSION=1.5.1 bash … to override
 # Output: dist/Pyx.app, dist/Pyx-<ver>.dmg, dist/Pyx-<ver>.pkg
 ```
+
+Edit **`packaging/gguf_manifest.json`** before shipping: set `download_url` on
+each slot when you host the `.gguf` blobs, or ship filenames only and have users
+copy files into the models directory shown in the setup screen.
 
 ### Windows (`.exe`)
 
