@@ -6,6 +6,13 @@ folder, plus **[llama.cpp](https://github.com/ggerganov/llama.cpp) `llama-server
 on `PATH` (or set `PYX_LLAMA_SERVER` to the binary). Optional: **`PYX_USE_OLLAMA=1`**
 for the legacy Ollama flow. See [`PYX_1_5_LOCAL.md`](../PYX_1_5_LOCAL.md).
 
+**Branding:** wordmark and app mark live in [`public/brand/`](../public/brand/)
+(`pyx-wordmark.png`, `pyx-app-icon.png`). macOS bundles use
+[`packaging/macos/AppIcon.icns`](macos/AppIcon.icns) (regenerate with `sips` +
+`iconutil` from the PNG if you replace the art). Windows `Pyx.exe` uses
+[`packaging/windows/pyx.ico`](windows/pyx.ico); regenerate with
+`python3 packaging/write_pyx_ico.py` after updating the PNG.
+
 ## Download (site + GitHub)
 
 Installers are built automatically by `.github/workflows/release.yml` when a
@@ -25,6 +32,7 @@ After the workflow finishes:
 
 Once installed, Pyx launches a small local web server (127.0.0.1:8765) and
 opens the UI in a **native app window** (pywebview), not your default browser.
+When models are ready, the first screen is **`pyx-launcher.html`** (white hub with Talk / Code / Pyxel); first-run still opens **`pyx-setup.html`**.
 A console window stays open for logs — close the Pyx window or the console to
 stop the server. Set **`PYX_USE_BROWSER=1`** to use a normal browser tab instead.
 
@@ -71,8 +79,11 @@ launching the bundled `Pyx` binary (the launcher reads defaults from
 `PYX_CODE_MODEL`, `PYX_PIXEL_MODEL`, `PYX_TALK_LLM_URL`).
 
 ```bash
-export PYX_TALK_MODEL_FAST="llama3.2:3b-instruct"
+export PYX_TALK_MODEL_FAST="llama2:7b"
+export PYX_TALK_MODEL_SMART="llama4:scout"
+export PYX_TALK_MODEL_THINKING="llama4:scout"
 export PYX_CODE_MODEL="gpt-oss:20b"
+export PYX_PIXEL_MODEL="gpt-oss:20b"
 open -a Pyx
 ```
 

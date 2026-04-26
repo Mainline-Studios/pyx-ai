@@ -3,9 +3,9 @@
 #
 # Default assumes Ollama on http://127.0.0.1:11434. Override any of:
 #   PYX_TALK_LLM_URL          (default http://127.0.0.1:11434/v1/chat/completions)
-#   PYX_TALK_MODEL_FAST       (default llama3.1:8b-instruct)
-#   PYX_TALK_MODEL_SMART      (default llama3.3:70b-instruct)
-#   PYX_TALK_MODEL_THINKING   (default llama3.3:70b-instruct)
+#   PYX_TALK_MODEL_FAST       (default llama2:7b — Pyx Mini 1.5)
+#   PYX_TALK_MODEL_SMART      (default llama4:scout — Pyx 1.5)
+#   PYX_TALK_MODEL_THINKING   (default llama4:scout — Pyx Reasoning 1.5)
 #   PYX_CODE_MODEL            (default gpt-oss:20b)
 #   PYX_PIXEL_MODEL           (default gpt-oss:20b)
 #   PYX_PORT                  (default 8080)
@@ -22,9 +22,9 @@ cd "$ROOT"
 
 export PYX_TALK_LLM_URL="${PYX_TALK_LLM_URL:-http://127.0.0.1:11434/v1/chat/completions}"
 unset PYX_TALK_LLM_KEY 2>/dev/null || true
-export PYX_TALK_MODEL_FAST="${PYX_TALK_MODEL_FAST:-llama3.1:8b-instruct}"
-export PYX_TALK_MODEL_SMART="${PYX_TALK_MODEL_SMART:-llama3.3:70b-instruct}"
-export PYX_TALK_MODEL_THINKING="${PYX_TALK_MODEL_THINKING:-llama3.3:70b-instruct}"
+export PYX_TALK_MODEL_FAST="${PYX_TALK_MODEL_FAST:-llama2:7b}"
+export PYX_TALK_MODEL_SMART="${PYX_TALK_MODEL_SMART:-llama4:scout}"
+export PYX_TALK_MODEL_THINKING="${PYX_TALK_MODEL_THINKING:-llama4:scout}"
 export PYX_CODE_MODEL="${PYX_CODE_MODEL:-gpt-oss:20b}"
 export PYX_PIXEL_MODEL="${PYX_PIXEL_MODEL:-gpt-oss:20b}"
 export PYX_TALK_TIMEOUT="${PYX_TALK_TIMEOUT:-600}"

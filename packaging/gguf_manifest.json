@@ -1,12 +1,12 @@
 {
   "talk": {
-    "filename": "pyx-llama.gguf",
-    "label": "Llama (Pyx Talk)",
+    "filename": "pyx-llama4-scout.gguf",
+    "label": "Llama 4 Scout (Pyx 1.5 · Pyx Reasoning — same weights for smart + thinking)",
     "download_url": ""
   },
   "code": {
     "filename": "pyx-gpt-oss.gguf",
-    "label": "GPT-OSS (Pyx Code & Pyxel)",
+    "label": "GPT-OSS (Pyx Code · Pyxel 1)",
     "download_url": ""
   }
 }

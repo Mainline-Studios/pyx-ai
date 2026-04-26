@@ -26,9 +26,9 @@ from typing import Dict, Iterator, List, Optional, Tuple
 # Laptop-friendly defaults — smaller than the cloud mix so first-run downloads
 # in minutes, not hours. Users can override via env vars; docs list alternatives.
 DEFAULT_MODELS: Dict[str, str] = {
-    "PYX_TALK_MODEL_FAST": "llama3.2:3b-instruct",
-    "PYX_TALK_MODEL_SMART": "llama3.1:8b-instruct",
-    "PYX_TALK_MODEL_THINKING": "llama3.1:8b-instruct",
+    "PYX_TALK_MODEL_FAST": "llama2:7b",
+    "PYX_TALK_MODEL_SMART": "llama4:scout",
+    "PYX_TALK_MODEL_THINKING": "llama4:scout",
     "PYX_CODE_MODEL": "gpt-oss:20b",
     "PYX_PIXEL_MODEL": "gpt-oss:20b",
 }
@@ -53,14 +53,34 @@ CATALOG: List[Dict[str, object]] = [
         "blurb": "Tiny Llama 3.2 — instant replies, great for trying Pyx on a laptop CPU.",
     },
     {
+        "id": "llama2:7b",
+        "name": "Llama 2 7B",
+        "family": "llama",
+        "family_label": "Llama",
+        "size_gb": 3.8,
+        "role": "fast",
+        "tags": ["default", "talk-fast", "llama-2"],
+        "blurb": "Default for Pyx Mini 1.5 (Pyx Talk fast). Classic Llama 2 chat weights.",
+    },
+    {
+        "id": "llama4:scout",
+        "name": "Llama 4 Scout",
+        "family": "llama",
+        "family_label": "Llama",
+        "size_gb": 20.0,
+        "role": "smart",
+        "tags": ["default", "talk-smart", "talk-thinking", "llama-4"],
+        "blurb": "Default for Pyx 1.5 + Pyx Reasoning 1.5 (smart + thinking modes). Frontier Llama 4 Scout.",
+    },
+    {
         "id": "llama3.2:3b-instruct",
         "name": "Llama 3.2 3B Instruct",
         "family": "llama",
         "family_label": "Llama",
         "size_gb": 2.0,
         "role": "fast",
-        "tags": ["default", "talk-fast"],
-        "blurb": "Default for Pyx Talk fast mode. Fits easily in 8 GB RAM.",
+        "tags": ["optional", "tiny"],
+        "blurb": "Smaller Llama 3.2 — swap in with PYX_TALK_MODEL_FAST if you want a lighter fast lane.",
     },
     {
         "id": "llama3.1:8b-instruct",
@@ -69,8 +89,8 @@ CATALOG: List[Dict[str, object]] = [
         "family_label": "Llama",
         "size_gb": 4.7,
         "role": "smart",
-        "tags": ["default", "talk-smart", "talk-thinking"],
-        "blurb": "Default for Pyx Talk smart + reasoning. Best balance on consumer GPUs.",
+        "tags": ["optional"],
+        "blurb": "Llama 3.1 8B — optional substitute for smart mode.",
     },
     {
         "id": "llama3.3:70b-instruct",
@@ -91,7 +111,7 @@ CATALOG: List[Dict[str, object]] = [
         "size_gb": 13.0,
         "role": "code",
         "tags": ["default", "code", "pixel"],
-        "blurb": "Default for Pyx Code + Pyxel. Excellent at code completion and structured output.",
+        "blurb": "Default for Pyx Code + Pyxel 1 (pixel). GPT-OSS for code completion and structured pixel output.",
     },
     {
         "id": "gpt-oss:120b",

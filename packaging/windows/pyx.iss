@@ -10,9 +10,9 @@
 
 [Setup]
 AppId={{7B4BB3C9-96F1-4A59-9B4B-B0F5D1A2E6C8}}
-AppName=Pyx
+AppName=PYX.
 AppVersion={#PyxVersion}
-AppVerName=Pyx {#PyxVersion}
+AppVerName=PYX. {#PyxVersion}
 AppPublisher=Mainline Studios
 AppPublisherURL=https://github.com/Mainline-Studios/pyx-ai
 DefaultDirName={autopf}\Pyx

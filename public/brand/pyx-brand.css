@@ -1,0 +1,37 @@
+/* PYX. wordmark + app mark — assets in /brand/ */
+.pyx-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+.pyx-brand:hover {
+  opacity: 0.9;
+}
+.pyx-brand__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);
+}
+.pyx-brand__icon--sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+.pyx-brand__wordmark {
+  height: 26px;
+  width: auto;
+  display: block;
+}
+/* Wordmark artboard is #d0e7ff — use on dark pages for contrast */
+.pyx-brand__wordmark--pill {
+  height: 22px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: #d0e7ff;
+  box-sizing: content-box;
+}

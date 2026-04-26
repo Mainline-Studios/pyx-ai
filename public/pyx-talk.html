@@ -3,7 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pyx AI Talk</title>
+  <title>PYX. Talk</title>
+  <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
+  <link rel="stylesheet" href="/brand/pyx-brand.css" />
   <style>
     :root {
       --bg: #eef0f4;
@@ -74,6 +77,7 @@
 
     .top {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
@@ -541,7 +545,10 @@
 <body>
   <div class="page">
     <div class="top">
-      <a class="home" href="/">← Home</a>
+      <a class="pyx-brand" href="/pyx-launcher.html" title="PYX. — home">
+        <img class="pyx-brand__icon" src="/brand/pyx-app-icon.png" alt="" width="36" height="36" />
+        <img class="pyx-brand__wordmark" src="/brand/pyx-wordmark.png" alt="PYX." />
+      </a>
       <div class="top-right">
         <a class="home home--small" href="/pyx-code.html">Pyx AI Code</a>
         <a class="home home--small" href="/pyxel-image.html">Pyxel Image</a>
@@ -561,7 +568,7 @@
       <span class="pills">* vs. typical cloud chat round-trip</span>
     </div>
 
-    <h1>Pyx AI Talk</h1>
+    <h1>PYX. Talk</h1>
     <p class="lede">PYX TALK LIVE COMING SOON</p>
 
     <div class="panel">
@@ -579,9 +586,9 @@
       <div class="model-row">
         <label for="talkMode">Model</label>
         <select id="talkMode" name="talkMode" aria-label="Pyx Talk model">
-          <option value="fast">Pyx Talk Mini 1.0</option>
-          <option value="smart">Pyx Talk 1.0</option>
-          <option value="thinking">Pyx Talk Reasoning 1.0</option>
+          <option value="fast">Pyx Mini 1.0 (Llama 2)</option>
+          <option value="smart">Pyx 1.0 (Llama 4 Scout)</option>
+          <option value="thinking">Pyx Reasoning 1.0 (Llama 4 Scout)</option>
         </select>
       </div>
 
@@ -719,7 +726,11 @@
           MODE_LABELS = MODE_LABELS_15;
           var sel = document.getElementById("talkMode");
           if (sel) {
-            var map15 = { fast: "Pyx Mini 1.5", smart: "Pyx 1.5", thinking: "Pyx Reasoning 1.5" };
+            var map15 = {
+              fast: "Pyx Mini 1.5 (Llama 2)",
+              smart: "Pyx 1.5 (Llama 4 Scout)",
+              thinking: "Pyx Reasoning 1.5 (Llama 4 Scout)",
+            };
             Array.prototype.forEach.call(sel.options, function (opt) {
               if (map15[opt.value]) opt.textContent = map15[opt.value];
             });
@@ -756,14 +767,14 @@
       // Cloud (web) labels — 1.0 line. Desktop app rewrites these to the 1.5 line
       // after /bootstrap/status confirms we're inside the Pyx 1.5 launcher.
       var MODE_LABELS = {
-        fast: "Pyx Talk Mini 1.0",
-        smart: "Pyx Talk 1.0",
-        thinking: "Pyx Talk Reasoning 1.0",
+        fast: "Pyx Mini 1.0 (Llama 2)",
+        smart: "Pyx 1.0 (Llama 4 Scout)",
+        thinking: "Pyx Reasoning 1.0 (Llama 4 Scout)",
       };
       var MODE_LABELS_15 = {
-        fast: "Pyx Mini 1.5",
-        smart: "Pyx 1.5",
-        thinking: "Pyx Reasoning 1.5",
+        fast: "Pyx Mini 1.5 (Llama 2)",
+        smart: "Pyx 1.5 (Llama 4 Scout)",
+        thinking: "Pyx Reasoning 1.5 (Llama 4 Scout)",
       };
 
       function modeDisplayName(key) {

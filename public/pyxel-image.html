@@ -3,7 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pyx AI Image Generation</title>
+  <title>PYX. Pyxel</title>
+  <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
+  <link rel="stylesheet" href="/brand/pyx-brand.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body {
@@ -193,7 +196,13 @@
 <body>
   <div class="page">
     <div class="nav">
-      <a href="/">← Home</a>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <a class="pyx-brand" href="/pyx-launcher.html" title="PYX. — home">
+          <img class="pyx-brand__icon" src="/brand/pyx-app-icon.png" alt="" width="36" height="36" />
+          <img class="pyx-brand__wordmark" src="/brand/pyx-wordmark.png" alt="PYX." />
+        </a>
+        <a href="/pyx-launcher.html" style="font-size:12px;">← Home</a>
+      </div>
       <div class="nav-links" style="align-items:center;">
         <a href="/pyx-talk.html">Pyx AI Talk</a>
         <a href="/pyx-code.html">Pyx AI Code</a>
@@ -216,12 +225,12 @@
       <span style="font-size:11px; color:#4c3bd8; margin-left: 4px;">* vs. typical cloud chat round-trip</span>
     </div>
 
-    <h1>Pyx AI Image Generation</h1>
+    <h1>PYX. Pyxel</h1>
 
     <div class="model-bar">
       <span>Model</span>
       <select id="pyxelModel" aria-label="Pyxel model">
-        <option value="0.5" selected>Pyxel 0.5</option>
+        <option value="0.5" selected>Pyxel 0.5 (GPT-OSS)</option>
       </select>
     </div>
 
@@ -264,8 +273,8 @@
           window.__pyxDesktop = true;
           var sel = document.getElementById("pyxelModel");
           if (sel && sel.options[0]) {
-            sel.options[0].value = "1.0";
-            sel.options[0].textContent = "Pyxel 1.0";
+            sel.options[0].value = "1";
+            sel.options[0].textContent = "Pyxel 1 (GPT-OSS)";
           }
         }
         fetch("/bootstrap/status", { cache: "no-store" })
@@ -510,7 +519,7 @@
           if (!blob) return;
           var a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
-          a.download = "pyxel-" + ((window.__pyxDesktop) ? "1.0" : "0.5") + ".png";
+          a.download = "pyxel-" + ((window.__pyxDesktop) ? "1" : "0.5") + ".png";
           a.click();
           URL.revokeObjectURL(a.href);
         });

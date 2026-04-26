@@ -45,9 +45,9 @@ def _prep_ollama_defaults() -> None:
     os.environ.setdefault(
         "PYX_TALK_LLM_URL", "http://127.0.0.1:11434/v1/chat/completions"
     )
-    os.environ.setdefault("PYX_TALK_MODEL_FAST", "llama3.2:3b-instruct")
-    os.environ.setdefault("PYX_TALK_MODEL_SMART", "llama3.1:8b-instruct")
-    os.environ.setdefault("PYX_TALK_MODEL_THINKING", "llama3.1:8b-instruct")
+    os.environ.setdefault("PYX_TALK_MODEL_FAST", "llama2:7b")
+    os.environ.setdefault("PYX_TALK_MODEL_SMART", "llama4:scout")
+    os.environ.setdefault("PYX_TALK_MODEL_THINKING", "llama4:scout")
     os.environ.setdefault("PYX_CODE_MODEL", "gpt-oss:20b")
     os.environ.setdefault("PYX_PIXEL_MODEL", "gpt-oss:20b")
 
@@ -88,7 +88,7 @@ def _register_static(app, public_dir: Path) -> None:
     @app.route("/pyx.html")
     @app.route("/app")
     def _home():
-        return send_from_directory(str(public_dir), "pyx-talk.html")
+        return send_from_directory(str(public_dir), "pyx-launcher.html")
 
     @app.route("/static-assets/<path:fname>")
     def _named_static(fname):
@@ -227,6 +227,15 @@ def _want_native_window() -> bool:
     return v not in ("1", "true", "yes", "on")
 
 
+def _app_icon_path(base: Path) -> str | None:
+    """PNG for pywebview (macOS Cocoa); .app Dock icon comes from CFBundleIconFile."""
+    for rel in ("public/brand/pyx-app-icon.png", "brand/pyx-app-icon.png"):
+        p = base / rel
+        if p.is_file():
+            return str(p)
+    return None
+
+
 def _run_with_webview(url: str, port: int, base: Path) -> int:
     import webview
 
@@ -260,15 +269,20 @@ def _run_with_webview(url: str, port: int, base: Path) -> int:
     print(f"  Bundle: {base}")
     print("  Stop  : close the Pyx window or press Ctrl+C in this console")
 
+    icon_path = _app_icon_path(base)
     webview.create_window(
-        "Pyx",
+        "PYX.",
         url,
         width=w,
         height=h,
         min_size=(720, 480),
+        text_select=True,
     )
     try:
-        webview.start()
+        if icon_path:
+            webview.start(icon=icon_path)
+        else:
+            webview.start()
     except KeyboardInterrupt:
         print("\n[pyx] shutting down")
     return 0
@@ -352,7 +366,7 @@ def main() -> int:
 
     snap = bootstrap.snapshot()
     force_setup = os.environ.get("PYX_FORCE_SETUP", "").strip() in ("1", "true", "yes")
-    first_page = "pyx-setup.html" if (force_setup or not snap.get("ready")) else "pyx-talk.html"
+    first_page = "pyx-setup.html" if (force_setup or not snap.get("ready")) else "pyx-launcher.html"
 
     port = _pick_port(int(os.environ.get("PORT", "8765")))
     url = f"http://127.0.0.1:{port}/{first_page}"

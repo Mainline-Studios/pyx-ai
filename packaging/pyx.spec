@@ -13,6 +13,8 @@ from PyInstaller.utils.hooks import collect_all
 
 ROOT = Path(SPECPATH).resolve().parent
 ENTRY = str(ROOT / "packaging" / "launcher.py")
+_WIN_ICO = ROOT / "packaging" / "windows" / "pyx.ico"
+EXE_ICON = str(_WIN_ICO) if _WIN_ICO.is_file() else None
 
 _wv_datas, _wv_binaries, _wv_hidden = collect_all("webview")
 
@@ -82,6 +84,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    **({"icon": EXE_ICON} if EXE_ICON else {}),
 )
 
 coll = COLLECT(

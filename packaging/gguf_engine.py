@@ -36,7 +36,10 @@ def manifest_path() -> Path:
 def load_manifest() -> Dict[str, Any]:
     p = manifest_path()
     if not p.is_file():
-        return {"talk": {"filename": "pyx-llama.gguf", "label": "Llama", "download_url": ""}, "code": {"filename": "pyx-gpt-oss.gguf", "label": "GPT-OSS", "download_url": ""}}
+        return {
+            "talk": {"filename": "pyx-llama4-scout.gguf", "label": "Llama 4 Scout", "download_url": ""},
+            "code": {"filename": "pyx-gpt-oss.gguf", "label": "GPT-OSS", "download_url": ""},
+        }
     try:
         return json.loads(p.read_text(encoding="utf-8"))
     except Exception:

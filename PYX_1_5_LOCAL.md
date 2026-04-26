@@ -78,12 +78,12 @@ The server code already supports this through two env vars:
 | `PYX_TALK_LLM_URL` | Full chat-completions URL (e.g. `http://127.0.0.1:11434/v1/chat/completions`). Any OpenAI-compatible server works. |
 | `PYX_TALK_LLM_KEY` | Usually left empty for local. Only required when `PYX_TALK_LLM_URL` is the default Groq URL. |
 | `PYX_TALK_MODEL_FAST` / `PYX_TALK_MODEL_SMART` / `PYX_TALK_MODEL_THINKING` | Which local model each Talk mode uses. |
-| `PYX_CODE_MODEL` | Model for `/code_chat`. Default is `openai/gpt-oss-120b`. |
-| `PYX_PIXEL_MODEL` | Model for `/pixel_art`. Default is `openai/gpt-oss-120b`. |
+| `PYX_CODE_MODEL` | Model for `/code_chat`. Default is `gpt-oss:20b` (Ollama) or `openai/gpt-oss-20b` (Groq). |
+| `PYX_PIXEL_MODEL` | Model for `/pixel_art` (Pyxel 1). Default matches code (`gpt-oss:20b` / `openai/gpt-oss-20b`). |
 
 When `PYX_TALK_LLM_URL` points at `localhost`/`127.0.0.1`, `/health` reports
 `backend.backend_kind = "local"` and the Pyx Talk status bar shows e.g.
-**“Pyx 1.5 (local · Ollama) · Pyx Talk 1.0 · llama3.1:8b-instruct”**.
+**“Pyx 1.5 (local · Ollama) · Pyx Mini 1.5 · llama2:7b”** (exact string varies with mode).
 
 > Cloud Run cannot reach your computer. Local mode only works when you run
 > Pyx (`python3 app.py` / `gunicorn app:app`) on the **same machine** as the
@@ -132,18 +132,15 @@ chat completions are at **`http://127.0.0.1:11434/v1/chat/completions`**.
 - Official site / EULA request: <https://www.llama.com/>  
 - Hugging Face org (gated — click **Agree** first):  
   <https://huggingface.co/meta-llama>
-- Popular instruction-tuned checkpoints (used by Pyx Talk’s three modes):
-  - Llama 3.1 8B Instruct — <https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct>  
-  - Llama 3.1 70B Instruct — <https://huggingface.co/meta-llama/Llama-3.1-70B-Instruct>  
-  - Llama 3.3 70B Instruct — <https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct>  
-  - Llama 3.2 3B Instruct (smallest, fits on CPU/low-VRAM) — <https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct>
+- Pyx defaults (Ollama tags): **Llama 2 7B** (`llama2:7b`, Pyx Mini), **Llama 4 Scout** (`llama4:scout`, Pyx 1.5 + Reasoning).  
+- Other Llama checkpoints (optional): Llama 3.x Instruct on Hugging Face under `meta-llama`.
 
 Pulling through Ollama is fastest (auto-downloads GGUFs, no HF login needed):
 
 ```bash
-ollama pull llama3.1:8b-instruct      # used by Pyx Talk "fast"
-ollama pull llama3.3:70b-instruct     # used by "smart" and "thinking"
-ollama pull llama3.2:3b-instruct      # very small, CPU-friendly
+ollama pull llama2:7b                 # Pyx Mini 1.5 (fast)
+ollama pull llama4:scout              # Pyx 1.5 + Pyx Reasoning 1.5 (smart + thinking)
+ollama pull gpt-oss:20b               # Pyx Code + Pyxel 1
 ```
 
 ### GPT-OSS (OpenAI’s open-weight models, released 2025)
@@ -162,16 +159,15 @@ ollama pull gpt-oss:20b     # 20B — ~16 GB, fits on a single high-end GPU
 ollama pull gpt-oss:120b    # 120B — needs ~80 GB VRAM or heavy CPU offload
 ```
 
-> Use **20B** for Pyx Code / Pyxel on a laptop; the default Groq config in Pyx
-> used 120B. Adjust `PYX_CODE_MODEL` / `PYX_PIXEL_MODEL` to match what you
-> downloaded (names below).
+> Use **20B** for Pyx Code / Pyxel 1 on a laptop; Groq defaults use **`openai/gpt-oss-20b`**.
+> Set `PYX_CODE_MODEL` / `PYX_PIXEL_MODEL` to **`openai/gpt-oss-120b`** only if you want the largest OSS model.
 
 ---
 
 ## 3. Point Pyx at the local server
 
 The **model names** in env vars must match what your local server actually
-loaded. For Ollama the name is the tag (`llama3.1:8b-instruct`); for LM Studio
+loaded. For Ollama the name is the tag (e.g. `llama2:7b`, `llama4:scout`); for LM Studio
 it’s the model ID shown in its server tab; for llama.cpp / vLLM it’s the
 model ID you started the server with.
 
@@ -183,9 +179,9 @@ export PYX_TALK_LLM_URL="http://127.0.0.1:11434/v1/chat/completions"
 unset PYX_TALK_LLM_KEY   # not needed for local
 
 # Pyx Talk modes
-export PYX_TALK_MODEL_FAST="llama3.1:8b-instruct"
-export PYX_TALK_MODEL_SMART="llama3.3:70b-instruct"
-export PYX_TALK_MODEL_THINKING="llama3.3:70b-instruct"
+export PYX_TALK_MODEL_FAST="llama2:7b"
+export PYX_TALK_MODEL_SMART="llama4:scout"
+export PYX_TALK_MODEL_THINKING="llama4:scout"
 
 # Pyx Code + Pyxel (pixel art): GPT-OSS
 export PYX_CODE_MODEL="gpt-oss:20b"
@@ -226,17 +222,16 @@ bash scripts/pyx-local.sh
 
 ## 4. Memory / disk cheatsheet
 
-| Model | Disk (Q4 GGUF via Ollama) | Needs (roughly) |
+| Model | Disk (approx. via Ollama) | Needs (roughly) |
 |-------|--------------------------|------------------|
-| Llama 3.2 3B Instruct | ~2 GB | any modern laptop, CPU OK |
-| Llama 3.1 8B Instruct | ~5 GB | 16 GB RAM or 8 GB VRAM |
-| Llama 3.3 70B Instruct | ~40 GB | 64 GB RAM or 48 GB VRAM (Q4) |
+| Llama 2 7B | ~4 GB | 8–16 GB RAM or modest GPU |
+| Llama 4 Scout | ~12–20 GB | 24 GB+ RAM or 12 GB+ VRAM (varies by quant) |
 | GPT-OSS 20B | ~12–16 GB | 16–24 GB VRAM (or 32 GB RAM, slow) |
 | GPT-OSS 120B | ~60–80 GB | Multi-GPU / 80 GB+ VRAM, or heavy CPU offload |
 
 If a model is too big, drop to the next size down — Pyx Talk / Code / Pyxel all
 read model names from env vars, so you can mix (e.g. `gpt-oss:20b` for code,
-`llama3.1:8b-instruct` for everything else).
+`llama2:7b` for fast Talk and `llama4:scout` for smart/thinking).
 
 ---
 

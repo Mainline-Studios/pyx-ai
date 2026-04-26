@@ -48,7 +48,7 @@ _TALK_SYSTEM = os.environ.get(
     "Stay safe for general audiences; refuse harmful or explicit requests briefly and offer something helpful instead.",
 )
 
-# Reasoning modes: Llama on Groq — fast (8B instant), smart / thinking (70B versatile + prompts).
+# Reasoning modes: Groq defaults align with Pyx Mini (Llama-class fast), Pyx 1.5 + Reasoning (Llama 4 Scout).
 _TALK_MODES = frozenset({"fast", "smart", "thinking"})
 _TALK_MODE_SPECS = {
     "fast": {
@@ -56,22 +56,25 @@ _TALK_MODE_SPECS = {
         "default_model": "llama-3.1-8b-instant",
         "max_tokens": 384,
         "temperature": 0.55,
-        "system_suffix": " Mode: fast. Prefer short, direct answers. Skip long preambles unless the user asks for depth.",
+        "system_suffix": (
+            " Mode: Pyx Mini — fast. Prefer short, direct answers. "
+            "(Cloud Groq uses Llama 3.1 8B Instant for this slot; for Llama 2 use Ollama with PYX_TALK_MODEL_FAST=llama2:7b.)"
+        ),
     },
     "smart": {
         "model_env": "PYX_TALK_MODEL_SMART",
-        "default_model": "llama-3.3-70b-versatile",
+        "default_model": "meta-llama/llama-4-scout-17b-16e-instruct",
         "max_tokens": 1024,
         "temperature": 0.5,
-        "system_suffix": " Mode: smart. Prioritize correctness and clarity. Structure longer answers when it helps (brief setup, then the answer).",
+        "system_suffix": " Mode: Pyx 1.5 (Llama 4 Scout). Prioritize correctness and clarity. Structure longer answers when it helps.",
     },
     "thinking": {
         "model_env": "PYX_TALK_MODEL_THINKING",
-        "default_model": "llama-3.3-70b-versatile",
+        "default_model": "meta-llama/llama-4-scout-17b-16e-instruct",
         "max_tokens": 2048,
         "temperature": 0.35,
         "system_suffix": (
-            ' Mode: Pyx Talk Reasoning 1.0 — reasoning is mandatory on every reply, no exceptions. '
+            ' Mode: Pyx Reasoning 1.5 (Llama 4 Scout) — reasoning is mandatory on every reply, no exceptions. '
             'Always write two sections in this exact order: (1) Start with a line **Reasoning:** then numbered '
             "step-by-step working (even for greetings or tiny questions — at least one short step stating what you're doing). "
             '(2) Then a blank line and a line **Answer:** followed by the final user-facing reply (clear and concise). '
@@ -510,7 +513,7 @@ def _groq_openai_chat(messages_for_api, mode="fast", web_context="", ground_web=
 
 
 # --- Pyx AI Code (Groq GPT-OSS via OpenAI-compatible API) ---
-_CODE_MODEL_DEFAULT = "openai/gpt-oss-120b"
+_CODE_MODEL_DEFAULT = "openai/gpt-oss-20b"
 _CODE_SYSTEM = os.environ.get(
     "PYX_CODE_SYSTEM",
     "You are Pyx AI Code, an expert programming assistant running on OpenAI GPT-OSS via Groq. "
@@ -675,7 +678,7 @@ def _groq_pixel_art_completion(user_prompt: str, gen_w: int, gen_h: int):
     if not key and url_norm == groq_norm:
         return None, None
     n = gen_w * gen_h
-    model = (os.environ.get("PYX_PIXEL_MODEL") or "").strip() or "openai/gpt-oss-120b"
+    model = (os.environ.get("PYX_PIXEL_MODEL") or "").strip() or "openai/gpt-oss-20b"
     # Hard ceiling keeps Groq TPM low (pixel_art was the main 502 path). Override with PYX_PIXEL_COMPLETION_CEILING.
     try:
         _cap = int(os.environ.get("PYX_PIXEL_COMPLETION_CEILING", "350"))
@@ -1294,7 +1297,7 @@ def code_chat():
             if prep is None:
                 fb = (
                     "Pyx AI Code needs an LLM on the server. Set PYX_TALK_LLM_KEY for Groq. "
-                    "Optional: PYX_CODE_MODEL (default openai/gpt-oss-120b), PYX_TALK_LLM_URL for a custom OpenAI-compatible host."
+                    "Optional: PYX_CODE_MODEL (default openai/gpt-oss-20b), PYX_TALK_LLM_URL for a custom OpenAI-compatible host."
                 )
                 yield _talk_sse_event({"type": "delta", "t": fb})
                 yield _talk_sse_event({"type": "done", "model": "pyx-fallback"})
@@ -1340,7 +1343,7 @@ def code_chat():
     if reply is None:
         reply = (
             "Pyx AI Code needs an LLM on the server. Set PYX_TALK_LLM_KEY for Groq. "
-            "Optional: PYX_CODE_MODEL (default openai/gpt-oss-120b)."
+            "Optional: PYX_CODE_MODEL (default openai/gpt-oss-20b)."
         )
         model_used = "pyx-fallback"
     out = {

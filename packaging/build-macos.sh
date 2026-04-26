@@ -39,6 +39,14 @@ echo "==> wrapping as .app"
 APP_DIR="$DIST/${APP_NAME}.app"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
+ICON_SRC="$ROOT/packaging/macos/AppIcon.icns"
+if [[ -f "$ICON_SRC" ]]; then
+  cp "$ICON_SRC" "$APP_DIR/Contents/Resources/AppIcon.icns"
+  echo "==> bundled AppIcon.icns"
+else
+  echo "==> (warn: missing $ICON_SRC — Dock icon will be generic)"
+fi
+
 # Move the one-folder bundle into Contents/Resources/app
 mv "$DIST/Pyx" "$APP_DIR/Contents/Resources/app"
 
@@ -57,7 +65,7 @@ cat > "$APP_DIR/Contents/Info.plist" <<EOF
 <plist version="1.0">
 <dict>
   <key>CFBundleName</key><string>${APP_NAME}</string>
-  <key>CFBundleDisplayName</key><string>${APP_NAME} 1.5</string>
+  <key>CFBundleDisplayName</key><string>PYX.</string>
   <key>CFBundleIdentifier</key><string>${BUNDLE_ID}</string>
   <key>CFBundleVersion</key><string>${VERSION}</string>
   <key>CFBundleShortVersionString</key><string>${VERSION}</string>
@@ -65,6 +73,7 @@ cat > "$APP_DIR/Contents/Info.plist" <<EOF
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSMinimumSystemVersion</key><string>11.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
 </dict>
 </plist>
 EOF

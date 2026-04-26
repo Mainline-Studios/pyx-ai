@@ -3,7 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pyx AI Code — Coding studio</title>
+  <title>PYX. Code</title>
+  <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
+  <link rel="stylesheet" href="/brand/pyx-brand.css" />
   <style>
     :root {
       --bg: #0c1018;
@@ -51,7 +54,7 @@
     }
     .page { max-width: 1400px; margin: 0 auto; padding: 16px 16px 32px; }
     .top {
-      display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
       gap: 12px; margin-bottom: 16px;
     }
     .top a.home {
@@ -239,7 +242,13 @@
 <body>
   <div class="page">
     <div class="top">
-      <a class="home" href="/pyx-talk.html">← Pyx AI Talk</a>
+      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px;">
+        <a class="pyx-brand" href="/pyx-launcher.html" title="PYX. — home">
+          <img class="pyx-brand__icon" src="/brand/pyx-app-icon.png" alt="" width="36" height="36" />
+          <img class="pyx-brand__wordmark" src="/brand/pyx-wordmark.png" alt="PYX." />
+        </a>
+        <a class="home" href="/pyx-talk.html">← Talk</a>
+      </div>
       <div class="badges" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <a id="getPyx15" href="/pyx-download.html"
            style="display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:600; color:#fff;
@@ -263,7 +272,7 @@
     </div>
 
     <div class="title-block">
-      <h1>Pyx AI Code</h1>
+      <h1>PYX. Code</h1>
       <p class="sub">
         Studio mode: editor + assistant. <strong>Agent</strong> mode asks the model for minimal JSON patches instead of pasting the whole file.
         <strong>Run</strong> executes JavaScript or Python in your browser. Powered by <strong>GPT-OSS</strong> on <strong>Groq</strong> (or your local Pyx 1.5 install).
