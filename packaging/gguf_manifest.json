@@ -1,0 +1,12 @@
+{
+  "talk": {
+    "filename": "pyx-llama.gguf",
+    "label": "Llama (Pyx Talk)",
+    "download_url": ""
+  },
+  "code": {
+    "filename": "pyx-gpt-oss.gguf",
+    "label": "GPT-OSS (Pyx Code & Pyxel)",
+    "download_url": ""
+  }
+}

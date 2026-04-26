@@ -1,4 +1,6 @@
 # Pyx AI
+dist/
+build/
 __pycache__/
 *.py[cod]
 *$py.class
@@ -20,6 +22,7 @@ firebase-debug.log
 !package.json
 !firebase.json
 !public/downloads/manifest.json
+!packaging/gguf_manifest.json
 
 # Release CI stages installers here before Firebase deploy (large binaries — do not commit)
 public/downloads/*.dmg
