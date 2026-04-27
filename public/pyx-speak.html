@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pyx Speak</title>
+  <title>Pyx Speak 1 Models</title>
   <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
   <style>
@@ -318,7 +318,7 @@
       <a class="home" href="/">← Home</a>
       <span class="badge">Preview App</span>
     </div>
-    <h1>Pyx Speak</h1>
+    <h1>Pyx Speak 1 Models</h1>
     <p class="lede">
       Standalone text-to-speech studio for Pyx. Built for natural pacing, stable long-form playback, and clear voice control.
       This is intentionally separate from Talk for now; Talk integration comes later.
@@ -348,12 +348,12 @@
       </article>
 
       <article class="card stack">
-        <h2>Voice Engine</h2>
+        <h2>Pyx Speak 1 Models</h2>
         <div>
           <label for="engineSelect">Engine</label>
           <select id="engineSelect">
-            <option value="cloud">Groq Cloud TTS (recommended)</option>
-            <option value="native">Pyx Native Synth (local)</option>
+            <option value="cloud">Cloud TTS (Pyx Speak 1)</option>
+            <option value="native">Native Synth (Pyx Speak 1)</option>
           </select>
         </div>
         <div>
@@ -474,22 +474,22 @@
       };
 
       var VOICE_MODELS = [
-        { id: "pyx_nova", name: "Pyx Nova", basePitch: 132, vibratoHz: 4.2, vibratoDepth: 0.06, formantShift: 1.0, brightness: 0.95, breath: 0.035 },
-        { id: "pyx_orbit", name: "Pyx Orbit", basePitch: 118, vibratoHz: 3.8, vibratoDepth: 0.05, formantShift: 0.94, brightness: 0.9, breath: 0.045 },
-        { id: "pyx_lumen", name: "Pyx Lumen", basePitch: 148, vibratoHz: 4.7, vibratoDepth: 0.07, formantShift: 1.06, brightness: 1.0, breath: 0.03 },
-        { id: "pyx_vector", name: "Pyx Vector", basePitch: 110, vibratoHz: 3.2, vibratoDepth: 0.045, formantShift: 0.9, brightness: 0.86, breath: 0.05 },
+        { id: "pyx_nova", name: "Aster", basePitch: 132, vibratoHz: 4.2, vibratoDepth: 0.06, formantShift: 1.0, brightness: 0.95, breath: 0.035 },
+        { id: "pyx_orbit", name: "Drift", basePitch: 118, vibratoHz: 3.8, vibratoDepth: 0.05, formantShift: 0.94, brightness: 0.9, breath: 0.045 },
+        { id: "pyx_lumen", name: "Glow", basePitch: 148, vibratoHz: 4.7, vibratoDepth: 0.07, formantShift: 1.06, brightness: 1.0, breath: 0.03 },
+        { id: "pyx_vector", name: "Forge", basePitch: 110, vibratoHz: 3.2, vibratoDepth: 0.045, formantShift: 0.9, brightness: 0.86, breath: 0.05 },
       ];
       var CLOUD_VOICES = [
-        { id: "austin", name: "Austin" },
-        { id: "troy", name: "Troy" },
-        { id: "daniel", name: "Daniel" },
-        { id: "autumn", name: "Autumn" },
-        { id: "diana", name: "Diana" },
-        { id: "hannah", name: "Hannah" },
+        { id: "austin", name: "Pulse" },
+        { id: "troy", name: "Slate" },
+        { id: "daniel", name: "Cipher" },
+        { id: "autumn", name: "Willow" },
+        { id: "diana", name: "Iris" },
+        { id: "hannah", name: "Nova" },
       ];
 
       var WORD_OVERRIDES = {
-        pyx: ["p", "ay", "k", "s"],
+        pyx: ["p", "ih", "k", "s"],
         speak: ["s", "p", "iy", "k"],
         talk: ["t", "ao", "k"],
         calculator: ["k", "ae", "l", "k", "y", "uh", "l", "ey", "t", "er"],
@@ -1104,6 +1104,10 @@
           .trim();
       }
 
+      function normalizeBrandPronunciation(raw) {
+        return String(raw || "").replace(/\bpyx\b/gi, "Pix");
+      }
+
       function splitIntoChunks(text, maxLen) {
         var clean = normalizeText(text);
         if (!clean) return [];
@@ -1626,7 +1630,7 @@
         var parsed = parseInlineStyleInstruction(chunks[index]);
         var styleInstruction = normalizeText((styleInstructionInputEl && styleInstructionInputEl.value) || "");
         if (parsed.instruction) styleInstruction = parsed.instruction;
-        var cloudText = parsed.cleanText || chunks[index];
+        var cloudText = normalizeBrandPronunciation(parsed.cleanText || chunks[index]);
         var payload = {
           text: cloudText,
           speed: Math.max(0.7, Math.min(1.35, Number(rateRange.value) || 1)),
