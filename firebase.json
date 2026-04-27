@@ -62,6 +62,13 @@
           "serviceId": "pyxaiapi",
           "region": "us-central1"
         }
+      },
+      {
+        "source": "/api/speak/tts",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
       }
     ]
   }

@@ -129,6 +129,35 @@ def _normalize_talk_messages(raw):
     return out, None
 
 
+def _normalize_preview_messages(raw):
+    """Preview-safe normalizer: trims oversized history instead of rejecting."""
+    if not isinstance(raw, list):
+        return None, '"messages" must be a list'
+    if len(raw) > _TALK_MAX_MESSAGES:
+        raw = raw[-_TALK_MAX_MESSAGES:]
+    out = []
+    for m in raw:
+        if not isinstance(m, dict):
+            return None, "each message must be an object"
+        role = m.get("role")
+        content = m.get("content")
+        if role not in ("user", "assistant"):
+            return None, '"role" must be "user" or "assistant"'
+        if not isinstance(content, str):
+            return None, '"content" must be a string'
+        content = content.strip()
+        if not content:
+            return None, "empty message"
+        # 1.3 preview can emit long code blocks; clip history instead of failing.
+        limit = 4000 if role == "user" else 20000
+        if len(content) > limit:
+            content = content[:limit]
+        out.append({"role": role, "content": content})
+    if not out or out[-1]["role"] != "user":
+        return None, "last message must be from user"
+    return out, None
+
+
 def _normalize_talk_mode(raw):
     """Return (mode_str or None, error_str or None). Default mode is fast."""
     if raw is None or (isinstance(raw, str) and not raw.strip()):
@@ -529,6 +558,53 @@ def _groq_openai_chat(messages_for_api, mode="fast", web_context="", ground_web=
     if not content:
         raise ValueError("empty LLM content")
     return content, prep["model"]
+
+
+# --- Pyx Speak TTS (OpenAI-compatible / Groq audio endpoint) ---
+_GROQ_SPEECH_URL = "https://api.groq.com/openai/v1/audio/speech"
+_SPEAK_TTS_FORMATS = {"mp3": "audio/mpeg", "wav": "audio/wav", "flac": "audio/flac", "opus": "audio/ogg"}
+
+
+def _prepare_speak_tts(
+    text: str,
+    voice: str | None,
+    fmt: str,
+    speed: float,
+    instructions: str | None = None,
+):
+    key = (os.environ.get("PYX_SPEAK_TTS_KEY") or os.environ.get("PYX_TALK_LLM_KEY") or "").strip()
+    url = (os.environ.get("PYX_SPEAK_TTS_URL") or _GROQ_SPEECH_URL).strip()
+    if not url:
+        return None
+    if url.rstrip("/").lower() == _GROQ_SPEECH_URL.rstrip("/").lower() and not key:
+        return None
+    model = (os.environ.get("PYX_SPEAK_TTS_MODEL") or "playai-tts").strip()
+    use_fmt = (fmt or "mp3").strip().lower()
+    if use_fmt not in _SPEAK_TTS_FORMATS:
+        use_fmt = "mp3"
+    payload = {
+        "model": model,
+        "input": text,
+        "response_format": use_fmt,
+        "speed": max(0.7, min(float(speed), 1.35)),
+    }
+    if voice:
+        payload["voice"] = voice.strip()[:64]
+    if instructions:
+        payload["instructions"] = instructions.strip()[:180]
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": _SPEAK_TTS_FORMATS.get(use_fmt, "audio/mpeg"),
+        "User-Agent": (os.environ.get("PYX_TALK_USER_AGENT") or "PyxSpeak/1.0").strip(),
+    }
+    if key:
+        headers["Authorization"] = "Bearer " + key
+    timeout_s = 120
+    try:
+        timeout_s = max(20, min(int(os.environ.get("PYX_SPEAK_TTS_TIMEOUT", str(timeout_s))), 240))
+    except ValueError:
+        pass
+    return {"url": url, "headers": headers, "payload": payload, "format": use_fmt, "timeout_s": timeout_s}
 
 
 # --- Pyx AI Code (Groq GPT-OSS via OpenAI-compatible API) ---
@@ -1269,7 +1345,7 @@ def pyx13_preview_chat():
     if request.method != "POST":
         return jsonify({"error": "Method not allowed"}), 405
     data = request.get_json(silent=True) or {}
-    messages, err = _normalize_talk_messages(data.get("messages"))
+    messages, err = _normalize_preview_messages(data.get("messages"))
     if err:
         return jsonify({"error": err}), 400
     last_user = messages[-1]["content"]
@@ -1308,6 +1384,77 @@ def pyx13_preview_chat():
     if us is not None:
         out["score"] = us
     return jsonify(out)
+
+
+@app.route("/speak/tts", methods=["POST", "OPTIONS"])
+@app.route("/api/speak/tts", methods=["POST", "OPTIONS"])
+def speak_tts():
+    """Generate high-quality speech audio via OpenAI-compatible TTS (Groq default)."""
+    if request.method == "OPTIONS":
+        return "", 204
+    if request.method != "POST":
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.get_json(silent=True) or {}
+    text = data.get("text", "")
+    if not isinstance(text, str):
+        return jsonify({"error": '"text" must be a string'}), 400
+    text = text.strip()
+    if not text:
+        return jsonify({"error": "empty text"}), 400
+    if len(text) > 3200:
+        return jsonify({"error": "text too long"}), 413
+    voice = data.get("voice")
+    if voice is not None and not isinstance(voice, str):
+        return jsonify({"error": '"voice" must be a string'}), 400
+    fmt = data.get("format", "mp3")
+    if fmt is not None and not isinstance(fmt, str):
+        return jsonify({"error": '"format" must be a string'}), 400
+    try:
+        speed = float(data.get("speed", 1.0))
+    except (TypeError, ValueError):
+        return jsonify({"error": '"speed" must be a number'}), 400
+    instructions = data.get("instructions")
+    if instructions is not None and not isinstance(instructions, str):
+        return jsonify({"error": '"instructions" must be a string'}), 400
+
+    prep = _prepare_speak_tts(
+        text=text,
+        voice=voice,
+        fmt=fmt or "mp3",
+        speed=speed,
+        instructions=instructions,
+    )
+    if prep is None:
+        return jsonify({
+            "error": "TTS backend not configured",
+            "hint": "Set PYX_SPEAK_TTS_KEY or PYX_TALK_LLM_KEY for Groq.",
+        }), 503
+    req = urllib.request.Request(
+        prep["url"],
+        data=json.dumps(prep["payload"]).encode("utf-8"),
+        headers=prep["headers"],
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=prep["timeout_s"]) as resp:
+            audio = resp.read()
+            content_type = (resp.headers.get("Content-Type") or _SPEAK_TTS_FORMATS.get(prep["format"], "audio/mpeg")).split(";")[0]
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[:800]
+        return jsonify({"error": "TTS provider request failed", "status": e.code, "detail": detail}), 502
+    except urllib.error.URLError as e:
+        return jsonify({"error": "TTS provider network error", "detail": str(e.reason)}), 502
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+    return Response(
+        audio,
+        mimetype=content_type,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @app.route("/code_chat", methods=["POST", "OPTIONS"])

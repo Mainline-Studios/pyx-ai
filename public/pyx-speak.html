@@ -1,0 +1,1853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pyx Speak</title>
+  <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
+  <style>
+    :root {
+      --bg: #0a1020;
+      --panel: rgba(15, 23, 42, 0.82);
+      --panel-2: rgba(15, 23, 42, 0.62);
+      --border: rgba(148, 163, 184, 0.22);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #818cf8;
+      --accent-2: #38bdf8;
+      --bad: #22c55e;
+      --warn: #f59e0b;
+      --ok: #ef4444;
+      --radius: 14px;
+      --shadow: 0 18px 42px -22px rgba(2, 6, 23, 0.9);
+      --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      line-height: 1.5;
+      color: var(--text);
+      background:
+        radial-gradient(900px 480px at 10% -10%, rgba(99, 102, 241, 0.28), transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, rgba(14, 165, 233, 0.14), transparent 50%),
+        var(--bg);
+      padding: 28px 18px 56px;
+    }
+
+    .wrap { max-width: 1020px; margin: 0 auto; }
+
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .home {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.58);
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 7px 12px;
+    }
+    .home:hover { color: #cbd5e1; border-color: rgba(129, 140, 248, 0.45); }
+
+    .badge {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      color: #c4b5fd;
+      border: 1px solid rgba(167, 139, 250, 0.36);
+      background: rgba(76, 29, 149, 0.28);
+      padding: 5px 10px;
+      border-radius: 999px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.7rem, 3vw, 2.3rem);
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+    }
+
+    .lede {
+      margin: 0 0 20px;
+      color: var(--muted);
+      max-width: 72ch;
+      font-size: 0.97rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 0.95rem;
+      letter-spacing: 0.01em;
+    }
+
+    .stack { display: grid; gap: 10px; }
+
+    label {
+      display: block;
+      font-size: 0.76rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    textarea,
+    select,
+    input[type="range"],
+    input[type="number"] {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      font-family: inherit;
+    }
+
+    textarea {
+      min-height: 210px;
+      resize: vertical;
+      padding: 11px 12px;
+      font-size: 0.95rem;
+      line-height: 1.55;
+    }
+
+    select, input[type="number"] {
+      padding: 9px 10px;
+      font-size: 0.92rem;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .slider-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .slider-value {
+      min-width: 42px;
+      text-align: right;
+      color: #cbd5e1;
+      font-size: 0.83rem;
+      font-weight: 700;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      border: 1px solid rgba(129, 140, 248, 0.42);
+      border-radius: 10px;
+      background: linear-gradient(135deg, #4f46e5, #0ea5e9);
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.86rem;
+      font-weight: 700;
+      padding: 9px 12px;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.05); }
+    button.secondary {
+      background: rgba(15, 23, 42, 0.62);
+      color: #dbeafe;
+      border-color: var(--border);
+    }
+    button.warn {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      border-color: rgba(251, 191, 36, 0.45);
+    }
+    button.danger {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      border-color: rgba(248, 113, 113, 0.45);
+    }
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      filter: none;
+    }
+
+    .preset-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .preset {
+      padding: 6px 9px;
+      font-size: 0.78rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.56);
+      border: 1px solid var(--border);
+      color: #dbeafe;
+      cursor: pointer;
+      user-select: none;
+    }
+    .preset.is-active {
+      border-color: rgba(129, 140, 248, 0.6);
+      background: rgba(79, 70, 229, 0.24);
+      color: #c7d2fe;
+    }
+    .hint-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .hint-chip {
+      padding: 5px 9px;
+      font-size: 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.56);
+      color: #dbeafe;
+      cursor: pointer;
+      user-select: none;
+    }
+    .hint-chip:hover {
+      filter: brightness(1.06);
+    }
+
+    .status {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      min-height: 1.2em;
+    }
+    .status.ok { color: #86efac; }
+    .status.warn { color: #fcd34d; }
+    .status.bad { color: #fca5a5; }
+
+    .monitor {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(2, 6, 23, 0.35);
+      padding: 10px 11px;
+      min-height: 92px;
+      font-size: 0.89rem;
+      color: #cbd5e1;
+      white-space: pre-wrap;
+    }
+    .monitor .active {
+      background: rgba(56, 189, 248, 0.2);
+      color: #e0f2fe;
+      border-radius: 4px;
+      padding: 0 2px;
+    }
+
+    .small {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin: 0;
+    }
+    .diag-toggle {
+      margin-top: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      user-select: none;
+    }
+    .diag-toggle input {
+      width: 14px;
+      height: 14px;
+      accent-color: #818cf8;
+    }
+    .diag-box {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(2, 6, 23, 0.28);
+      padding: 8px 10px;
+      min-height: 64px;
+      max-height: 180px;
+      overflow: auto;
+      font-size: 0.8rem;
+      color: #bfdbfe;
+      white-space: pre-wrap;
+      line-height: 1.45;
+    }
+    .diag-box[hidden] { display: none; }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      textarea { min-height: 180px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="top">
+      <a class="home" href="/">← Home</a>
+      <span class="badge">Preview App</span>
+    </div>
+    <h1>Pyx Speak</h1>
+    <p class="lede">
+      Standalone text-to-speech studio for Pyx. Built for natural pacing, stable long-form playback, and clear voice control.
+      This is intentionally separate from Talk for now; Talk integration comes later.
+    </p>
+
+    <section class="grid">
+      <article class="card stack">
+        <h2>Script</h2>
+        <div>
+          <label for="speakInput">Text To Speak</label>
+          <textarea id="speakInput" placeholder="Paste or type text here...">Pyx Speak is live. This is a high quality browser-based TTS pipeline with smart sentence chunking and reliable playback control.</textarea>
+        </div>
+        <div class="preset-row" id="presetRow">
+          <button type="button" class="preset is-active" data-preset="natural">Natural</button>
+          <button type="button" class="preset" data-preset="clear">Clear</button>
+          <button type="button" class="preset" data-preset="story">Story</button>
+          <button type="button" class="preset" data-preset="broadcast">Broadcast</button>
+        </div>
+        <div class="btn-row">
+          <button type="button" id="speakBtn">Speak</button>
+          <button type="button" id="pauseBtn" class="warn">Pause</button>
+          <button type="button" id="resumeBtn" class="secondary">Resume</button>
+          <button type="button" id="stopBtn" class="danger">Stop</button>
+        </div>
+        <p class="small">Tip: press <code>Cmd/Ctrl + Enter</code> to speak.</p>
+        <div id="status" class="status"></div>
+      </article>
+
+      <article class="card stack">
+        <h2>Voice Engine</h2>
+        <div>
+          <label for="engineSelect">Engine</label>
+          <select id="engineSelect">
+            <option value="cloud">Groq Cloud TTS (recommended)</option>
+            <option value="native">Pyx Native Synth (local)</option>
+          </select>
+        </div>
+        <div>
+          <label for="voiceSelect">Voice</label>
+          <select id="voiceSelect"></select>
+        </div>
+        <div id="cloudInstructionWrap">
+          <label for="styleInstructionInput">Style Instruction (cloud)</label>
+          <input
+            id="styleInstructionInput"
+            type="text"
+            maxlength="180"
+            placeholder='Examples: "speak happy", "sad and gentle", "energetic and upbeat".'
+          />
+          <div class="hint-row" id="styleHintRow">
+            <button type="button" class="hint-chip" data-style="happy and upbeat">Happy</button>
+            <button type="button" class="hint-chip" data-style="sad and gentle">Sad</button>
+            <button type="button" class="hint-chip" data-style="calm and soft">Calm</button>
+            <button type="button" class="hint-chip" data-style="excited and energetic">Excited</button>
+            <button type="button" class="hint-chip" data-style="serious and clear">Serious</button>
+            <button type="button" class="hint-chip" data-style="warm and friendly narrator">Narrator</button>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="rateRange">Rate</label>
+            <div class="slider-row">
+              <input id="rateRange" type="range" min="0.7" max="1.35" step="0.01" value="1.00" />
+              <span id="rateValue" class="slider-value">1.00</span>
+            </div>
+          </div>
+          <div>
+            <label for="pitchRange">Pitch</label>
+            <div class="slider-row">
+              <input id="pitchRange" type="range" min="0.8" max="1.2" step="0.01" value="1.00" />
+              <span id="pitchValue" class="slider-value">1.00</span>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="volumeRange">Volume</label>
+            <div class="slider-row">
+              <input id="volumeRange" type="range" min="0.3" max="1.0" step="0.01" value="1.00" />
+              <span id="volumeValue" class="slider-value">1.00</span>
+            </div>
+          </div>
+          <div>
+            <label for="chunkSizeInput">Chunk Size</label>
+            <input id="chunkSizeInput" type="number" min="120" max="340" step="10" value="210" />
+          </div>
+        </div>
+        <div>
+          <label>Live Playback Context</label>
+          <div id="monitor" class="monitor">Nothing spoken yet.</div>
+          <label class="diag-toggle">
+            <input id="diagToggle" type="checkbox" />
+            <span>Show pronunciation diagnostics</span>
+          </label>
+          <div id="diagPanel" class="diag-box" hidden>Diagnostics are hidden.</div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      var supportsAudio = !!AC;
+      var ctx = supportsAudio ? new AC() : null;
+      var hasHtmlAudio = typeof window.Audio === "function";
+
+      var inputEl = document.getElementById("speakInput");
+      var engineSelectEl = document.getElementById("engineSelect");
+      var voiceSelectEl = document.getElementById("voiceSelect");
+      var cloudInstructionWrapEl = document.getElementById("cloudInstructionWrap");
+      var styleInstructionInputEl = document.getElementById("styleInstructionInput");
+      var styleHintRowEl = document.getElementById("styleHintRow");
+      var speakBtn = document.getElementById("speakBtn");
+      var pauseBtn = document.getElementById("pauseBtn");
+      var resumeBtn = document.getElementById("resumeBtn");
+      var stopBtn = document.getElementById("stopBtn");
+      var statusEl = document.getElementById("status");
+      var monitorEl = document.getElementById("monitor");
+      var diagToggleEl = document.getElementById("diagToggle");
+      var diagPanelEl = document.getElementById("diagPanel");
+      var rateRange = document.getElementById("rateRange");
+      var pitchRange = document.getElementById("pitchRange");
+      var volumeRange = document.getElementById("volumeRange");
+      var chunkSizeInput = document.getElementById("chunkSizeInput");
+      var rateValue = document.getElementById("rateValue");
+      var pitchValue = document.getElementById("pitchValue");
+      var volumeValue = document.getElementById("volumeValue");
+      var presetRow = document.getElementById("presetRow");
+
+      var currentPreset = "natural";
+      var chunks = [];
+      var chunkBuffers = [];
+      var chunkDurations = [];
+      var chunkIndex = 0;
+      var activeSource = null;
+      var activeDuration = 0;
+      var activeOffset = 0;
+      var activeStartAt = 0;
+      var monitorTimer = null;
+      var speaking = false;
+      var paused = false;
+      var cloudAudio = hasHtmlAudio ? new Audio() : null;
+      var cloudAudioUrl = "";
+      var cloudAbort = null;
+      var cloudUsing = false;
+
+      var PRESETS = {
+        natural: { rate: 1.0, pitch: 1.0, volume: 0.9, chunk: 210 },
+        clear: { rate: 0.95, pitch: 0.98, volume: 0.95, chunk: 190 },
+        story: { rate: 0.9, pitch: 1.05, volume: 0.88, chunk: 175 },
+        broadcast: { rate: 1.08, pitch: 0.94, volume: 1.0, chunk: 230 },
+      };
+
+      var VOICE_MODELS = [
+        { id: "pyx_nova", name: "Pyx Nova", basePitch: 132, vibratoHz: 4.2, vibratoDepth: 0.06, formantShift: 1.0, brightness: 0.95, breath: 0.035 },
+        { id: "pyx_orbit", name: "Pyx Orbit", basePitch: 118, vibratoHz: 3.8, vibratoDepth: 0.05, formantShift: 0.94, brightness: 0.9, breath: 0.045 },
+        { id: "pyx_lumen", name: "Pyx Lumen", basePitch: 148, vibratoHz: 4.7, vibratoDepth: 0.07, formantShift: 1.06, brightness: 1.0, breath: 0.03 },
+        { id: "pyx_vector", name: "Pyx Vector", basePitch: 110, vibratoHz: 3.2, vibratoDepth: 0.045, formantShift: 0.9, brightness: 0.86, breath: 0.05 },
+      ];
+      var CLOUD_VOICES = [
+        { id: "", name: "Provider Default" },
+        { id: "alloy", name: "Alloy" },
+        { id: "aria", name: "Aria" },
+        { id: "sage", name: "Sage" },
+        { id: "verse", name: "Verse" },
+      ];
+
+      var WORD_OVERRIDES = {
+        pyx: ["p", "ay", "k", "s"],
+        speak: ["s", "p", "iy", "k"],
+        talk: ["t", "ao", "k"],
+        calculator: ["k", "ae", "l", "k", "y", "uh", "l", "ey", "t", "er"],
+      };
+      var COMMON_WORDS = {
+        the: ["dh", "uh"],
+        this: ["dh", "ih", "s"],
+        that: ["dh", "ae", "t"],
+        these: ["dh", "iy", "z"],
+        those: ["dh", "ow", "z"],
+        there: ["dh", "eh", "r"],
+        here: ["h", "iy", "r"],
+        where: ["w", "eh", "r"],
+        when: ["w", "eh", "n"],
+        what: ["w", "ah", "t"],
+        why: ["w", "ay"],
+        how: ["h", "aw"],
+        and: ["ae", "n", "d"],
+        with: ["w", "ih", "th"],
+        for: ["f", "ao", "r"],
+        from: ["f", "r", "uh", "m"],
+        your: ["y", "ao", "r"],
+        you: ["y", "uw"],
+        can: ["k", "ae", "n"],
+        could: ["k", "uh", "d"],
+        should: ["sh", "uh", "d"],
+        would: ["w", "uh", "d"],
+        have: ["h", "ae", "v"],
+        has: ["h", "ae", "z"],
+        do: ["d", "uw"],
+        does: ["d", "ah", "z"],
+        done: ["d", "ah", "n"],
+        was: ["w", "ah", "z"],
+        were: ["w", "er"],
+        is: ["ih", "z"],
+        are: ["aa", "r"],
+        to: ["t", "uw"],
+        too: ["t", "uw"],
+        of: ["ah", "v"],
+        in: ["ih", "n"],
+        on: ["ao", "n"],
+        it: ["ih", "t"],
+        we: ["w", "iy"],
+        they: ["dh", "ey"],
+        their: ["dh", "eh", "r"],
+        our: ["aw", "r"],
+        app: ["ae", "p"],
+        assistant: ["ah", "s", "ih", "s", "t", "ah", "n", "t"],
+        result: ["r", "ih", "z", "ah", "l", "t"],
+        value: ["v", "ae", "l", "y", "uw"],
+        message: ["m", "eh", "s", "ih", "j"],
+        speak: ["s", "p", "iy", "k"],
+        voice: ["v", "oy", "s"],
+        date: ["d", "ey", "t"],
+        number: ["n", "ah", "m", "b", "er"],
+        today: ["t", "uh", "d", "ey"],
+        tomorrow: ["t", "uh", "m", "ao", "r", "ow"],
+      };
+      var MONTHS = [
+        "january", "february", "march", "april", "may", "june",
+        "july", "august", "september", "october", "november", "december",
+      ];
+      var SMALL_NUM = [
+        "zero", "one", "two", "three", "four", "five", "six", "seven",
+        "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen",
+        "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
+      ];
+      var TENS_NUM = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+
+      var PHONEME = {
+        pau: { voiced: false, dur: 0.06, noise: 0.0, f: [0, 0, 0], a: [0, 0, 0] },
+        ah: { voiced: true, dur: 0.095, f: [650, 1200, 2450], a: [1.0, 0.45, 0.2] },
+        aa: { voiced: true, dur: 0.1, f: [700, 1120, 2480], a: [1.0, 0.48, 0.2] },
+        a: { voiced: true, dur: 0.1, f: [730, 1090, 2440], a: [1.0, 0.5, 0.2] },
+        ae: { voiced: true, dur: 0.095, f: [660, 1720, 2410], a: [1.0, 0.46, 0.2] },
+        ay: { voiced: true, dur: 0.105, f: [620, 1450, 2600], a: [1.0, 0.45, 0.2] },
+        aw: { voiced: true, dur: 0.105, f: [640, 1180, 2400], a: [0.98, 0.44, 0.18] },
+        ey: { voiced: true, dur: 0.095, f: [530, 1840, 2480], a: [0.95, 0.5, 0.2] },
+        oy: { voiced: true, dur: 0.1, f: [500, 900, 2400], a: [0.92, 0.42, 0.18] },
+        eh: { voiced: true, dur: 0.09, f: [530, 1840, 2480], a: [0.95, 0.52, 0.2] },
+        iy: { voiced: true, dur: 0.09, f: [270, 2290, 3010], a: [0.9, 0.48, 0.2] },
+        ih: { voiced: true, dur: 0.085, f: [390, 1990, 2550], a: [0.92, 0.45, 0.2] },
+        ao: { voiced: true, dur: 0.095, f: [570, 840, 2410], a: [1.0, 0.42, 0.2] },
+        ow: { voiced: true, dur: 0.1, f: [430, 820, 2400], a: [1.0, 0.4, 0.18] },
+        uh: { voiced: true, dur: 0.08, f: [440, 1020, 2240], a: [0.95, 0.4, 0.18] },
+        uw: { voiced: true, dur: 0.095, f: [300, 870, 2240], a: [0.9, 0.38, 0.16] },
+        er: { voiced: true, dur: 0.1, f: [490, 1350, 1690], a: [0.9, 0.35, 0.15] },
+        y: { voiced: true, dur: 0.065, f: [300, 2400, 3000], a: [0.7, 0.33, 0.14] },
+        w: { voiced: true, dur: 0.065, f: [350, 800, 2200], a: [0.72, 0.3, 0.14] },
+        r: { voiced: true, dur: 0.07, f: [320, 1300, 1700], a: [0.7, 0.28, 0.13] },
+        l: { voiced: true, dur: 0.07, f: [380, 1300, 2400], a: [0.68, 0.27, 0.12] },
+        m: { voiced: true, dur: 0.075, f: [260, 1200, 2100], a: [0.55, 0.2, 0.08] },
+        n: { voiced: true, dur: 0.072, f: [290, 1500, 2400], a: [0.58, 0.22, 0.08] },
+        ng: { voiced: true, dur: 0.075, f: [300, 2100, 2900], a: [0.56, 0.2, 0.08] },
+        v: { voiced: true, dur: 0.07, f: [400, 1700, 2600], a: [0.46, 0.2, 0.1], noise: 0.15 },
+        z: { voiced: true, dur: 0.07, f: [380, 1800, 2900], a: [0.45, 0.2, 0.1], noise: 0.2 },
+        dh: { voiced: true, dur: 0.07, f: [430, 1600, 2500], a: [0.5, 0.22, 0.1], noise: 0.18 },
+        zh: { voiced: true, dur: 0.07, f: [380, 1800, 2900], a: [0.44, 0.2, 0.1], noise: 0.22 },
+        b: { voiced: true, dur: 0.055, f: [500, 1200, 2200], a: [0.36, 0.15, 0.08], noise: 0.1 },
+        d: { voiced: true, dur: 0.055, f: [520, 1450, 2400], a: [0.38, 0.16, 0.08], noise: 0.08 },
+        g: { voiced: true, dur: 0.055, f: [500, 1300, 2200], a: [0.4, 0.17, 0.09], noise: 0.08 },
+        s: { voiced: false, dur: 0.06, noise: 0.95, hp: 2600, lp: 7600 },
+        sh: { voiced: false, dur: 0.07, noise: 0.88, hp: 1700, lp: 5200 },
+        f: { voiced: false, dur: 0.06, noise: 0.8, hp: 1400, lp: 4600 },
+        th: { voiced: false, dur: 0.06, noise: 0.65, hp: 1200, lp: 4200 },
+        h: { voiced: false, dur: 0.05, noise: 0.52, hp: 900, lp: 3500 },
+        p: { voiced: false, dur: 0.05, noise: 0.54, hp: 900, lp: 2400 },
+        t: { voiced: false, dur: 0.05, noise: 0.6, hp: 1300, lp: 4200 },
+        k: { voiced: false, dur: 0.055, noise: 0.64, hp: 1600, lp: 4600 },
+        ch: { voiced: false, dur: 0.065, noise: 0.74, hp: 1900, lp: 5200 },
+        j: { voiced: true, dur: 0.065, f: [430, 1800, 2600], a: [0.52, 0.22, 0.1], noise: 0.25 },
+      };
+
+      var DIGRAPH = {
+        ng: ["ng"],
+        dh: ["dh"],
+        th: ["th"],
+        sh: ["sh"],
+        ch: ["ch"],
+        ph: ["f"],
+        qu: ["k", "w"],
+        oo: ["uw"],
+        ee: ["iy"],
+        ea: ["iy"],
+        ay: ["ay"],
+        ai: ["ay"],
+        ow: ["ow"],
+        ou: ["ow"],
+        oo: ["uw"],
+        er: ["er"],
+      };
+
+      var LETTER = {
+        a: ["a"], b: ["b"], c: ["k"], d: ["d"], e: ["eh"], f: ["f"], g: ["g"], h: ["h"], i: ["ih"], j: ["j"],
+        k: ["k"], l: ["l"], m: ["m"], n: ["n"], o: ["ow"], p: ["p"], q: ["k"], r: ["r"], s: ["s"], t: ["t"],
+        u: ["uh"], v: ["v"], w: ["w"], x: ["k", "s"], y: ["y"], z: ["z"],
+      };
+      var HUGE_LEXICON = Object.create(null);
+      var LEXICON_CACHE = Object.create(null);
+      var LEXICON_PREFIX = {
+        re: ["r", "iy"],
+        un: ["ah", "n"],
+        pre: ["p", "r", "iy"],
+        pro: ["p", "r", "ow"],
+        anti: ["ae", "n", "t", "iy"],
+        auto: ["ao", "t", "ow"],
+        over: ["ow", "v", "er"],
+        under: ["ah", "n", "d", "er"],
+        inter: ["ih", "n", "t", "er"],
+        super: ["s", "uw", "p", "er"],
+        hyper: ["h", "ay", "p", "er"],
+        ultra: ["ah", "l", "t", "r", "ah"],
+        micro: ["m", "ay", "k", "r", "ow"],
+        macro: ["m", "ae", "k", "r", "ow"],
+        multi: ["m", "ah", "l", "t", "iy"],
+        trans: ["t", "r", "ae", "n", "z"],
+        sub: ["s", "ah", "b"],
+        non: ["n", "aa", "n"],
+        mid: ["m", "ih", "d"],
+        meta: ["m", "eh", "t", "ah"],
+      };
+      var LEXICON_SUFFIX = {
+        s: ["z"],
+        es: ["ih", "z"],
+        ed: ["d"],
+        ing: ["ih", "ng"],
+        er: ["er"],
+        est: ["eh", "s", "t"],
+        ly: ["l", "iy"],
+        ment: ["m", "eh", "n", "t"],
+        tion: ["sh", "ah", "n"],
+        ation: ["ey", "sh", "ah", "n"],
+        able: ["ah", "b", "ah", "l"],
+        ible: ["ih", "b", "ah", "l"],
+        al: ["ah", "l"],
+        ial: ["iy", "ah", "l"],
+        ous: ["ah", "s"],
+        ive: ["ih", "v"],
+        ity: ["ih", "t", "iy"],
+        ism: ["ih", "z", "ah", "m"],
+        ist: ["ih", "s", "t"],
+        less: ["l", "eh", "s"],
+        ful: ["f", "uh", "l"],
+        ness: ["n", "eh", "s"],
+        ward: ["w", "ao", "r", "d"],
+        ship: ["sh", "ih", "p"],
+      };
+      var LEXICON_SUFFIX_CHAINABLE = {
+        s: true,
+        es: true,
+        ed: true,
+        ing: true,
+        ly: true,
+        er: true,
+        est: true,
+        ness: true,
+        less: true,
+        ful: true,
+      };
+      var MEGA_STEMS = (
+        "audio voice speech sound phoneme grammar syntax phrase sentence paragraph script story narrative " +
+        "assistant helper response context action status result output value token stream playback monitor " +
+        "engine model module pipeline process render synth synthesis resonance filter source waveform glottal " +
+        "formant harmonic envelope timing boundary chunk buffer cache memory session control profile preset " +
+        "signal frequency amplitude clarity quality natural smooth warm bright dark human robotic machine " +
+        "python javascript typescript html css app website browser desktop mobile interface panel card button " +
+        "slider option select input message conversation prompt query command parameter setting config state " +
+        "update deploy release branch commit feature fix polish improve rewrite refactor optimize latency " +
+        "performance reliable stable robust secure safety privacy permission context-aware deterministic " +
+        "calendar month january february march april may june july august september october november december " +
+        "clock hour minute second date year today tomorrow yesterday monday tuesday wednesday thursday friday " +
+        "saturday sunday zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen " +
+        "fifteen sixteen seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety " +
+        "hundred thousand million billion data table list map object array string number decimal integer " +
+        "fraction percentage equation algebra geometry calculus matrix vector tensor logic boolean function " +
+        "class method variable constant package library framework runtime compile execute thread process queue " +
+        "network server client endpoint route request response header payload session token auth verify " +
+        "profile account user creator student teacher developer designer engineer architect operator " +
+        "microphone speaker headset device system kernel memory storage cache monitor display keyboard " +
+        "calculator add subtract multiply divide modulo compare equal greater lesser positive negative " +
+        "fractional scientific notation currency dollars cents finance budget invoice receipt payment " +
+        "weather forecast climate temperature humidity pressure wind rain storm clear cloudy sunny " +
+        "biology physics chemistry astronomy geology medicine anatomy nutrition energy battery electric " +
+        "space rocket launch mission orbit station satellite galaxy planet lunar solar cosmic " +
+        "music rhythm melody harmony tempo chorus verse bridge vocal instrument piano guitar drum violin"
+      ).split(/\s+/);
+
+      function clonePhones(arr) {
+        return Array.isArray(arr) ? arr.slice() : [];
+      }
+
+      function addLex(word, phones) {
+        if (!word || !Array.isArray(phones) || !phones.length) return;
+        var w = String(word).toLowerCase();
+        HUGE_LEXICON[w] = clonePhones(phones);
+      }
+
+      function simpleSpellingPhones(word) {
+        var w = String(word || "").toLowerCase().replace(/[^a-z']/g, "");
+        if (!w) return [];
+        if (WORD_OVERRIDES[w]) return clonePhones(WORD_OVERRIDES[w]);
+        if (COMMON_WORDS[w]) return clonePhones(COMMON_WORDS[w]);
+        var out = [];
+        var i = 0;
+        while (i < w.length) {
+          var duo = w.slice(i, i + 2);
+          var one = w[i];
+          if (duo === "th") { out.push("th"); i += 2; continue; }
+          if (duo === "sh") { out.push("sh"); i += 2; continue; }
+          if (duo === "ch") { out.push("ch"); i += 2; continue; }
+          if (duo === "ph") { out.push("f"); i += 2; continue; }
+          if (duo === "ng") { out.push("ng"); i += 2; continue; }
+          if (duo === "ee" || duo === "ea") { out.push("iy"); i += 2; continue; }
+          if (duo === "oo") { out.push("uw"); i += 2; continue; }
+          if (duo === "ou") { out.push("aw"); i += 2; continue; }
+          if (duo === "ow" || duo === "oa") { out.push("ow"); i += 2; continue; }
+          if (duo === "oy" || duo === "oi") { out.push("oy"); i += 2; continue; }
+          if (LETTER[one]) {
+            Array.prototype.push.apply(out, LETTER[one]);
+          }
+          i += 1;
+        }
+        return out;
+      }
+
+      function buildHugeLexicon() {
+        var keys = Object.keys(WORD_OVERRIDES).concat(Object.keys(COMMON_WORDS), MEGA_STEMS);
+        for (var i = 0; i < keys.length; i++) {
+          var base = String(keys[i] || "").toLowerCase();
+          if (!base) continue;
+          var pBase = simpleSpellingPhones(base);
+          if (!pBase.length) continue;
+          addLex(base, pBase);
+
+          var sufKeys = Object.keys(LEXICON_SUFFIX);
+          for (var s = 0; s < sufKeys.length; s++) {
+            var sk = sufKeys[s];
+            var baseSuf = pBase.concat(LEXICON_SUFFIX[sk]);
+            addLex(base + sk, baseSuf);
+            if (LEXICON_SUFFIX_CHAINABLE[sk]) {
+              for (var s3 = 0; s3 < sufKeys.length; s3++) {
+                var sk2 = sufKeys[s3];
+                if (!LEXICON_SUFFIX_CHAINABLE[sk2] || sk === sk2) continue;
+                addLex(base + sk + sk2, baseSuf.concat(LEXICON_SUFFIX[sk2]));
+              }
+            }
+          }
+
+          var preKeys = Object.keys(LEXICON_PREFIX);
+          for (var p = 0; p < preKeys.length; p++) {
+            var pk = preKeys[p];
+            var pre = LEXICON_PREFIX[pk];
+            var basePref = pre.concat(pBase);
+            addLex(pk + base, basePref);
+            if (base.length > 3) addLex(pk + base + "s", basePref.concat(LEXICON_SUFFIX.s));
+            if (base.endsWith("e")) {
+              addLex(pk + base.slice(0, -1) + "ing", basePref.concat(LEXICON_SUFFIX.ing));
+            }
+            for (var s2 = 0; s2 < sufKeys.length; s2++) {
+              var sk2 = sufKeys[s2];
+              addLex(pk + base + sk2, basePref.concat(LEXICON_SUFFIX[sk2]));
+            }
+          }
+        }
+      }
+
+      function knownLexPhones(w) {
+        if (!w) return null;
+        if (LEXICON_CACHE[w]) return clonePhones(LEXICON_CACHE[w]);
+        if (HUGE_LEXICON[w]) return clonePhones(HUGE_LEXICON[w]);
+        if (WORD_OVERRIDES[w]) return clonePhones(WORD_OVERRIDES[w]);
+        if (COMMON_WORDS[w]) return clonePhones(COMMON_WORDS[w]);
+        return null;
+      }
+
+      function resolveByMorphology(word, depth) {
+        var w = String(word || "").toLowerCase();
+        if (!w) return null;
+        if (depth > 3) return null;
+        var direct = knownLexPhones(w);
+        if (direct) return direct;
+
+        var preKeys = Object.keys(LEXICON_PREFIX);
+        var sufKeys = Object.keys(LEXICON_SUFFIX);
+
+        // Prefix + root recursion
+        for (var i = 0; i < preKeys.length; i++) {
+          var pk = preKeys[i];
+          if (!w.startsWith(pk) || w.length <= pk.length + 2) continue;
+          var root = w.slice(pk.length);
+          var rootPhones = resolveByMorphology(root, depth + 1);
+          if (rootPhones && rootPhones.length) return LEXICON_PREFIX[pk].concat(rootPhones);
+        }
+
+        // Root + suffix recursion
+        for (var j = 0; j < sufKeys.length; j++) {
+          var sk = sufKeys[j];
+          if (!w.endsWith(sk) || w.length <= sk.length + 2) continue;
+          var stem = w.slice(0, -sk.length);
+          var stemPhones = resolveByMorphology(stem, depth + 1);
+          if (stemPhones && stemPhones.length) return stemPhones.concat(LEXICON_SUFFIX[sk]);
+        }
+
+        // Compound word split (enables huge combinational coverage)
+        for (var k = 3; k <= w.length - 3; k++) {
+          var left = w.slice(0, k);
+          var right = w.slice(k);
+          var lp = resolveByMorphology(left, depth + 1);
+          if (!lp) continue;
+          var rp = resolveByMorphology(right, depth + 1);
+          if (!rp) continue;
+          return lp.concat(["pau"]).concat(rp);
+        }
+
+        return null;
+      }
+
+      function numberToWordsUnder100(n) {
+        n = Math.floor(n);
+        if (n < 20) return SMALL_NUM[n];
+        var t = Math.floor(n / 10);
+        var r = n % 10;
+        return r ? (TENS_NUM[t] + " " + SMALL_NUM[r]) : TENS_NUM[t];
+      }
+
+      function numberToWords(n) {
+        n = Math.floor(Math.abs(n));
+        if (n < 100) return numberToWordsUnder100(n);
+        if (n < 1000) {
+          var h = Math.floor(n / 100);
+          var rem = n % 100;
+          return rem ? (SMALL_NUM[h] + " hundred " + numberToWordsUnder100(rem)) : (SMALL_NUM[h] + " hundred");
+        }
+        if (n < 1000000) {
+          var th = Math.floor(n / 1000);
+          var rem2 = n % 1000;
+          return rem2 ? (numberToWords(th) + " thousand " + numberToWords(rem2)) : (numberToWords(th) + " thousand");
+        }
+        return String(n);
+      }
+
+      function yearToWords(y) {
+        y = Math.floor(y);
+        if (y >= 2000 && y <= 2099) {
+          if (y === 2000) return "two thousand";
+          return "two thousand " + numberToWords(y - 2000);
+        }
+        if (y >= 1900 && y <= 1999) {
+          if (y === 1900) return "nineteen hundred";
+          return "nineteen " + numberToWords(y - 1900);
+        }
+        return numberToWords(y);
+      }
+
+      function expandNumbersAndDates(text) {
+        var out = String(text || "");
+        out = out.replace(/\b(20\d{2}|19\d{2})-(\d{1,2})-(\d{1,2})\b/g, function (_, y, m, d) {
+          var mi = Number(m), di = Number(d), yi = Number(y);
+          if (mi < 1 || mi > 12 || di < 1 || di > 31) return _;
+          return MONTHS[mi - 1] + " " + numberToWords(di) + " " + yearToWords(yi);
+        });
+        out = out.replace(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/g, function (_, m, d, y) {
+          var mi = Number(m), di = Number(d), yi = Number(y);
+          if (yi < 100) yi += 2000;
+          if (mi < 1 || mi > 12 || di < 1 || di > 31) return _;
+          return MONTHS[mi - 1] + " " + numberToWords(di) + " " + yearToWords(yi);
+        });
+        out = out.replace(/\$([0-9]+)(?:\.([0-9]{1,2}))?/g, function (_, dollars, cents) {
+          var d = Number(dollars);
+          var c = cents ? Number(cents) : 0;
+          var line = numberToWords(d) + " dollars";
+          if (c > 0) line += " and " + numberToWords(c) + " cents";
+          return line;
+        });
+        out = out.replace(/\b([0-9]+)\.([0-9]+)\b/g, function (_, left, right) {
+          var parts = [];
+          parts.push(numberToWords(Number(left)));
+          parts.push("point");
+          for (var i = 0; i < right.length; i++) {
+            parts.push(numberToWords(Number(right[i])));
+          }
+          return parts.join(" ");
+        });
+        out = out.replace(/\b([0-9]{1,6})\b/g, function (_, n) {
+          var val = Number(n);
+          return numberToWords(val);
+        });
+        return out;
+      }
+
+      function esc(s) {
+        return String(s || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function setStatus(msg, tone) {
+        statusEl.textContent = msg || "";
+        statusEl.className = "status" + (tone ? " " + tone : "");
+      }
+
+      function diagnosticsEnabled() {
+        return !!(diagToggleEl && diagToggleEl.checked);
+      }
+
+      function detectResolutionPath(word) {
+        var w = String(word || "").toLowerCase().replace(/[^a-z']/g, "");
+        if (!w) return "skip";
+        if (WORD_OVERRIDES[w]) return "override";
+        if (COMMON_WORDS[w]) return "common";
+        if (HUGE_LEXICON[w]) return "mega";
+        if (LEXICON_CACHE[w]) return "cache";
+        if (resolveByMorphology(w, 0)) return "morph";
+        return "heuristic";
+      }
+
+      function updateDiagnosticsPanel(chunkText) {
+        if (!diagPanelEl) return;
+        if (!diagnosticsEnabled()) {
+          diagPanelEl.hidden = true;
+          return;
+        }
+        diagPanelEl.hidden = false;
+        var toks = tokenizeText(chunkText || "");
+        var seen = Object.create(null);
+        var lines = [];
+        var counts = { override: 0, common: 0, mega: 0, cache: 0, morph: 0, heuristic: 0 };
+        for (var i = 0; i < toks.length; i++) {
+          var t = toks[i];
+          if (!/^[a-z']+$/.test(t) || seen[t]) continue;
+          seen[t] = true;
+          var mode = detectResolutionPath(t);
+          if (counts[mode] != null) counts[mode] += 1;
+          lines.push(t + " -> " + mode);
+          if (lines.length >= 42) break;
+        }
+        var head =
+          "Diagnostic mode enabled.\n" +
+          "override:" + counts.override +
+          " common:" + counts.common +
+          " mega:" + counts.mega +
+          " cache:" + counts.cache +
+          " morph:" + counts.morph +
+          " heuristic:" + counts.heuristic + "\n\n";
+        diagPanelEl.textContent = head + (lines.length ? lines.join("\n") : "No word tokens in current chunk.");
+      }
+
+      function syncSliderLabels() {
+        rateValue.textContent = Number(rateRange.value).toFixed(2);
+        pitchValue.textContent = Number(pitchRange.value).toFixed(2);
+        volumeValue.textContent = Number(volumeRange.value).toFixed(2);
+      }
+
+      function persistSettings() {
+        try {
+          localStorage.setItem(
+            "pyx.speak.settings",
+            JSON.stringify({
+              engine: engineSelectEl ? (engineSelectEl.value || "cloud") : "cloud",
+              styleInstruction: styleInstructionInputEl ? (styleInstructionInputEl.value || "") : "",
+              rate: Number(rateRange.value),
+              pitch: Number(pitchRange.value),
+              volume: Number(volumeRange.value),
+              chunk: Number(chunkSizeInput.value),
+              preset: currentPreset,
+              voice: voiceSelectEl.value || "",
+              diagnostics: !!(diagToggleEl && diagToggleEl.checked),
+            })
+          );
+        } catch (e) {}
+      }
+
+      function loadSettings() {
+        try {
+          var raw = localStorage.getItem("pyx.speak.settings");
+          if (!raw) return;
+          var j = JSON.parse(raw);
+          if (!j || typeof j !== "object") return;
+          if (engineSelectEl && typeof j.engine === "string") engineSelectEl.value = j.engine;
+          if (styleInstructionInputEl && typeof j.styleInstruction === "string") {
+            styleInstructionInputEl.value = j.styleInstruction;
+          }
+          if (typeof j.rate === "number") rateRange.value = String(j.rate);
+          if (typeof j.pitch === "number") pitchRange.value = String(j.pitch);
+          if (typeof j.volume === "number") volumeRange.value = String(j.volume);
+          if (typeof j.chunk === "number") chunkSizeInput.value = String(j.chunk);
+          if (typeof j.preset === "string" && PRESETS[j.preset]) currentPreset = j.preset;
+          if (typeof j.voice === "string") voiceSelectEl.value = j.voice;
+          if (diagToggleEl && typeof j.diagnostics === "boolean") diagToggleEl.checked = j.diagnostics;
+        } catch (e) {}
+      }
+
+      function setPreset(name) {
+        if (!PRESETS[name]) return;
+        currentPreset = name;
+        var p = PRESETS[name];
+        rateRange.value = String(p.rate);
+        pitchRange.value = String(p.pitch);
+        volumeRange.value = String(p.volume);
+        chunkSizeInput.value = String(p.chunk);
+        syncSliderLabels();
+        var btns = presetRow.querySelectorAll("[data-preset]");
+        for (var i = 0; i < btns.length; i++) {
+          btns[i].classList.toggle("is-active", btns[i].getAttribute("data-preset") === name);
+        }
+        persistSettings();
+      }
+
+      function selectedEngine() {
+        if (!engineSelectEl) return "cloud";
+        return engineSelectEl.value === "native" ? "native" : "cloud";
+      }
+
+      function updateInstructionUi() {
+        var show = selectedEngine() === "cloud";
+        if (cloudInstructionWrapEl) cloudInstructionWrapEl.hidden = !show;
+      }
+
+      function parseInlineStyleInstruction(text) {
+        var t = normalizeText(text || "");
+        if (!t) return { cleanText: "", instruction: "" };
+        var m = t.match(/^\s*(?:speak|style)\s*[:\- ]\s*([a-z ,/'"-]{2,64})(?:[.!?]\s+|\s{2,}|\n+)([\s\S]*)$/i);
+        if (m) {
+          return {
+            instruction: normalizeText(m[1]).slice(0, 160),
+            cleanText: normalizeText(m[2]),
+          };
+        }
+        var short = t.match(/^\s*(?:speak\s+)?(happy|sad|calm|serious|excited|whisper|angry|narrator)\s*[:,\-]?\s+([\s\S]{6,})$/i);
+        if (short) {
+          return {
+            instruction: normalizeText(short[1]).slice(0, 160),
+            cleanText: normalizeText(short[2]),
+          };
+        }
+        return { cleanText: t, instruction: "" };
+      }
+
+      function setupVoices() {
+        var isNative = selectedEngine() === "native";
+        var list = isNative ? VOICE_MODELS : CLOUD_VOICES;
+        var suffix = isNative ? " (Pyx-native)" : " (cloud)";
+        var old = voiceSelectEl.value || "";
+        voiceSelectEl.innerHTML = "";
+        for (var i = 0; i < list.length; i++) {
+          var v = list[i];
+          var o = document.createElement("option");
+          o.value = v.id;
+          o.textContent = v.name + suffix;
+          voiceSelectEl.appendChild(o);
+        }
+        voiceSelectEl.value = old;
+        if (voiceSelectEl.selectedIndex < 0 && list.length) {
+          voiceSelectEl.value = list[0].id;
+        }
+      }
+
+      function getVoiceModel() {
+        var id = voiceSelectEl.value;
+        for (var i = 0; i < VOICE_MODELS.length; i++) {
+          if (VOICE_MODELS[i].id === id) return VOICE_MODELS[i];
+        }
+        return VOICE_MODELS[0];
+      }
+
+      function normalizeText(raw) {
+        return String(raw || "")
+          .replace(/\r\n/g, "\n")
+          .replace(/[ \t]+/g, " ")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
+      }
+
+      function splitIntoChunks(text, maxLen) {
+        var clean = normalizeText(text);
+        if (!clean) return [];
+        var parts = clean.match(/[^.!?\n]+[.!?\n]*/g) || [clean];
+        var out = [];
+        var buf = "";
+        var cap = Math.max(120, Math.min(Number(maxLen) || 210, 360));
+        for (var i = 0; i < parts.length; i++) {
+          var p = parts[i].trim();
+          if (!p) continue;
+          if (!buf) {
+            buf = p;
+            continue;
+          }
+          if ((buf + " " + p).length <= cap) {
+            buf += " " + p;
+          } else {
+            out.push(buf.trim());
+            buf = p;
+          }
+        }
+        if (buf.trim()) out.push(buf.trim());
+        return out;
+      }
+
+      function tokenizeText(text) {
+        var expanded = expandNumbersAndDates(text);
+        return String(expanded || "").toLowerCase().match(/[a-z']+|[.,!?;:]/g) || [];
+      }
+
+      function phonemesForWord(word) {
+        var w = String(word || "").toLowerCase().replace(/[^a-z']/g, "");
+        if (!w) return [];
+        if (LEXICON_CACHE[w]) return clonePhones(LEXICON_CACHE[w]);
+        var morphPhones = resolveByMorphology(w, 0);
+        if (morphPhones && morphPhones.length) {
+          LEXICON_CACHE[w] = clonePhones(morphPhones);
+          return morphPhones;
+        }
+        var preKeysDyn = Object.keys(LEXICON_PREFIX);
+        for (var pi = 0; pi < preKeysDyn.length; pi++) {
+          var pkDyn = preKeysDyn[pi];
+          if (!w.startsWith(pkDyn) || w.length <= pkDyn.length + 1) continue;
+          var rootDyn = w.slice(pkDyn.length);
+          var rootPhonesDyn = HUGE_LEXICON[rootDyn] || simpleSpellingPhones(rootDyn);
+          if (rootPhonesDyn && rootPhonesDyn.length) {
+            var mixDyn = LEXICON_PREFIX[pkDyn].concat(rootPhonesDyn);
+            LEXICON_CACHE[w] = clonePhones(mixDyn);
+            return mixDyn;
+          }
+        }
+        var sufKeysDyn = Object.keys(LEXICON_SUFFIX);
+        for (var si = 0; si < sufKeysDyn.length; si++) {
+          var skDyn = sufKeysDyn[si];
+          if (!w.endsWith(skDyn) || w.length <= skDyn.length + 1) continue;
+          var rootDyn2 = w.slice(0, -skDyn.length);
+          var rootPhonesDyn2 = HUGE_LEXICON[rootDyn2] || simpleSpellingPhones(rootDyn2);
+          if (rootPhonesDyn2 && rootPhonesDyn2.length) {
+            var mixDyn2 = rootPhonesDyn2.concat(LEXICON_SUFFIX[skDyn]);
+            LEXICON_CACHE[w] = clonePhones(mixDyn2);
+            return mixDyn2;
+          }
+        }
+        if (/ing$/.test(w) && w.length > 4) {
+          var base = w.slice(0, -3);
+          var pre = COMMON_WORDS[base] ? COMMON_WORDS[base].slice() : null;
+          if (!pre) pre = phonemesForWord(base);
+          return pre.concat(["ih", "ng"]);
+        }
+        var out = [];
+        var i = 0;
+        while (i < w.length) {
+          var tri = w.slice(i, i + 3);
+          var duo = w.slice(i, i + 2);
+          var one = w[i];
+          var next = w[i + 1] || "";
+          var prev = w[i - 1] || "";
+
+          if (i === w.length - 1 && one === "e" && w.length > 2 && w[w.length - 2] !== "l") {
+            i += 1;
+            continue; // silent trailing e
+          }
+          if (tri === "igh") {
+            out.push("ay");
+            i += 3;
+            continue;
+          }
+          if (tri === "tch") {
+            out.push("ch");
+            i += 3;
+            continue;
+          }
+          if (tri === "tion") {
+            out.push("sh", "uh", "n");
+            i += 4;
+            continue;
+          }
+          if (tri === "sion") {
+            out.push("zh", "uh", "n");
+            i += 4;
+            continue;
+          }
+          if (duo === "kn" && i === 0) {
+            out.push("n");
+            i += 2;
+            continue;
+          }
+          if (duo === "wr" && i === 0) {
+            out.push("r");
+            i += 2;
+            continue;
+          }
+          if (duo === "wh" && i === 0) {
+            out.push("w");
+            i += 2;
+            continue;
+          }
+          if (duo === "gh") {
+            i += 2;
+            continue;
+          }
+          if (one === "c" && /[eiy]/.test(next)) {
+            out.push("s");
+            i += 1;
+            continue;
+          }
+          if (one === "g" && /[eiy]/.test(next)) {
+            out.push("j");
+            i += 1;
+            continue;
+          }
+          if (duo === "oo") {
+            out.push("uw");
+            i += 2;
+            continue;
+          }
+          if (duo === "ea") {
+            out.push("iy");
+            i += 2;
+            continue;
+          }
+          if (duo === "ou") {
+            out.push("aw");
+            i += 2;
+            continue;
+          }
+          if (duo === "oa") {
+            out.push("ow");
+            i += 2;
+            continue;
+          }
+          if (duo === "oi" || duo === "oy") {
+            out.push("oy");
+            i += 2;
+            continue;
+          }
+          if (duo === "au" || duo === "aw") {
+            out.push("ao");
+            i += 2;
+            continue;
+          }
+          if (one === "x" && i === 0) {
+            out.push("z");
+            i += 1;
+            continue;
+          }
+          if (one === "e" && next === "r" && i === w.length - 2) {
+            out.push("er");
+            i += 2;
+            continue;
+          }
+          if (one === "y" && !/[aeiou]/.test(prev) && /[aeiou]/.test(next)) {
+            out.push("y");
+            i += 1;
+            continue;
+          }
+          if (one === "a" && next === "r") {
+            out.push("aa");
+            i += 1;
+            continue;
+          }
+          if (one === "o" && next === "r") {
+            out.push("ao");
+            i += 1;
+            continue;
+          }
+          if (one === "u" && next === "r") {
+            out.push("er");
+            i += 1;
+            continue;
+          }
+          if (one === "i" && next === "e") {
+            out.push("iy");
+            i += 2;
+            continue;
+          }
+          if (one === "a" && next === "i") {
+            out.push("ey");
+            i += 2;
+            continue;
+          }
+          if (one === "e" && next === "e") {
+            out.push("iy");
+            i += 2;
+            continue;
+          }
+          if (one === "o" && next === "o") {
+            out.push("uw");
+            i += 2;
+            continue;
+          }
+          if (one === "a" && /[^aeiou]/.test(next) && /e$/.test(w.slice(i + 2))) {
+            out.push("ey");
+            i += 1;
+            continue;
+          }
+          if (one === "i" && /[^aeiou]/.test(next) && /e$/.test(w.slice(i + 2))) {
+            out.push("ay");
+            i += 1;
+            continue;
+          }
+          if (one === "o" && /[^aeiou]/.test(next) && /e$/.test(w.slice(i + 2))) {
+            out.push("ow");
+            i += 1;
+            continue;
+          }
+          if (one === "u" && /[^aeiou]/.test(next) && /e$/.test(w.slice(i + 2))) {
+            out.push("uw");
+            i += 1;
+            continue;
+          }
+          if (DIGRAPH[duo]) {
+            Array.prototype.push.apply(out, DIGRAPH[duo]);
+            i += 2;
+            continue;
+          }
+          if (LETTER[one]) {
+            Array.prototype.push.apply(out, LETTER[one]);
+            i += 1;
+            continue;
+          }
+          i += 1;
+        }
+        if (out.length) LEXICON_CACHE[w] = clonePhones(out);
+        return out;
+      }
+
+      function isVowelPhoneme(p) {
+        return /^(a|aa|ae|ah|ao|aw|ay|eh|er|ey|ih|iy|ow|oy|uh|uw)$/.test(String(p || ""));
+      }
+
+      function wordToSegments(word, rate) {
+        var ph = phonemesForWord(word);
+        var out = [];
+        for (var i = 0; i < ph.length; i++) {
+          var def = PHONEME[ph[i]] || PHONEME.uh;
+          var durMul = isVowelPhoneme(ph[i]) ? 1.12 : 0.92;
+          var d = (def.dur * durMul) / Math.max(0.65, rate);
+          out.push({ type: "phoneme", key: ph[i], dur: d });
+          // Tiny stop-gap for hard plosives to improve articulation.
+          if (/^(p|t|k|b|d|g)$/.test(ph[i])) {
+            out.push({ type: "pause", dur: 0.012 / Math.max(0.65, rate) });
+          }
+        }
+        if (out.length) out.push({ type: "pause", dur: 0.045 / Math.max(0.65, rate) });
+        return out;
+      }
+
+      function textToSegments(text, rate) {
+        var tokens = tokenizeText(text);
+        var out = [];
+        for (var i = 0; i < tokens.length; i++) {
+          var tok = tokens[i];
+          if (/^[0-9]+$/.test(tok)) {
+            for (var d = 0; d < tok.length; d++) {
+              Array.prototype.push.apply(out, wordToSegments(tok[d], rate));
+            }
+            continue;
+          }
+          if (/^[a-z']+$/.test(tok)) {
+            Array.prototype.push.apply(out, wordToSegments(tok, rate));
+            continue;
+          }
+          if (/^[,;:]$/.test(tok)) out.push({ type: "pause", dur: 0.1 / rate });
+          if (/^[.!?]$/.test(tok)) out.push({ type: "pause", dur: 0.16 / rate });
+        }
+        return out;
+      }
+
+      function buildBuffer(chunkText, voice, settings) {
+        var rate = Math.max(0.65, Number(settings.rate) || 1);
+        var pitchMul = Math.max(0.6, Number(settings.pitch) || 1);
+        var volume = Math.max(0.05, Math.min(Number(settings.volume) || 1, 1));
+        var segments = textToSegments(chunkText, rate);
+        if (!segments.length) segments = [{ type: "pause", dur: 0.08 }];
+
+        var sr = ctx.sampleRate;
+        var totalDur = 0;
+        for (var i = 0; i < segments.length; i++) totalDur += segments[i].dur;
+        totalDur = Math.max(totalDur, 0.05);
+        var length = Math.max(1, Math.floor(totalDur * sr));
+        var buffer = ctx.createBuffer(1, length, sr);
+        var data = buffer.getChannelData(0);
+
+        var idx = 0;
+        var globalTime = 0;
+        var prevNoise = 0;
+        var smooth1 = 0;
+        var smooth2 = 0;
+        var lpAlpha = Math.min(0.25, Math.max(0.08, 1900 / sr));
+        var phase = 0;
+        var y11 = 0, y12 = 0;
+        var y21 = 0, y22 = 0;
+        var y31 = 0, y32 = 0;
+
+        for (var s = 0; s < segments.length; s++) {
+          var seg = segments[s];
+          var segLen = Math.max(1, Math.floor(seg.dur * sr));
+          if (seg.type === "pause") {
+            idx += segLen;
+            globalTime += seg.dur;
+            continue;
+          }
+          var pd = PHONEME[seg.key] || PHONEME.uh;
+          var f1 = (pd.f && pd.f[0] ? pd.f[0] : 500) * voice.formantShift;
+          var f2 = (pd.f && pd.f[1] ? pd.f[1] : 1400) * voice.formantShift;
+          var f3 = (pd.f && pd.f[2] ? pd.f[2] : 2400) * voice.formantShift;
+          var a1 = pd.a ? pd.a[0] : 0.9;
+          var a2 = pd.a ? pd.a[1] : 0.35;
+          var a3 = pd.a ? pd.a[2] : 0.14;
+          var r1 = 0.986, r2 = 0.981, r3 = 0.973;
+          var w1 = 2 * Math.PI * Math.min(f1, sr * 0.45) / sr;
+          var w2 = 2 * Math.PI * Math.min(f2, sr * 0.45) / sr;
+          var w3 = 2 * Math.PI * Math.min(f3, sr * 0.45) / sr;
+          var b11 = 2 * r1 * Math.cos(w1), b12 = -(r1 * r1), g1 = 1 - r1;
+          var b21 = 2 * r2 * Math.cos(w2), b22 = -(r2 * r2), g2 = 1 - r2;
+          var b31 = 2 * r3 * Math.cos(w3), b32 = -(r3 * r3), g3 = 1 - r3;
+          for (var n = 0; n < segLen && idx < length; n++, idx++) {
+            var t = n / sr;
+            var p = n / segLen;
+            var env = Math.sin(Math.PI * Math.min(1, Math.max(0, p)));
+            env = env * env * env;
+            var vt = globalTime + t;
+            var pitchSlope = 1 - p * 0.06;
+            var microJitter = Math.sin(2 * Math.PI * 1.7 * vt) * 0.06;
+            var vib = Math.sin(2 * Math.PI * voice.vibratoHz * vt) * voice.vibratoDepth;
+            var f0 = Math.max(72, (voice.basePitch * pitchSlope + vib + microJitter) * pitchMul);
+
+            var noise = Math.random() * 2 - 1;
+            var hiss = noise - prevNoise * 0.92;
+            prevNoise = noise;
+            var noiseAmt = (pd.noise || 0) + voice.breath * 0.22;
+
+            var source;
+            if (pd.voiced) {
+              phase += f0 / sr;
+              if (phase >= 1) phase -= 1;
+              // Simple glottal-like pulse: sharp rise, softer decay.
+              var gPulse = phase < 0.42 ? (phase / 0.42) : (1 - (phase - 0.42) / 0.58);
+              gPulse = Math.max(0, gPulse);
+              gPulse = (gPulse * 2 - 1) * 0.88;
+              source = gPulse + hiss * noiseAmt * 0.1;
+            } else {
+              source = hiss * (pd.noise || 0.65) * 0.85;
+            }
+
+            // Cascaded resonators tuned to formants (more speech-like than pure tone mixing).
+            var f1Out = g1 * source + b11 * y11 + b12 * y12; y12 = y11; y11 = f1Out;
+            var f2Out = g2 * source + b21 * y21 + b22 * y22; y22 = y21; y21 = f2Out;
+            var f3Out = g3 * source + b31 * y31 + b32 * y32; y32 = y31; y31 = f3Out;
+
+            var formants = (a1 * f1Out + a2 * f2Out + a3 * f3Out);
+
+            var sample;
+            if (pd.voiced) {
+              sample = formants * 0.86 + source * 0.16;
+            } else {
+              sample = source * 0.88 + formants * 0.12;
+            }
+            sample *= env * volume * voice.brightness;
+            // Gentle smoothing only, so articulation remains audible.
+            smooth1 += (sample - smooth1) * Math.max(lpAlpha, 0.12);
+            smooth2 += (smooth1 - smooth2) * Math.max(lpAlpha * 0.55, 0.065);
+            data[idx] = Math.tanh((smooth2 * 0.65 + sample * 0.35) * 1.26) * 0.94;
+          }
+          globalTime += seg.dur;
+        }
+        return { buffer: buffer, duration: totalDur };
+      }
+
+      function renderMonitor(chunkText, elapsed, duration) {
+        var t = String(chunkText || "").trim();
+        if (!t) {
+          monitorEl.textContent = "Nothing spoken yet.";
+          return;
+        }
+        var p = duration > 0 ? Math.max(0, Math.min(1, elapsed / duration)) : 0;
+        var idx = Math.floor(t.length * p);
+        var left = esc(t.slice(0, idx));
+        var right = t.slice(idx);
+        var word = right.split(/\s+/)[0] || "";
+        var rest = right.slice(word.length);
+        monitorEl.innerHTML = left + (word ? '<span class="active">' + esc(word) + "</span>" : "") + esc(rest);
+      }
+
+      function stopMonitorTimer() {
+        if (monitorTimer) {
+          clearInterval(monitorTimer);
+          monitorTimer = null;
+        }
+      }
+
+      function startMonitorTimer(chunkText, duration, offsetStart) {
+        stopMonitorTimer();
+        monitorTimer = setInterval(function () {
+          if (!speaking || paused) return;
+          var elapsed = activeOffset + (ctx.currentTime - activeStartAt);
+          renderMonitor(chunkText, elapsed, duration);
+        }, 45);
+      }
+
+      function hardStop(setIdle) {
+        if (activeSource) {
+          try { activeSource.stop(); } catch (e) {}
+          activeSource.onended = null;
+          activeSource = null;
+        }
+        if (cloudAbort) {
+          try { cloudAbort.abort(); } catch (e) {}
+          cloudAbort = null;
+        }
+        if (cloudAudio) {
+          try { cloudAudio.pause(); } catch (e) {}
+          cloudAudio.onended = null;
+          cloudAudio.ontimeupdate = null;
+          cloudAudio.onerror = null;
+          cloudAudio.src = "";
+        }
+        if (cloudAudioUrl) {
+          try { URL.revokeObjectURL(cloudAudioUrl); } catch (e) {}
+          cloudAudioUrl = "";
+        }
+        cloudUsing = false;
+        stopMonitorTimer();
+        speaking = false;
+        paused = false;
+        activeDuration = 0;
+        activeOffset = 0;
+        chunks = [];
+        chunkBuffers = [];
+        chunkDurations = [];
+        chunkIndex = 0;
+        if (setIdle) {
+          setStatus("Playback stopped.", "warn");
+          monitorEl.textContent = "Nothing spoken yet.";
+          updateDiagnosticsPanel("");
+        }
+      }
+
+      function playChunkNative(index, fromOffset) {
+        if (!supportsAudio) return;
+        if (index >= chunks.length) {
+          speaking = false;
+          paused = false;
+          activeSource = null;
+          stopMonitorTimer();
+          setStatus("Done speaking.", "ok");
+          return;
+        }
+        chunkIndex = index;
+        activeOffset = Math.max(0, fromOffset || 0);
+        if (!chunkBuffers[index]) {
+          var rendered = buildBuffer(chunks[index], getVoiceModel(), {
+            rate: Number(rateRange.value),
+            pitch: Number(pitchRange.value),
+            volume: Number(volumeRange.value),
+          });
+          chunkBuffers[index] = rendered.buffer;
+          chunkDurations[index] = rendered.duration;
+        }
+        activeDuration = chunkDurations[index];
+        var source = ctx.createBufferSource();
+        source.buffer = chunkBuffers[index];
+        source.connect(ctx.destination);
+        activeSource = source;
+        activeStartAt = ctx.currentTime;
+        source.onended = function () {
+          if (!speaking || paused) return;
+          activeSource = null;
+          activeOffset = 0;
+          playChunkNative(index + 1, 0);
+        };
+        source.start(0, activeOffset);
+        setStatus("Speaking chunk " + (index + 1) + " / " + chunks.length + "...", "ok");
+        startMonitorTimer(chunks[index], activeDuration, activeOffset);
+        updateDiagnosticsPanel(chunks[index]);
+      }
+
+      function playChunkCloud(index, fromOffset) {
+        if (!cloudAudio) {
+          setStatus("HTML audio is unavailable in this browser.", "bad");
+          return;
+        }
+        if (index >= chunks.length) {
+          speaking = false;
+          paused = false;
+          setStatus("Done speaking.", "ok");
+          return;
+        }
+        cloudUsing = true;
+        chunkIndex = index;
+        activeOffset = Math.max(0, Number(fromOffset) || 0);
+        activeDuration = 0;
+        updateDiagnosticsPanel(chunks[index]);
+        setStatus("Rendering cloud voice " + (index + 1) + " / " + chunks.length + "...", "ok");
+        if (cloudAbort) {
+          try { cloudAbort.abort(); } catch (e) {}
+        }
+        cloudAbort = new AbortController();
+        var parsed = parseInlineStyleInstruction(chunks[index]);
+        var styleInstruction = normalizeText((styleInstructionInputEl && styleInstructionInputEl.value) || "");
+        if (parsed.instruction) styleInstruction = parsed.instruction;
+        var cloudText = parsed.cleanText || chunks[index];
+        var payload = {
+          text: cloudText,
+          speed: Math.max(0.7, Math.min(1.35, Number(rateRange.value) || 1)),
+          format: "mp3",
+        };
+        if (styleInstruction) payload.instructions = styleInstruction.slice(0, 180);
+        if (voiceSelectEl.value) payload.voice = voiceSelectEl.value;
+        fetch("/api/speak/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: cloudAbort.signal,
+        })
+          .then(function (res) {
+            if (!res.ok) {
+              return res.text().then(function (t) {
+                throw new Error(t || ("TTS failed with HTTP " + res.status));
+              });
+            }
+            return res.blob();
+          })
+          .then(function (blob) {
+            if (!speaking || paused) return;
+            if (cloudAudioUrl) {
+              try { URL.revokeObjectURL(cloudAudioUrl); } catch (e) {}
+            }
+            cloudAudioUrl = URL.createObjectURL(blob);
+            cloudAudio.src = cloudAudioUrl;
+            cloudAudio.volume = Math.max(0.05, Math.min(1, Number(volumeRange.value) || 1));
+            cloudAudio.onloadedmetadata = function () {
+              activeDuration = Math.max(0, Number(cloudAudio.duration) || 0);
+              if (activeOffset > 0) {
+                try { cloudAudio.currentTime = Math.min(activeOffset, Math.max(0, activeDuration - 0.02)); } catch (e) {}
+              }
+              cloudAudio.play().then(function () {
+                setStatus("Speaking chunk " + (index + 1) + " / " + chunks.length + "...", "ok");
+              }).catch(function (e) {
+                setStatus("Playback blocked: " + (e && e.message ? e.message : "unknown"), "bad");
+              });
+            };
+            cloudAudio.ontimeupdate = function () {
+              if (!speaking || paused) return;
+              renderMonitor(chunks[index], Number(cloudAudio.currentTime) || 0, activeDuration || 0.01);
+            };
+            cloudAudio.onended = function () {
+              if (!speaking || paused) return;
+              activeOffset = 0;
+              playChunkCloud(index + 1, 0);
+            };
+            cloudAudio.onerror = function () {
+              setStatus("Cloud playback error. Try native mode if this persists.", "bad");
+            };
+          })
+          .catch(function (e) {
+            if (e && e.name === "AbortError") return;
+            setStatus("Cloud TTS failed: " + (e && e.message ? e.message.slice(0, 220) : "unknown error"), "bad");
+          });
+      }
+
+      function startSpeaking() {
+        var useNative = selectedEngine() === "native";
+        if (useNative && !supportsAudio) {
+          setStatus("WebAudio is not available in this browser.", "bad");
+          return;
+        }
+        if (!useNative && !cloudAudio) {
+          setStatus("Cloud playback requires HTML audio support.", "bad");
+          return;
+        }
+        if (useNative && ctx.state === "suspended") ctx.resume();
+        hardStop(false);
+        var text = normalizeText(inputEl.value || "");
+        if (!text) {
+          setStatus("Enter text before speaking.", "warn");
+          return;
+        }
+        chunks = splitIntoChunks(text, Number(chunkSizeInput.value));
+        if (!chunks.length) {
+          setStatus("Enter text before speaking.", "warn");
+          return;
+        }
+        chunkBuffers = new Array(chunks.length);
+        chunkDurations = new Array(chunks.length);
+        speaking = true;
+        paused = false;
+        if (useNative) {
+          playChunkNative(0, 0);
+          setStatus("Speaking with Pyx native synth...", "ok");
+        } else {
+          playChunkCloud(0, 0);
+          setStatus("Rendering with Groq cloud TTS...", "ok");
+        }
+      }
+
+      function pauseSpeaking() {
+        if (!speaking || paused) return;
+        paused = true;
+        if (cloudUsing && cloudAudio) {
+          activeOffset = Number(cloudAudio.currentTime) || 0;
+          try { cloudAudio.pause(); } catch (e) {}
+        } else if (activeSource) {
+          var elapsed = ctx.currentTime - activeStartAt;
+          activeOffset = Math.max(0, activeOffset + elapsed);
+          try { activeSource.stop(); } catch (e) {}
+          activeSource.onended = null;
+          activeSource = null;
+        }
+        stopMonitorTimer();
+        setStatus("Paused.", "warn");
+      }
+
+      function resumeSpeaking() {
+        if (!speaking || !paused) return;
+        paused = false;
+        if (cloudUsing && cloudAudio) {
+          cloudAudio.play().then(function () {
+            setStatus("Resumed.", "ok");
+          }).catch(function (e) {
+            setStatus("Resume failed: " + (e && e.message ? e.message : "unknown"), "bad");
+          });
+          return;
+        }
+        if (ctx.state === "suspended") ctx.resume();
+        playChunkNative(chunkIndex, activeOffset);
+        setStatus("Resumed.", "ok");
+      }
+
+      function bindEvents() {
+        speakBtn.addEventListener("click", startSpeaking);
+        pauseBtn.addEventListener("click", pauseSpeaking);
+        resumeBtn.addEventListener("click", resumeSpeaking);
+        stopBtn.addEventListener("click", function () { hardStop(true); });
+
+        if (engineSelectEl) {
+          engineSelectEl.addEventListener("change", function () {
+            setupVoices();
+            updateInstructionUi();
+            persistSettings();
+            if (speaking) {
+              setStatus("Engine changed. Press Speak to re-render.", "warn");
+            }
+          });
+        }
+        if (styleInstructionInputEl) {
+          styleInstructionInputEl.addEventListener("input", persistSettings);
+        }
+        if (styleHintRowEl) {
+          styleHintRowEl.addEventListener("click", function (ev) {
+            var t = ev.target;
+            if (!t || !t.getAttribute) return;
+            var style = t.getAttribute("data-style");
+            if (!style || !styleInstructionInputEl) return;
+            styleInstructionInputEl.value = style;
+            persistSettings();
+            if (speaking) setStatus("Style updated. Press Speak to re-render.", "warn");
+          });
+        }
+        voiceSelectEl.addEventListener("change", function () {
+          persistSettings();
+          if (speaking) {
+            setStatus("Voice changed. Press Speak to re-render.", "warn");
+          }
+        });
+        rateRange.addEventListener("input", function () { syncSliderLabels(); persistSettings(); });
+        pitchRange.addEventListener("input", function () { syncSliderLabels(); persistSettings(); });
+        volumeRange.addEventListener("input", function () { syncSliderLabels(); persistSettings(); });
+        chunkSizeInput.addEventListener("input", persistSettings);
+        if (diagToggleEl) {
+          diagToggleEl.addEventListener("change", function () {
+            persistSettings();
+            if (speaking && chunks[chunkIndex]) {
+              updateDiagnosticsPanel(chunks[chunkIndex]);
+            } else {
+              updateDiagnosticsPanel("");
+            }
+          });
+        }
+
+        presetRow.addEventListener("click", function (ev) {
+          var t = ev.target;
+          if (!t || !t.getAttribute) return;
+          var p = t.getAttribute("data-preset");
+          if (p) setPreset(p);
+        });
+
+        inputEl.addEventListener("keydown", function (ev) {
+          if ((ev.metaKey || ev.ctrlKey) && ev.key === "Enter") {
+            ev.preventDefault();
+            startSpeaking();
+          }
+        });
+      }
+
+      function init() {
+        if (!supportsAudio && !hasHtmlAudio) {
+          setStatus("No supported audio engine in this browser.", "bad");
+          speakBtn.disabled = true;
+          pauseBtn.disabled = true;
+          resumeBtn.disabled = true;
+          stopBtn.disabled = true;
+          voiceSelectEl.disabled = true;
+          if (engineSelectEl) engineSelectEl.disabled = true;
+          return;
+        }
+        buildHugeLexicon();
+        loadSettings();
+        setupVoices();
+        updateInstructionUi();
+        syncSliderLabels();
+        setPreset(currentPreset);
+        persistSettings();
+        bindEvents();
+        updateDiagnosticsPanel("");
+        setStatus("Ready. Cloud + native engines loaded.", "ok");
+      }
+
+      window.addEventListener("beforeunload", function () {
+        hardStop(false);
+      });
+
+      init();
+    })();
+  </script>
+</body>
+</html>
