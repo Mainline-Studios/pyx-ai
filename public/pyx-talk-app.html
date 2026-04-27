@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Download Pyx 1.3</title>
+  <title>Pyx Talk app (1.0 + 1.3)</title>
   <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
   <link rel="stylesheet" href="/brand/pyx-brand.css" />
@@ -26,7 +26,7 @@
       line-height: 1.55;
       padding: 32px 20px 48px;
     }
-    .wrap { max-width: 640px; margin: 0 auto; }
+    .wrap { max-width: 720px; margin: 0 auto; }
     h1 { font-size: 1.65rem; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.02em; }
     .lede { color: var(--muted); margin: 0 0 28px; font-size: 0.95rem; }
     a { color: var(--accent); }
@@ -58,19 +58,16 @@
       border-color: var(--border);
       color: var(--text) !important;
     }
-    .note { font-size: 0.82rem; color: var(--muted); margin-top: 14px; }
-    .err { color: #fca5a5; font-size: 0.9rem; }
+    .note { font-size: 0.85rem; color: var(--muted); margin-top: 10px; }
     code { font-size: 0.82em; background: rgba(0,0,0,0.35); padding: 2px 6px; border-radius: 6px; }
-    footer { margin-top: 32px; font-size: 0.8rem; color: var(--muted); }
     .dl-brand {
       display: flex;
       align-items: center;
       gap: 14px;
       margin-bottom: 8px;
     }
-    .dl-brand .pyx-brand__wordmark--pill {
-      height: 24px;
-    }
+    .dl-brand .pyx-brand__wordmark--pill { height: 24px; }
+    .links { display: grid; gap: 8px; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -82,40 +79,65 @@
         <img class="pyx-brand__wordmark pyx-brand__wordmark--pill" src="/brand/pyx-wordmark.png" alt="PYX." />
       </a>
     </div>
-    <h1 style="margin-top:6px;">Download Pyx 1.3</h1>
+
+    <h1 style="margin-top:6px;">Pyx Talk app: 1.0 + 1.3</h1>
     <p class="lede">
-      Native macOS and Windows installers for the local Pyx 1.3 app.
-      Files are served from this site under <code>/downloads/</code> after each release tag is published.
+      Use Pyx Talk in two modes: <strong>Pyx 1.0 cloud</strong> and <strong>Pyx 1.3 preview</strong>.
+      Try both in-browser now, or download desktop installers.
     </p>
 
     <div class="card">
-      <h2>Pyx Talk app with 1.0 + 1.3</h2>
-      <p style="margin:0; color:var(--muted); font-size:0.92rem;">
-        Want both Pyx Talk 1.0 cloud and Pyx 1.3 preview in one flow?
-        Open the combined app/download page.
+      <h2>Try on the website now</h2>
+      <div class="row">
+        <a class="btn" href="/pyx-talk.html">Open Pyx Talk</a>
+        <a class="btn secondary" href="/pyx-talk.html?line=preview">Pyx 1.3 preview (same app)</a>
+      </div>
+      <p class="note">
+        One chat screen — pick <strong>Pyx line</strong> in the dropdown (1.0 cloud vs 1.3 website preview). The desktop app opens the same page.
       </p>
-      <div class="row" style="margin-top:14px;">
-        <a class="btn" href="/pyx-talk-app.html">Open Pyx Talk app page</a>
+    </div>
+
+    <div class="card">
+      <h2>Download the Pyx Talk desktop app</h2>
+      <p class="note" style="margin-top:0;">
+        Installers are pulled from the latest release manifest and mirror links.
+      </p>
+      <div class="row" id="installerRow" style="margin-top:12px;">
+        <a class="btn" id="btnMacDmg" href="https://github.com/Mainline-Studios/pyx-ai/releases/latest">macOS (.dmg)</a>
+        <a class="btn secondary" id="btnWinExe" href="https://github.com/Mainline-Studios/pyx-ai/releases/latest">Windows (.exe)</a>
+        <a class="btn secondary" id="btnMacPkg" href="https://github.com/Mainline-Studios/pyx-ai/releases/latest">macOS (.pkg)</a>
+      </div>
+      <div class="links">
+        <a href="https://github.com/Mainline-Studios/pyx-ai/releases/latest" target="_blank" rel="noopener">All desktop release files</a>
+        <a href="/pyx-download.html">Pyx 1.3 starter ZIP (repo download)</a>
       </div>
     </div>
 
     <div class="card">
-      <h2>Pyx 1.3 starter ZIP (coming project)</h2>
-      <p style="margin:0; color:var(--muted); font-size:0.92rem;">
-        Pyx 1.3 is being built in a separate repository and is not released as installers yet.
-        Use the GitHub ZIP for now, then wire pieces into your own code + UI.
+      <h2>How the two models are exposed</h2>
+      <p class="note" style="margin-top:0;">
+        - Pyx 1.0: hosted cloud route via <code>/pyx-talk.html</code><br />
+        - Pyx 1.3: local-style website preview via <code>/pyx-13-preview.html</code>
       </p>
-      <div class="row" style="margin-top:14px;">
-        <a class="btn" href="https://github.com/Mainline-Studios/Pyx-1.3/archive/refs/heads/main.zip">Download ZIP</a>
-        <a class="btn secondary" href="https://github.com/Mainline-Studios/Pyx-1.3" target="_blank" rel="noopener">Open repo</a>
-      </div>
     </div>
-
-    <p class="err" id="err" hidden></p>
-    <footer>
-      Source: <a href="https://github.com/Mainline-Studios/Pyx-1.3" target="_blank" rel="noopener">Mainline-Studios/Pyx-1.3</a>
-      · <a href="/pyx-talk.html">Pyx Talk</a>
-    </footer>
   </div>
+
+  <script>
+    (function () {
+      function setHref(id, href) {
+        var el = document.getElementById(id);
+        if (el && typeof href === "string" && href.trim()) el.href = href.trim();
+      }
+      fetch("/downloads/manifest.json", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (m) {
+          if (!m || !m.mirror) return;
+          setHref("btnMacDmg", m.mirror.mac_dmg);
+          setHref("btnMacPkg", m.mirror.mac_pkg);
+          setHref("btnWinExe", m.mirror.win_setup);
+        })
+        .catch(function () {});
+    })();
+  </script>
 </body>
 </html>

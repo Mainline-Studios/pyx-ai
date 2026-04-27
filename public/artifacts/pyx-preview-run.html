@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Run Pyx Preview (artifact)</title>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 780px; margin: 20px auto; padding: 0 16px; }
+    .warn { background: #fff7ed; border: 1px solid #fdba74; border-radius: 8px; padding: 12px 14px; margin: 0 0 14px; }
+    .terminal { background: #0b1020; color: #e5e7eb; border-radius: 10px; padding: 14px; min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; white-space: pre-wrap; line-height: 1.45; }
+    .row { display: flex; gap: 8px; margin-top: 10px; }
+    input[type="text"] { flex: 1; border: 1px solid #cbd5e1; border-radius: 8px; padding: 9px 10px; font-size: 14px; }
+    button { border: 1px solid #111827; background: #111827; color: #fff; border-radius: 8px; padding: 9px 13px; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #fff; color: #111827; border-color: #cbd5e1; }
+    .hint { color: #475569; font-size: 13px; margin-top: 8px; }
+    a { color: #1d4ed8; }
+  </style>
+</head>
+<body>
+  <p><a href="/pyx-artifacts.html">← Back to Artifacts</a></p>
+  <h1>Run Pyx Preview (artifact)</h1>
+  <p class="warn"><strong>Historical artifact.</strong> This browser runner emulates the original `pyx-preview.py` script flow. Output text and branching match the old script intent, but this is still an old demo and may differ from modern Pyx.</p>
+
+  <div id="term" class="terminal" aria-live="polite"></div>
+  <div class="row">
+    <input id="inp" type="text" placeholder="Type answer and press Enter…" />
+    <button id="send">Send</button>
+    <button id="restart" class="secondary">Restart</button>
+  </div>
+  <p class="hint">Tip: answer <code>yes</code> or <code>no</code> first, then provide your name if asked.</p>
+
+  <script>
+    (function () {
+      var term = document.getElementById("term");
+      var inp = document.getElementById("inp");
+      var send = document.getElementById("send");
+      var restart = document.getElementById("restart");
+      var step = 0;
+      var yes = "";
+
+      function line(t) {
+        term.textContent += (term.textContent ? "\n" : "") + t;
+        term.scrollTop = term.scrollHeight;
+      }
+
+      function resetRun() {
+        step = 0;
+        yes = "";
+        term.textContent = "";
+        line("hello world! I'm pyx AI");
+        line("I'm still being worked on. come back later to see what is going on within Pyx!");
+        line("Do you want to know more about Pyx? (yes/no)");
+        inp.value = "";
+        inp.focus();
+      }
+
+      function processInput() {
+        var raw = (inp.value || "").trim();
+        if (!raw) return;
+        line("> " + raw);
+        inp.value = "";
+
+        if (step === 0) {
+          yes = raw.toLowerCase();
+          if (yes === "yes") {
+            line("Pyx is a AI assistant that helps you with your tasks.");
+            line("What is your name?");
+            step = 1;
+            return;
+          }
+          line("I'm sorry to hear that. We are working on Pyx to make it better.");
+          line("Come back later to see what is going on within Pyx!");
+          line("Thank you for using Pyx!");
+          line("Goodbye!");
+          line("THiS PYX PREVIEW (C) CC 0.0 PUBLIC DOMAIN 2025 PYX AI BY MAINLINE STUDIOS. PYX AI IS UNDER A CC BY-NC-SA 4.0 LICENSE.");
+          line("");
+          line("[Program ended. Click Restart to run again.]");
+          step = 99;
+          return;
+        }
+
+        if (step === 1) {
+          line("Hello, " + raw + "! I'm Pyx AI. I'm still being worked on. Come back later to see what is going on within Pyx!");
+          line("THiS PYX PREVIEW (C) CC 0.0 PUBLIC DOMAIN 2025 PYX AI BY MAINLINE STUDIOS. PYX AI IS UNDER A CC BY-NC-SA 4.0 LICENSE.");
+          line("");
+          line("[Program ended. Click Restart to run again.]");
+          step = 99;
+          return;
+        }
+
+        line("[Program already ended. Click Restart.]");
+      }
+
+      send.addEventListener("click", processInput);
+      inp.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") processInput();
+      });
+      restart.addEventListener("click", resetRun);
+      resetRun();
+    })();
+  </script>
+</body>
+</html>

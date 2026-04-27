@@ -170,6 +170,10 @@
       .pyx15-banner .pills { color: #a5b4fc; }
     }
 
+    #pyxLineBannerPreview:not([hidden]) {
+      display: block;
+    }
+
     h1 {
       font-size: 1.65rem;
       font-weight: 700;
@@ -402,6 +406,17 @@
       gap: 10px;
       align-items: flex-start;
     }
+    .inchat-app-tag {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--primary);
+      background: rgba(79, 70, 229, 0.1);
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(79, 70, 229, 0.2);
+    }
     .pixel-art-canvas {
       display: block;
       width: 100px;
@@ -557,21 +572,32 @@
            title="Open the Pyx 1.3 app">
           Pyx 1.3
         </a>
-        <span class="badge">Pyx 1.0</span>
+        <span class="badge" id="headerLineBadge">Pyx 1.0</span>
       </div>
     </div>
 
-    <div class="pyx15-banner" id="pyx15Banner" role="note">
+    <div class="pyx15-banner" id="pyxLineBannerCloud" role="note">
       <strong>Pyx 1.0 cloud</strong> (Groq) is active on this site.
       Up to <strong>90% faster</strong> and <strong>~90% more environmentally friendly</strong>* than the cloud build.
       <a href="/pyx-download.html">Pyx 1.3 →</a>
       <span class="pills">* vs. typical cloud chat round-trip</span>
     </div>
+    <div class="pyx15-banner" id="pyxLineBannerPreview" role="note" hidden>
+      <strong>Pyx 1.3 website preview</strong> — same Talk screen as the desktop app; lightweight on-server engine (no GGUF). For the full local kit, <a href="/pyx-download.html">download Pyx 1.3</a>.
+    </div>
 
     <h1>Pyx AI Talk</h1>
-    <p class="lede">PYX TALK LIVE COMING SOON</p>
+    <p class="lede">Same chat on the web and in the desktop app — switch between <strong>Pyx 1.0</strong> and <strong>Pyx 1.3 preview</strong> below.</p>
 
     <div class="panel">
+      <div class="model-row">
+        <label for="talkLine">Pyx line</label>
+        <select id="talkLine" name="talkLine" aria-label="Pyx product line">
+          <option value="cloud">Pyx 1.0 (cloud)</option>
+          <option value="preview">Pyx 1.3 (website preview)</option>
+        </select>
+      </div>
+
       <div class="web-row" id="webRow">
         <label class="web-opt">
           <input type="checkbox" id="useWeb" />
@@ -583,7 +609,7 @@
         </label>
       </div>
 
-      <div class="model-row">
+      <div class="model-row" id="cloudModelWrap">
         <label for="talkMode">Model</label>
         <select id="talkMode" name="talkMode" aria-label="Pyx Talk model">
           <option value="fast">Pyx Mini 1.0</option>
@@ -718,7 +744,7 @@
       }
       // Cloud site keeps 1.0 labels and shows the download button.
       (function () {
-        var banner = document.getElementById("pyx15Banner");
+        var banner = document.getElementById("pyxLineBannerCloud");
         var dlBtn  = document.getElementById("getPyx15");
 
         function applyDesktopLabels() {
@@ -756,12 +782,53 @@
       var sendBtn = document.getElementById("send");
       var statusEl = document.getElementById("status");
       var messages = [];
-      var STORAGE_MESSAGES = "pyx.talk.messages";
       var MAX_STORE_CHARS = 450000;
       var MAX_STORE_MESSAGES = 200;
       var modeSelect = document.getElementById("talkMode");
       var useWebEl = document.getElementById("useWeb");
       var useWebAutoEl = document.getElementById("useWebAuto");
+      var talkLineEl = document.getElementById("talkLine");
+
+      function getTalkLine() {
+        return talkLineEl && talkLineEl.value === "preview" ? "preview" : "cloud";
+      }
+      function getStorageKey() {
+        return getTalkLine() === "preview" ? "pyx.talk.messages.13preview" : "pyx.talk.messages";
+      }
+      function saveTalkLine() {
+        localStorage.setItem("pyx.talk.line", getTalkLine());
+      }
+      function setModeOptionsForLine() {
+        if (!modeSelect) return;
+        var preview = getTalkLine() === "preview";
+        if (preview) {
+          modeSelect.innerHTML = '<option value="preview426">Pyx 1.3 Preview 4.26</option>';
+          modeSelect.value = "preview426";
+        } else {
+          modeSelect.innerHTML =
+            '<option value="fast">Pyx Mini 1.0</option>' +
+            '<option value="smart">Pyx 1.0</option>' +
+            '<option value="thinking">Pyx Reasoning 1.0</option>';
+          var savedMode = localStorage.getItem("pyx.talk.mode");
+          if (savedMode && modeSelect.querySelector('option[value="' + savedMode + '"]')) {
+            modeSelect.value = savedMode;
+          } else {
+            modeSelect.value = "fast";
+          }
+        }
+      }
+      function updateLineUi() {
+        var preview = getTalkLine() === "preview";
+        var cloudWrap = document.getElementById("cloudModelWrap");
+        if (cloudWrap) cloudWrap.style.display = "";
+        setModeOptionsForLine();
+        var badge = document.getElementById("headerLineBadge");
+        if (badge) badge.textContent = preview ? "Pyx 1.3 Preview 4.26" : "Pyx 1.0";
+        var bc = document.getElementById("pyxLineBannerCloud");
+        var bp = document.getElementById("pyxLineBannerPreview");
+        if (bc) bc.hidden = preview;
+        if (bp) bp.hidden = !preview;
+      }
 
       // Cloud (web) labels — 1.0 line.
       var MODE_LABELS = {
@@ -785,11 +852,13 @@
       }
 
       function getMode() {
+        if (getTalkLine() === "preview") return "preview426";
         var v = modeSelect.value;
         return v === "smart" || v === "thinking" ? v : "fast";
       }
 
       function saveMode() {
+        if (getTalkLine() === "preview") return;
         localStorage.setItem("pyx.talk.mode", getMode());
       }
 
@@ -895,6 +964,17 @@
         if (m) return m[1].trim();
         m = s.match(/^\s*draw\s+(?:a\s+)?(?:pixel\s*art\s+)?(?:of\s+)?([\s\S]+)$/i);
         if (m) return m[1].trim();
+        var low = s.toLowerCase();
+        if (
+          (/\bpyxel\b/i.test(s) || /\bpixel\s*art\b/i.test(low) || /\bpix\s*art\b/i.test(low)) &&
+          s.length > 6
+        ) {
+          var sub = s
+            .replace(/^\s*(?:make|create|draw|generate|show|open|start|run)\s+(?:me\s+)?(?:a\s+)?(?:the\s+)?(?:some\s+)?/i, "")
+            .trim();
+          sub = sub.replace(/^(?:pyxel|pixel\s*art|pix\s*art)\s*(?:of|:)?\s*/i, "").trim();
+          return sub || "custom prompt";
+        }
         return null;
       }
 
@@ -978,6 +1058,10 @@
         var card = document.createElement("div");
         card.className = "pixel-art-card";
 
+        var appTag = document.createElement("div");
+        appTag.className = "inchat-app-tag";
+        appTag.textContent = "In-chat App · Pyxel grid";
+
         var cv = document.createElement("canvas");
         cv.className = "pixel-art-canvas";
         cv.setAttribute("width", w);
@@ -1038,6 +1122,7 @@
         actions.appendChild(btnCopy);
         actions.appendChild(btnPng);
 
+        card.appendChild(appTag);
         card.appendChild(cv);
         card.appendChild(actions);
         card.appendChild(pre);
@@ -1090,7 +1175,7 @@
 
       function loadChatFromStorage() {
         try {
-          var raw = localStorage.getItem(STORAGE_MESSAGES);
+          var raw = localStorage.getItem(getStorageKey());
           if (!raw) return [];
           var arr = JSON.parse(raw);
           if (!Array.isArray(arr)) return [];
@@ -1120,11 +1205,11 @@
             trimmed.shift();
             s = JSON.stringify(trimmed);
           }
-          localStorage.setItem(STORAGE_MESSAGES, s);
+          localStorage.setItem(getStorageKey(), s);
         } catch (e) {
           try {
             var fallback = messages.slice(-24);
-            localStorage.setItem(STORAGE_MESSAGES, JSON.stringify(fallback));
+            localStorage.setItem(getStorageKey(), JSON.stringify(fallback));
           } catch (e2) {
             /* ignore quota */
           }
@@ -1156,13 +1241,64 @@
         inputEl.disabled = b;
       }
 
+      function runInChatPixelArt(subject) {
+        var sub = (subject || "").trim();
+        if (!sub) return;
+        setBusy(true);
+        statusEl.textContent = "In-chat App · Pyxel — loading 10×10 grid…";
+        fetchPyxPost("pixel_art", JSON.stringify({ prompt: sub }))
+          .then(function (res) {
+            return res.text().then(function (t) {
+              var j;
+              try {
+                j = JSON.parse(t);
+              } catch (e) {
+                j = { error: t };
+              }
+              return { ok: res.ok, j: j, status: res.status, raw: t };
+            });
+          })
+          .then(function (x) {
+            if (!x.ok || !x.j || !x.j.ok) {
+              var j = x.j || {};
+              var err = pyxFormatHttpError(j, x.raw, x.status);
+              if (j.error_code === "rate_limited") err = "Rate limited — try again shortly. " + err;
+              statusEl.textContent = "In-chat App error: " + err + (x.status ? " (HTTP " + x.status + ")" : "");
+              return;
+            }
+            var j = x.j;
+            var stored = pixelArtToStored({
+              w: j.width,
+              h: j.height,
+              pixels: j.pixels,
+              prompt: sub,
+            });
+            messages.push({ role: "assistant", content: stored });
+            addPixelArtBubble({
+              w: j.width,
+              h: j.height,
+              pixels: j.pixels,
+              prompt: sub,
+            });
+            statusEl.textContent = j.model ? "In-chat App · Pyxel · " + j.model : "In-chat App · Pyxel";
+          })
+          .catch(function (e) {
+            statusEl.textContent = "In-chat App: " + (e.message || String(e));
+          })
+          .finally(function () {
+            persistChat();
+            setBusy(false);
+          });
+      }
+
       function sendPixelArt(fullUserLine, subject) {
+        saveTalkLine();
         saveMode();
         inputEl.value = "";
         messages.push({ role: "user", content: fullUserLine });
         addBubble(fullUserLine, "user");
         setBusy(true);
-        statusEl.textContent = "Drawing 10×10 pixel art (100 pixels)…";
+        statusEl.textContent = "In-chat App · Pyxel — drawing 10×10 (100 pixels)…";
         fetchPyxPost("pixel_art", JSON.stringify({ prompt: subject }))
           .then(function (res) {
             return res.text().then(function (t) {
@@ -1199,7 +1335,7 @@
               pixels: j.pixels,
               prompt: subject,
             });
-            statusEl.textContent = j.model ? "Pixel art · " + j.model : "Pixel art";
+            statusEl.textContent = j.model ? "In-chat App · Pyxel · " + j.model : "In-chat App · Pyxel";
           })
           .catch(function (e) {
             statusEl.textContent = "Network: " + (e.message || String(e));
@@ -1216,8 +1352,97 @@
         var text = (inputEl.value || "").trim();
         if (!text) return;
         var pixelSubject = matchPixelArtIntent(text);
-        if (pixelSubject) {
+        if (pixelSubject && getTalkLine() !== "preview") {
           sendPixelArt(text, pixelSubject);
+          return;
+        }
+        saveTalkLine();
+        if (getTalkLine() === "preview") {
+          var useWebP = useWebEl.checked;
+          var useWebAutoP = useWebAutoEl.checked;
+          var previewChainsPixel = false;
+          inputEl.value = "";
+          messages.push({ role: "user", content: text });
+          addBubble(text, "user");
+          setBusy(true);
+          statusEl.textContent =
+            useWebP || useWebAutoP ? "Searching the web…" : "Pyx 1.3 preview — generating…";
+          fetchPyxPost(
+            "pyx13-preview/chat",
+            JSON.stringify({
+              messages: messages,
+              use_web: useWebP,
+              use_web_auto: useWebAutoP,
+            })
+          )
+            .then(function (res) {
+              return res.text().then(function (raw) {
+                return { res: res, raw: raw };
+              });
+            })
+            .then(function (x) {
+              if (!x.res.ok) {
+                var j;
+                try {
+                  j = JSON.parse(x.raw);
+                } catch (e) {
+                  j = { error: x.raw };
+                }
+                var errLine = pyxFormatHttpError(j, x.raw, x.res.status);
+                statusEl.textContent = "Error: " + errLine;
+                messages.pop();
+                if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
+                return;
+              }
+              var j;
+              try {
+                j = JSON.parse(x.raw);
+              } catch (e) {
+                statusEl.textContent = "Error: invalid response from server";
+                messages.pop();
+                if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
+                return;
+              }
+              if (j.bad) {
+                var br = typeof j.reply === "string" ? j.reply : "Blocked.";
+                addBubble(br, "bot", "msg--bad");
+                messages.push({ role: "assistant", content: br });
+                statusEl.textContent = "Blocked by moderator.";
+                return;
+              }
+              var reply = typeof j.reply === "string" ? j.reply : "";
+              messages.push({ role: "assistant", content: reply });
+              addAssistantBubbleContent(reply);
+              var ica = j.in_chat_app;
+              if (
+                ica &&
+                ica.kind === "pyxel_grid" &&
+                ica.auto_run &&
+                typeof ica.prompt === "string" &&
+                ica.prompt.trim()
+              ) {
+                previewChainsPixel = true;
+                runInChatPixelArt(ica.prompt);
+              }
+              var parts = [];
+              if (j.engine) parts.push(j.engine);
+              if (j.model) parts.push(j.model);
+              if (j.web_search && j.web_search.used) {
+                parts.push(
+                  j.web_search.error ? "web: " + j.web_search.error : "web snippets"
+                );
+              }
+              statusEl.textContent = parts.join(" · ");
+            })
+            .catch(function (e) {
+              statusEl.textContent = "Network: " + (e.message || String(e));
+              messages.pop();
+              if (chatEl.lastChild) chatEl.removeChild(chatEl.lastChild);
+            })
+            .finally(function () {
+              persistChat();
+              if (!previewChainsPixel) setBusy(false);
+            });
           return;
         }
         saveMode();
@@ -1355,6 +1580,37 @@
           send();
         }
       });
+
+      function reloadThreadForLine() {
+        messages = loadChatFromStorage();
+        chatEl.innerHTML = "";
+        for (var i = 0; i < messages.length; i++) {
+          if (messages[i].role === "user") {
+            addBubble(messages[i].content, "user");
+          } else {
+            addAssistantBubbleContent(messages[i].content);
+          }
+        }
+        chatEl.scrollTop = chatEl.scrollHeight;
+      }
+
+      if (talkLineEl) {
+        var savedLine = localStorage.getItem("pyx.talk.line");
+        if (savedLine === "preview") talkLineEl.value = "preview";
+        if (savedLine === "cloud") talkLineEl.value = "cloud";
+        var qp = new URLSearchParams(typeof location !== "undefined" ? location.search : "");
+        var qLine = (qp.get("line") || "").toLowerCase();
+        if (qLine === "preview" || qLine === "13" || qLine === "1.3") talkLineEl.value = "preview";
+        if (qLine === "cloud" || qLine === "10" || qLine === "1.0") talkLineEl.value = "cloud";
+        talkLineEl.addEventListener("change", function () {
+          saveTalkLine();
+          updateLineUi();
+          reloadThreadForLine();
+        });
+        saveTalkLine();
+      }
+
+      updateLineUi();
 
       (function initChatHistory() {
         var loaded = loadChatFromStorage();

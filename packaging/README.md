@@ -32,7 +32,7 @@ After the workflow finishes:
 
 Once installed, Pyx launches a small local web server (127.0.0.1:8765) and
 opens the UI in a **native app window** (pywebview), not your default browser.
-Desktop currently opens the same site home (`public/index.html`) used on web.
+Desktop currently opens **Pyx Talk** (`public/pyx-talk.html`) — same chat page as the public site.
 A console window stays open for logs — close the Pyx window or the console to
 stop the server. In dev, set **`PYX_USE_BROWSER=1`** to use a normal browser tab;
 in packaged desktop builds, use **`PYX_FORCE_BROWSER=1`** to force that behavior.

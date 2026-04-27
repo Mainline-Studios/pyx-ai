@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pyx — Artifacts</title>
+  <style>
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: #ffffff;
+      color: #000000;
+      margin: 20px;
+      line-height: 1.45;
+      max-width: 52rem;
+    }
+    .warn {
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin: 1em 0 1.5em;
+      font-size: 0.95rem;
+    }
+    .warn strong { color: #9a3412; }
+    p { margin: 0.75em 0; }
+    code { font-family: ui-monospace, monospace; font-size: 0.9em; }
+    a { color: #00e; }
+    .btn {
+      display: inline-block;
+      padding: 4px 10px;
+      border: 1px solid #2563eb;
+      border-radius: 6px;
+      background: #2563eb;
+      color: #fff;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-right: 6px;
+    }
+    .btn:hover { background: #1d4ed8; border-color: #1d4ed8; }
+    .btn.secondary {
+      background: #fff;
+      color: #1d4ed8;
+      border-color: #93c5fd;
+    }
+    .btn.secondary:hover {
+      background: #eff6ff;
+      border-color: #60a5fa;
+    }
+    h1 { margin: 0 0 0.25em; font-size: 1.5rem; }
+    h2 { margin: 1.25em 0 0.4em; font-size: 1.05rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.75em 0; font-size: 0.95rem; }
+    th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f5f5f5; }
+  </style>
+</head>
+<body>
+  <p><a href="/">← Home</a></p>
+  <h1>Artifacts</h1>
+  <p>Old Pyx demos and scripts kept for history and curiosity. Nothing here is secret (no API keys, no <code>secret.py</code>).</p>
+
+  <div class="warn">
+    <strong>These may not work.</strong> They are unmaintained snapshots: wrong paths, old APIs, Python 2-era habits, or localhost-only assumptions. Use <a href="/pyx-talk.html">Pyx Talk</a> for the current site experience.
+  </div>
+
+  <h2>Run</h2>
+  <p>You can run the old Pyx Preview directly in your browser from this site:</p>
+  <p><a href="/artifacts/pyx-preview-run.html"><strong>Run pyx-preview.py artifact now</strong></a></p>
+  <p>Or run it locally in terminal with <code>python3 pyx-preview.py</code>.</p>
+
+  <h2>Files</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Artifact</th>
+        <th>What it is</th>
+        <th>Link</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>pyx-preview.py</code></td>
+        <td>Original terminal “Pyx Preview” script (prints prompts; CC / license lines in-script).</td>
+        <td><a href="/artifacts/pyx-preview-run.html"><strong>Run</strong></a> · <a href="/artifacts/pyx-preview.py">Source</a> · <a href="/pyx-preview.py">/pyx-preview.py</a></td>
+      </tr>
+      <tr>
+        <td><code>pyx-chat-demo.html</code> + <code>pyx-ai-chat.js</code></td>
+        <td>Legacy embeddable chat UI calling <code>/ai-decide</code> on a local API. Hosted copy for reference; will error unless <code>127.0.0.1:8765</code> is running.</td>
+        <td>
+          <a class="btn" href="/artifacts/pyx-chat-demo.html">Run</a>
+          <a class="btn secondary" href="/artifacts/pyx-chat-demo.html">Open demo</a>
+          <a href="/artifacts/pyx-ai-chat.js">pyx-ai-chat.js</a>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="font-size:0.9rem;color:#444;">Repo originals (for developers): <code>Pyx Preview.py</code> (root), <code>pyx-chat-demo.html</code> + <code>pyx-ai-chat.js</code> at repo root — mirrored here under <code>/artifacts/</code> for stable URLs.</p>
+</body>
+</html>

@@ -1,106 +1,639 @@
 """
 Pyx 1.3 **website preview** — pure Python, no GGUF, no external LLM APIs.
 
-Uses a tiny from-scratch **bigram Markov** model over an embedded corpus, plus
-optional **DuckDuckGo HTML** snippets (same keyless approach as Pyx Talk web search).
-Replies are **generated** from the Markov chain; web text is only prepended as context,
-not echoed verbatim as the whole answer.
+- Prose: short ranked sentences from a small library.
+- **Code**: long procedural synthesis (hash-derived names / stage counts), not canned paragraphs.
+- **In-chat App**: Pyxel grid hint (`in_chat_app` JSON) so the Talk UI can auto-run `pixel_art`.
+- Optional DuckDuckGo HTML snippets (same idea as Pyx Talk).
 """
 
 from __future__ import annotations
 
+import hashlib
 import html
-import random
 import re
+import textwrap
 import urllib.parse
 import urllib.request
-from collections import Counter, defaultdict
 from typing import Any
 
-# --- Embedded training text (synthetic assistant voice + Pyx product facts) ---
-_CORPUS = """
-Pyx is an assistant family built for creators students and builders who want clear answers
-without unnecessary fluff. Pyx Talk helps you chat plan and learn. Pyx Code helps you write
-and refactor software in many languages. Pyxel makes tiny pixel art from short prompts.
-Pyx 1.0 on the public site uses fast cloud models through the Pyx API. Pyx 1.3 is the
-local-first line you can download as a starter kit wire into your own UI and run on your
-own hardware when you are ready. This preview runs entirely without a weight file so you
-can try the shape of the product on the website. Ask about features roadmaps or how to
-integrate Pyx into a classroom or studio workflow. I can explain moderation safety filters
-and how messages are scored before they are shown. I can outline how web search snippets
-can ground a reply while the model still writes fresh sentences. Keep questions specific
-for the best experience. If you need code samples ask for Python JavaScript or pseudocode.
-If you want study tips ask for a short study plan or a checklist. If you are curious about
-pixel art ask for grid sizes color palettes or prompt ideas. Pyx values concise helpful tone
-and honest limits when information is uncertain. Welcome to Pyx we are glad you are here.
-The local starter repository includes a template UI and a downloadable core you can extend.
-Teachers can use Pyx to brainstorm lesson hooks and rubrics. Developers can use Pyx to draft
-commit messages tests and comments. Artists can use Pyxel for quick sprite experiments.
-Privacy matters for local Pyx because your weights stay on your machine in full local mode.
-Cloud Pyx relies on the service provider you configure. Always review terms for your org.
-For troubleshooting check your network your API keys for cloud routes and your model path
-for local routes. Pyx grows with feedback from the community. Share feature ideas politely.
-We try to keep latency low and errors readable. Retry when a gateway times out. Rotate keys
-if you hit rate limits on cloud tiers. For learning read the docs and try small prompts first.
-Celebrate small wins when your first integration works end to end. Pyx is a tool not a replacement
-for human judgment verify critical facts especially for medical legal or safety topics.
-When web search is enabled snippets may be recent but not perfect compare sources when it matters.
-Enjoy exploring Pyx ask what you want to build next.
-"""
+# --- Curated lines: written as normal sentences (no Markov word salad) ---
+# Each entry: (sentence, optional topic tags for light routing)
+_LIBRARY: list[tuple[str, frozenset[str]]] = [
+    (
+        "Pyx is an assistant family for creators, students, and builders who want clear answers without unnecessary fluff.",
+        frozenset(),
+    ),
+    ("Pyx Talk helps you chat, plan, and learn.", frozenset({"talk", "general"})),
+    ("Pyx Code helps you write and refactor software in many languages.", frozenset({"code"})),
+    ("Pyxel makes tiny pixel art from short prompts — handy for sprites and quick experiments.", frozenset({"pixel"})),
+    (
+        "Pyx 1.0 on the public site uses fast cloud models through the Pyx API; Pyx 1.3 is the local-first line you can download and wire into your own UI.",
+        frozenset({"version", "download", "local"}),
+    ),
+    (
+        "This website preview runs without a weight file so you can try the product shape before you set up local models.",
+        frozenset({"preview", "general"}),
+    ),
+    (
+        "Ask what you want to extend: features, classroom workflows, or how moderation and scoring work before messages are shown.",
+        frozenset({"extend", "moderation"}),
+    ),
+    (
+        "If you are curious about pixel art, ask for grid sizes, color palettes, or prompt ideas — I can outline practical starting points.",
+        frozenset({"pixel"}),
+    ),
+    (
+        "If you want study tips, ask for a short study plan or a checklist and keep the topic specific.",
+        frozenset({"study"}),
+    ),
+    (
+        "Developers often use Pyx to draft commit messages, tests, and comments; share feature ideas politely and we can reason about tradeoffs.",
+        frozenset({"code", "community"}),
+    ),
+    (
+        "Privacy matters: in full local mode your weights stay on your machine; cloud routes depend on the provider you configure — always review terms for your org.",
+        frozenset({"privacy", "cloud"}),
+    ),
+    (
+        "Web search snippets can ground an answer when you enable search; treat them as hints and verify anything critical.",
+        frozenset({"web"}),
+    ),
+    (
+        "For troubleshooting, check your network, API keys for cloud routes, and model paths for local routes; retry once if a gateway times out.",
+        frozenset({"troubleshoot"}),
+    ),
+    (
+        "Pyx grows with feedback — try small prompts first, celebrate when your first integration works end to end, and use Pyx as a tool alongside human judgment.",
+        frozenset({"general", "community"}),
+    ),
+    (
+        "I am not a replacement for professional advice on medical, legal, or safety topics — double-check important facts, especially when search is on.",
+        frozenset({"safety"}),
+    ),
+]
 
-_TOKEN_RE = re.compile(r"[a-z0-9']+|[.!?]", re.I)
+_STOP = frozenset(
+    "a an the is are was were be been being i you we it its this that these those "
+    "to of in on for with as at by from or if do does did so than then too very just "
+    "what which who how when where why can could should would about into out up down "
+    "me my your our their them they he she his her not no yes ok okay".split()
+)
+
+_TOPIC_TRIGGERS: dict[str, tuple[str, ...]] = {
+    "pixel": ("pixel", "pyxel", "sprite", "palette", "16x16", "32x32", "tile", "bitmap"),
+    "code": (
+        "code",
+        "python",
+        "javascript",
+        "typescript",
+        "program",
+        "refactor",
+        "bug",
+        "api",
+        "git",
+        "commit",
+        "implement",
+        "function",
+        "class",
+        "script",
+    ),
+    "study": ("study", "exam", "homework", "class", "school", "learn", "notes", "quiz"),
+    "privacy": ("privacy", "local", "on device", "on-device", "data", "gdpr", "hipaa"),
+    "cloud": ("cloud", "groq", "hosted", "api key", "rate limit"),
+    "download": ("download", "install", "starter", "zip", "repo", "1.3"),
+    "moderation": ("moderat", "safe", "filter", "ban", "score", "censor"),
+    "web": ("web search", "search the web", "ddg", "duck", "snippet", "news", "latest"),
+    "troubleshoot": ("error", "timeout", "502", "503", "broken", "fix", "not work"),
+    "extend": ("extend", "integrat", "workflow", "classroom", "studio", "plugin"),
+    "safety": ("medical", "legal", "danger", "harm", "suicide", "violence"),
+    "version": ("1.0", "1.3", "pyx 1", "difference", "which pyx"),
+    "community": ("feature request", "feedback", "idea", "roadmap"),
+    "talk": ("talk", "chat", "conversation"),
+    "general": (),
+}
+
+_GREETING_RE = re.compile(r"^\s*(hi|hello|hey|good\s+(morning|afternoon|evening)|greetings)\b", re.I)
+_FAREWELL_RE = re.compile(r"\b(bye|goodbye|see you|cya)\b", re.I)
+_CODE_INTENT_RE = re.compile(
+    r"\b(write|generate|implement|create|build|show\s+(me\s+)?code|source\s*code|"
+    r"boilerplate|scaffold|function|class|script|module|program|snippet)\b",
+    re.I,
+)
 
 
-def _tokens(text: str) -> list[str]:
-    return [t.lower() if t.isalpha() or "'" in t else t for t in _TOKEN_RE.findall(text)]
+def _content_words(text: str) -> set[str]:
+    return {
+        w
+        for w in re.findall(r"[a-z0-9']+", (text or "").lower())
+        if len(w) > 1 and w not in _STOP
+    }
 
 
-def _train_bigram(token_list: list[str]) -> dict[str, Counter[str]]:
-    g: dict[str, Counter[str]] = defaultdict(Counter)
-    for i in range(len(token_list) - 1):
-        g[token_list[i]][token_list[i + 1]] += 1
-    return g
-
-
-_BIGRAM: dict[str, Counter[str]] | None = None
-_VOCAB: list[str] | None = None
-
-
-def _model() -> tuple[dict[str, Counter[str]], list[str]]:
-    global _BIGRAM, _VOCAB
-    if _BIGRAM is None:
-        toks = _tokens(_CORPUS)
-        _BIGRAM = _train_bigram(toks)
-        _VOCAB = list({t for t in toks if t not in ".!?"})
-    assert _BIGRAM is not None and _VOCAB is not None
-    return _BIGRAM, _VOCAB
-
-
-def _weighted_next(counter: Counter[str]) -> str | None:
-    if not counter:
-        return None
-    pop = list(counter.elements())
-    return random.choice(pop)
-
-
-def _markov_generate(seed_words: list[str], max_tokens: int = 72) -> str:
-    bigram, vocab = _model()
-    if not seed_words:
-        seed_words = ["pyx"]
-    out: list[str] = []
-    cur = seed_words[-1] if seed_words[-1] in bigram else random.choice(vocab)
-    out.append(cur)
-    for _ in range(max_tokens - 1):
-        nxt = _weighted_next(bigram.get(cur, Counter()))
-        if nxt is None:
-            cur = random.choice(vocab)
+def _detect_topics(text: str) -> frozenset[str]:
+    t = (text or "").lower()
+    out: set[str] = set()
+    for topic, needles in _TOPIC_TRIGGERS.items():
+        if not needles:
             continue
-        out.append(nxt)
-        cur = nxt
-    # Light punctuation cleanup
-    s = " ".join(out)
-    s = re.sub(r"\s+([.!?])", r"\1", s)
-    return s.strip().capitalize() + ("." if s and s[-1] not in ".!?" else "")
+        if any(n in t for n in needles):
+            out.add(topic)
+    if "search" in t and "web" in t:
+        out.add("web")
+    return frozenset(out)
+
+
+def _sentence_score(sentence: str, sent_topics: frozenset[str], pool: set[str], topics: frozenset[str]) -> float:
+    sw = _content_words(sentence)
+    if not pool:
+        overlap = 0.0
+    else:
+        overlap = len(pool & sw) / max(1, len(pool))
+    topic_bonus = 0.15 * len(sent_topics & topics)
+    # Light preference for shorter, clearer lines when scores tie
+    brevity = max(0, 1.0 - len(sentence) / 450)
+    return overlap * 2.0 + topic_bonus + brevity * 0.05
+
+
+def _pick_sentences(
+    last_user: str,
+    history_text: str,
+    topics: frozenset[str],
+    max_sentences: int = 3,
+) -> list[str]:
+    pool = _content_words(last_user) | _content_words(history_text)
+    scored: list[tuple[float, str]] = []
+    for sentence, st in _LIBRARY:
+        scored.append((_sentence_score(sentence, st, pool, topics), sentence))
+    scored.sort(key=lambda x: -x[0])
+    chosen: list[str] = []
+    seen_lower: set[str] = set()
+    for score, sentence in scored:
+        if score < 0.08 and len(chosen) >= 2:
+            break
+        key = sentence[:48].lower()
+        if key in seen_lower:
+            continue
+        seen_lower.add(key)
+        chosen.append(sentence)
+        if len(chosen) >= max_sentences:
+            break
+    if not chosen:
+        chosen = [t[0] for t in _LIBRARY[:2]]
+    return chosen
+
+
+def _compose_body(last_user: str, messages: list[dict[str, str]], topics: frozenset[str]) -> str:
+    hist_bits = []
+    for m in messages[:-1][-4:]:
+        if m.get("role") == "user":
+            hist_bits.append(m.get("content", ""))
+    history_text = " ".join(hist_bits)
+
+    if _FAREWELL_RE.search(last_user):
+        return "Goodbye — thanks for trying Pyx. Come back anytime if you want to plan your next build."
+
+    opener = ""
+    if _GREETING_RE.search(last_user) or last_user.strip().lower() in {"hi", "hello", "hey"}:
+        opener = "Hi — thanks for trying Pyx. "
+
+    sentences = _pick_sentences(last_user, history_text, topics, max_sentences=3)
+    body = opener + " ".join(sentences)
+
+    if last_user.strip().endswith("?"):
+        body += " If that does not quite answer your question, rephrase with one concrete detail (goal, stack, or timeline) and I will narrow it down."
+
+    body += " What would you like to build or learn next with Pyx?"
+    return re.sub(r"\s+", " ", body).strip()
+
+
+def _wants_long_code(text: str) -> bool:
+    """Heuristic: user is asking for substantive generated source, not product Q&A."""
+    raw = text or ""
+    t = raw.lower()
+    if "```" in raw:
+        return True
+    if "long code" in t or "lots of code" in t or "big script" in t or "full script" in t:
+        return True
+    if len(t) < 14:
+        return False
+    prog = (
+        "python",
+        "javascript",
+        "typescript",
+        ".py",
+        ".ts",
+        ".js",
+        "node",
+        "nodejs",
+        "rust",
+        "golang",
+        " go ",
+        "java",
+        "kotlin",
+        "swift",
+        "c++",
+        "csharp",
+        "ruby",
+    )
+    if any(p in t for p in prog):
+        return True
+    codeish = (
+        "code",
+        "script",
+        "snippet",
+        "boilerplate",
+        "scaffold",
+        "function",
+        "class ",
+        "implement",
+        "program",
+        "write a ",
+        "write me",
+        "generate",
+    )
+    if any(w in t for w in codeish) and _CODE_INTENT_RE.search(raw):
+        return True
+    if "code" in t and len(t) > 28:
+        return True
+    return _CODE_INTENT_RE.search(raw) is not None and (
+        "def " in t or "class " in t or "import " in t or "async " in t or "function " in t
+    )
+
+
+def _extract_pyxel_subject(text: str) -> str | None:
+    """Match Pyx Talk pixel intents + loose Pyxel wording; returns subject for pixel_art API."""
+    s = (text or "").strip()
+    if len(s) < 4:
+        return None
+    patterns = [
+        r"(?is)^\s*(?:generate|make|create)\s+(?:a\s+)?(?:an\s+)?image\s+(?:of\s+)?(.+)$",
+        r"(?is)^\s*(?:pixel\s*art|pix\s*art)\s+(?:of\s+)?(.+)$",
+        r"(?is)^\s*draw\s+(?:a\s+)?(?:pixel\s*art\s+)?(?:of\s+)?(.+)$",
+    ]
+    for p in patterns:
+        m = re.match(p, s)
+        if m:
+            sub = (m.group(1) or "").strip()
+            return sub[:500] if sub else None
+    low = s.lower()
+    if any(k in low for k in ("pyxel", "pixel art", "pix art", "sprite", "10x10")):
+        sub = re.sub(
+            r"(?i)^\s*(?:make|create|draw|generate|show|open|start|run)\s+(?:me\s+)?(?:a\s+)?(?:the\s+)?(?:some\s+)?",
+            "",
+            s,
+        ).strip()
+        sub = re.sub(r"(?i)^(pyxel|pixel\s*art|pix\s*art)\s*(?:of|:)?\s*", "", sub).strip()
+        return (sub or "custom prompt")[:500]
+    return None
+
+
+def _wants_pyxel_in_chat(text: str) -> bool:
+    return _extract_pyxel_subject(text) is not None
+
+
+def _prompt_fingerprint(user: str) -> tuple[str, str]:
+    """(8-char hex suffix, TitleCase slug for identifiers)."""
+    h = hashlib.sha256((user or "").encode("utf-8", errors="replace")).hexdigest()[:8]
+    words = re.findall(r"[a-z0-9]+", (user or "").lower())
+    stop = _STOP | frozenset(
+        "write generate create build make me please want need help code python js ts javascript typescript".split()
+    )
+    picked = [w for w in words if w not in stop and len(w) > 2][:4]
+    if not picked:
+        picked = ["pyx", "task"]
+    slug = "".join(w.capitalize() for w in picked)[:48]
+    if not slug[0].isalpha():
+        slug = "X" + slug
+    return h, slug
+
+
+def _synth_python_module(user: str) -> str:
+    h, slug = _prompt_fingerprint(user)
+    safe_one_line = (user or "").replace("\n", " ").strip()[:180]
+    lines: list[str] = [
+        "#!/usr/bin/env python3",
+        '"""',
+        f"Auto-synthesized module (Pyx 1.3 website preview).",
+        f"Fingerprint: {h} — not audited for production.",
+        f"Origin prompt (truncated): {safe_one_line!r}",
+        '"""',
+        "from __future__ import annotations",
+        "",
+        "import argparse",
+        "import json",
+        "import logging",
+        "import sys",
+        "import time",
+        "from dataclasses import asdict, dataclass, field",
+        "from pathlib import Path",
+        "from typing import Any, Callable, Iterable, Iterator, Mapping, Protocol, Sequence",
+        "",
+        "LOG = logging.getLogger(__name__)",
+        "",
+        "",
+        "@dataclass(slots=True)",
+        f"class {slug}Config:",
+        '    """Runtime knobs — tweak for your deployment."""',
+        "    app_name: str = field(default_factory=lambda: 'pyx-preview-app')",
+        "    data_dir: Path = field(default_factory=lambda: Path('.pyx_preview_data'))",
+        "    max_retries: int = 3",
+        "    backoff_seconds: float = 0.35",
+        "    strict_json: bool = True",
+        "",
+        "",
+        "class SupportsValidate(Protocol):",
+        "    def validate(self, payload: Mapping[str, Any]) -> tuple[bool, list[str]]: ...",
+        "",
+        "",
+        f"class {slug}Validator:",
+        '    """Light structural validation (extend with your schema)."""',
+        "",
+        "    REQUIRED_KEYS: tuple[str, ...] = ('op', 'payload')",
+        "",
+        "    def validate(self, payload: Mapping[str, Any]) -> tuple[bool, list[str]]:",
+        "        errs: list[str] = []",
+        "        for k in self.REQUIRED_KEYS:",
+        "            if k not in payload:",
+        "                errs.append(f'missing:{k}')",
+        "        op = payload.get('op')",
+        "        if op is not None and not isinstance(op, str):",
+        "            errs.append('op_must_be_str')",
+        "        return (len(errs) == 0, errs)",
+        "",
+        "",
+        f"class {slug}Repository:",
+        '    """Tiny JSONL event log — swap for SQLite / HTTP as needed."""',
+        "",
+        "    def __init__(self, root: Path) -> None:",
+        "        self._root = root",
+        "        self._root.mkdir(parents=True, exist_ok=True)",
+        "        self._path = self._root / 'events.jsonl'",
+        "",
+        "    def append(self, record: Mapping[str, Any]) -> None:",
+        "        line = json.dumps(record, ensure_ascii=False, separators=(',', ':'))",
+        "        with self._path.open('a', encoding='utf-8') as fh:",
+        "            fh.write(line + '\\n')",
+        "",
+        "    def tail(self, n: int = 50) -> list[dict[str, Any]]:",
+        "        if not self._path.is_file():",
+        "            return []",
+        "        rows: list[str] = self._path.read_text(encoding='utf-8', errors='replace').splitlines()",
+        "        out: list[dict[str, Any]] = []",
+        "        for raw in rows[-n:]:",
+        "            try:",
+        "                out.append(json.loads(raw))",
+        "            except json.JSONDecodeError:",
+        "                continue",
+        "        return out",
+        "",
+        "",
+        f"class {slug}Pipeline:",
+        '    """Composable transform stages — logic is expanded procedurally below."""',
+        "",
+        "    def __init__(self, cfg: {slug}Config) -> None:".replace("{slug}", slug),
+        "        self._cfg = cfg",
+        "        self._validators: list[SupportsValidate] = [{slug}Validator()]".replace(
+            "{slug}", slug
+        ),
+        "",
+        "    def _run_validators(self, payload: Mapping[str, Any]) -> None:",
+        "        for v in self._validators:",
+        "            ok, errs = v.validate(payload)",
+        "            if not ok:",
+        "                raise ValueError('validation_failed:' + ','.join(errs))",
+    ]
+
+    # Procedurally generated stage functions (unique per fingerprint)
+    seed = int(h[:6], 16)
+    n_stages = 18 + (seed % 14)
+    for i in range(n_stages):
+        bias = (seed >> (i % 8)) & 0xFF
+        lines.extend(
+            [
+                "",
+                f"    def stage_{i:02d}_{h}(self, data: dict[str, Any]) -> dict[str, Any]:",
+                f'        """Transform stage {i} — mixed bias {bias}."""',
+                "        out = dict(data)",
+                f"        out['stage_{i:02d}'] = {{'bias': {bias}, 'ts': time.time()}}",
+                "        meta = out.setdefault('_meta', {})",
+                f"        trace = meta.setdefault('trace', [])",
+                f"        trace.append('stage_{i:02d}')",
+                "        return out",
+            ]
+        )
+
+    lines.extend(
+        [
+            "",
+            "    def run(self, initial: dict[str, Any]) -> dict[str, Any]:",
+            "        cur = dict(initial)",
+            f"        for i in range({n_stages}):",
+            f"            fn = getattr(self, f'stage_{{i:02d}}_{h}')",
+            "            cur = fn(cur)",
+            "        return cur",
+            "",
+            "",
+            f"class {slug}Service:",
+            '    """Facade: validation + pipeline + persistence."""',
+            "",
+            "    def __init__(self, cfg: {slug}Config) -> None:".replace("{slug}", slug),
+            "        self._cfg = cfg",
+            "        self._repo = {slug}Repository(cfg.data_dir)".replace("{slug}", slug),
+            "        self._pipe = {slug}Pipeline(cfg)".replace("{slug}", slug),
+            "",
+            "    def handle(self, envelope: Mapping[str, Any]) -> dict[str, Any]:",
+            "        ok, errs = {slug}Validator().validate(envelope)".replace("{slug}", slug),
+            "        if not ok:",
+            "            raise ValueError('invalid_envelope:' + ','.join(errs))",
+            "        op = str(envelope['op'])",
+            "        payload = envelope.get('payload')",
+            "        if not isinstance(payload, dict):",
+            "            raise TypeError('payload_must_be_dict')",
+            "        blob = {'op': op, 'payload': payload, 'received_at': time.time()}",
+            "        result = self._pipe.run(blob)",
+            "        self._repo.append({'kind': 'result', 'body': result})",
+            "        return result",
+            "",
+            "    def replay(self, n: int = 20) -> list[dict[str, Any]]:",
+            "        return self._repo.tail(n)",
+            "",
+            "",
+            "def _configure_logging(verbose: bool) -> None:",
+            "    level = logging.DEBUG if verbose else logging.INFO",
+            "    logging.basicConfig(",
+            "        level=level,",
+            "        format='%(asctime)s %(levelname)s %(name)s — %(message)s',",
+            "    )",
+            "",
+            "",
+            "def _demo_payload() -> dict[str, Any]:",
+            "    return {",
+            "        'op': 'demo.echo',",
+            "        'payload': {",
+            f"            'note': 'synthetic run {h}',",
+            "            'values': list(range(8)),",
+            "        },",
+            "    }",
+            "",
+            "",
+            "def main(argv: Sequence[str] | None = None) -> int:",
+            "    p = argparse.ArgumentParser(description='Synthesized Pyx preview CLI')",
+            "    p.add_argument('--verbose', action='store_true')",
+            "    p.add_argument('--replay', type=int, default=0, help='Print last N log rows')",
+            "    args = p.parse_args(list(argv) if argv is not None else None)",
+            "    _configure_logging(args.verbose)",
+            "    cfg = {slug}Config()".replace("{slug}", slug),
+            "    svc = {slug}Service(cfg)".replace("{slug}", slug),
+            "    if args.replay > 0:",
+            "        print(json.dumps(svc.replay(args.replay), indent=2, ensure_ascii=False))",
+            "        return 0",
+            "    try:",
+            "        out = svc.handle(_demo_payload())",
+            "        print(json.dumps(out, indent=2, ensure_ascii=False))",
+            "        return 0",
+            "    except Exception as exc:  # pragma: no cover — demo surface",
+            "        LOG.exception('handler_failed')",
+            "        print(f'error:{exc}', file=sys.stderr)",
+            "        return 1",
+            "",
+            "",
+            'if __name__ == "__main__":',
+            "    raise SystemExit(main())",
+            "",
+        ]
+    )
+
+    return "\n".join(lines)
+
+
+def _synth_javascript_module(user: str) -> str:
+    h, slug = _prompt_fingerprint(user)
+    safe = (user or "").replace("`", "'").replace("\n", " ").strip()[:160]
+    lines = [
+        "/**",
+        " * Auto-synthesized ESM module (Pyx 1.3 website preview).",
+        f" * Fingerprint: {h}",
+        f" * Prompt (truncated): {safe}",
+        " */",
+        "",
+        "const LOG_PREFIX = '[pyx-preview]';",
+        "",
+        f"export class {slug}Config {{",
+        "  constructor() {",
+        "    this.maxRetries = 3;",
+        "    this.backoffMs = 350;",
+        f"    this.appName = 'pyx-preview-{h}';",
+        "  }",
+        "}",
+        "",
+        f"export class {slug}Validator {{",
+        "  validate(envelope) {",
+        "    const errs = [];",
+        "    if (!envelope || typeof envelope !== 'object') errs.push('envelope_object');",
+        "    if (!('op' in envelope)) errs.push('missing_op');",
+        "    if (!('payload' in envelope)) errs.push('missing_payload');",
+        "    return { ok: errs.length === 0, errs };",
+        "  }",
+        "}",
+        "",
+        f"export class {slug}Pipeline {{",
+        "  constructor(cfg) {",
+        "    this.cfg = cfg;",
+        "    this._buildStages();",
+        "  }",
+        "",
+        "  _buildStages() {",
+        f"    const h = '{h}';",
+        f"    this._stages = [];",
+        f"    for (let i = 0; i < 26; i++) {{",
+        "      this._stages.push((data) => ({",
+        "        ...data,",
+        "        [`stage_${String(i).padStart(2, '0')}`]: { bias: (i * 17 + h.charCodeAt(i % 8)) % 255, at: Date.now() },",
+        "      }));",
+        "    }",
+        "  }",
+        "",
+        "  run(initial) {",
+        "    return this._stages.reduce((acc, fn) => fn(acc), { ...initial });",
+        "  }",
+        "}",
+        "",
+        f"export class {slug}Service {{",
+        "  constructor(cfg) {",
+        "    this.cfg = cfg;",
+        f"    this.validator = new {slug}Validator();",
+        f"    this.pipeline = new {slug}Pipeline(cfg);",
+        "    this._log = [];",
+        "  }",
+        "",
+        "  handle(envelope) {",
+        "    const { ok, errs } = this.validator.validate(envelope);",
+        "    if (!ok) throw new Error('validation_failed:' + errs.join(','));",
+        "    const merged = { ...envelope, receivedAt: Date.now() };",
+        "    const result = this.pipeline.run(merged);",
+        "    this._log.push({ kind: 'result', body: result });",
+        "    return result;",
+        "  }",
+        "",
+        "  tail(n = 20) {",
+        "    return this._log.slice(-n);",
+        "  }",
+        "}",
+        "",
+        "export function demoEnvelope() {",
+        "  return {",
+        "    op: 'demo.echo',",
+        "    payload: { values: Array.from({ length: 8 }, (_, i) => i), note: 'synthetic' },",
+        "  };",
+        "}",
+        "",
+        "export async function main() {",
+        "  const cfg = new {slug}Config();".replace("{slug}", slug),
+        f"  const svc = new {slug}Service(cfg);",
+        "  const out = svc.handle(demoEnvelope());",
+        "  console.log(JSON.stringify(out, null, 2));",
+        "}",
+        "",
+        "// Example: node --experimental-vm-modules yourfile.mjs (if using top-level await elsewhere)",
+    ]
+    return "\n".join(lines)
+
+
+def _pick_lang(user: str) -> str:
+    t = (user or "").lower()
+    if "typescript" in t or ".ts" in t or " ts " in t:
+        return "ts"
+    if "javascript" in t or "node" in t or ".js" in t or " js " in t:
+        return "js"
+    return "py"
+
+
+def _compose_code_reply(user: str, messages: list[dict[str, str]]) -> str:
+    lang = _pick_lang(user)
+    if lang == "py":
+        code = _synth_python_module(user)
+        fence = "python"
+    else:
+        code = _synth_javascript_module(user)
+        fence = "typescript" if lang == "ts" else "javascript"
+
+    hist_note = ""
+    for m in messages[:-1][-2:]:
+        if m.get("role") == "user":
+            frag = (m.get("content") or "").replace("\n", " ").strip()[:120]
+            if frag:
+                hist_note += f"- Earlier: {frag}\n"
+
+    intro = textwrap.dedent(
+        f"""\
+        Here is **long, synthesized source** from the Pyx 1.3 website preview (procedural generator — no LLM weights). Names and stage count are derived from a hash of your prompt, so each request differs slightly.
+
+        {hist_note if hist_note else ""}Adapt types, validation, and I/O to your real project; this is a starting scaffold, not a security-reviewed library.
+        """
+    ).strip()
+
+    return f"{intro}\n\n```{fence}\n{code}\n```\n\n*Preview limitation:* logic inside stages is generic; swap in your domain rules.*"
 
 
 def _strip_html_fragment(s: str) -> str:
@@ -213,25 +746,6 @@ def _web_auto_trigger(user_text: str) -> bool:
     return False
 
 
-def _normalize_messages(raw: Any) -> tuple[list[dict[str, str]], str | None]:
-    if not isinstance(raw, list) or not raw:
-        return [], "messages must be a non-empty list"
-    out: list[dict[str, str]] = []
-    for m in raw[-24:]:
-        if not isinstance(m, dict):
-            return [], "invalid message"
-        role = (m.get("role") or "").strip()
-        content = (m.get("content") or "").strip()
-        if role not in ("user", "assistant") or not content:
-            return [], "invalid message shape"
-        if len(content) > 4000:
-            content = content[:4000]
-        out.append({"role": role, "content": content})
-    if not out or out[-1]["role"] != "user":
-        return [], "last message must be user"
-    return out, None
-
-
 def build_preview_reply(
     messages: list[dict[str, str]],
     *,
@@ -240,14 +754,12 @@ def build_preview_reply(
 ) -> tuple[str, dict[str, Any]]:
     """Returns (reply_text, meta)."""
     last_user = messages[-1]["content"]
-    history_seed: list[str] = []
-    for m in messages[:-1][-6:]:
-        history_seed.extend(_tokens(m["content"])[:12])
+    topics = _detect_topics(last_user)
 
     do_web = use_web or (use_web_auto and _web_auto_trigger(last_user))
     meta: dict[str, Any] = {
         "engine": "pyx-1.3-preview",
-        "model": "markov-bigram+optional-web",
+        "model": "natural-language+corpus-rank+optional-web",
         "web": {"used": do_web, "provider": None, "error": None, "query": None},
     }
 
@@ -265,20 +777,31 @@ def build_preview_reply(
         elif werr:
             web_block = f"(Web search note: {werr})\n\n"
 
-    user_toks = _tokens(last_user)
-    seed = (history_seed + user_toks)[-3:] or ["pyx"]
-    # Bias first token toward something in vocabulary
-    _, vocab = _model()
-    if seed[-1] not in _model()[0]:
-        seed[-1] = random.choice(vocab)
+    # In-chat App: Pyxel grid (client auto-runs pixel_art from this hint)
+    if _wants_pyxel_in_chat(last_user):
+        subj = _extract_pyxel_subject(last_user) or "custom prompt"
+        safe = subj.replace("*", "\\*").replace("<", "")
+        meta["in_chat_app"] = {
+            "kind": "pyxel_grid",
+            "prompt": subj,
+            "auto_run": True,
+            "label": "Pyxel",
+        }
+        meta["model"] = "in-chat-app-pyxel+optional-web"
+        short = (
+            f"**In-chat App · Pyxel grid** — launching the 10×10 pixel editor for: *{safe}*.\n\n"
+            "The grid appears below once pixels return from the API (same as Pyx 1.0 Pyxel)."
+        )
+        reply = (web_block + short).strip()
+        return reply, meta
 
-    body = _markov_generate(seed, max_tokens=64)
-    # Second short paragraph for variety (different seed)
-    tail_seed = [random.choice(vocab), user_toks[0] if user_toks else "pyx"]
-    tail = _markov_generate(tail_seed, max_tokens=48)
-    if tail.lower().startswith(body[:20].lower()):
-        tail = _markov_generate(["build", "with", "pyx"], max_tokens=40)
+    if _wants_long_code(last_user):
+        meta["model"] = "procedural-long-code+optional-web"
+        code_part = _compose_code_reply(last_user, messages)
+        reply = (web_block + code_part).strip()
+        return reply, meta
 
-    reply = (web_block + body + " " + tail).strip()
-    reply = re.sub(r"\s+", " ", reply)
+    body = _compose_body(last_user, messages, topics)
+    reply = (web_block + body).strip()
+    reply = re.sub(r"[ \t]+", " ", reply)
     return reply, meta

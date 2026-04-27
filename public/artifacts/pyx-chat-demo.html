@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Pyx AI Chat demo (artifact)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 520px; margin: 24px auto; padding: 0 16px; }
+    .pyx-chat-help { background: #fef3c7; border: 1px solid #fcd34d; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+    .pyx-chat-help code { background: #fff; padding: 2px 6px; border-radius: 4px; }
+    #pyx-chat-status { color: #b91c1c; margin-bottom: 12px; min-height: 1.2em; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Pyx AI Chat demo (artifact)</h1>
+  <p class="pyx-chat-help">
+    <strong>Historical demo — may not work.</strong> Expects a Pyx API at
+    <code>http://127.0.0.1:8765</code> (e.g. <code>npm run dev</code> or <code>python3 app.py</code> from the repo).
+    If you opened this from the public site, chat will usually fail until you run the API locally.
+    For a supported web chat, use <a href="/pyx-talk.html">Pyx Talk</a>.
+    <strong>Scripts:</strong> this page loads <code>pyx-ai-chat.js</code> from the same folder (<code>/artifacts/</code>).
+  </p>
+  <div id="pyx-chat-status" aria-live="polite"></div>
+  <div id="pyx-chat"></div>
+
+  <script src="pyx-ai-chat.js" onerror="window.__pyxChatJsFailed = true"></script>
+  <script>
+    (function () {
+      var status = document.getElementById("pyx-chat-status");
+      function fail(msg) {
+        if (status) status.textContent = msg;
+        console.error(msg);
+      }
+      if (window.__pyxChatJsFailed) {
+        fail("Could not load pyx-ai-chat.js. Check the /artifacts/ path.");
+        return;
+      }
+      if (typeof PyxAIChat === "undefined") {
+        fail("PyxAIChat is missing. Check that pyx-ai-chat.js loaded.");
+        return;
+      }
+      try {
+        PyxAIChat.mount({
+          el: "#pyx-chat",
+          baseUrl: "http://127.0.0.1:8765",
+          apiKey: null,
+        });
+      } catch (e) {
+        fail("Mount error: " + (e && e.message ? e.message : String(e)));
+      }
+    })();
+  </script>
+</body>
+</html>

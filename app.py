@@ -19,12 +19,29 @@ from datetime import datetime, timezone
 from flask import Flask, request, jsonify, Response, stream_with_context
 
 from Pyx_ai_moderator import PyxAI, BAN_LINE, censor_letters
-from Pyx_ai_code import complete as code_complete, explain as code_explain, refactor as code_refactor, health as code_health
 from Pyx_ai_check import check_code, check_three_js, __version__ as check_version
 from Pyx_ai_analyze import analyze_code, analyze_three_js, __version__ as analyze_version
 from werkzeug.exceptions import HTTPException
 
 import pyx13_preview
+
+try:
+    from Pyx_ai_code import (
+        complete as code_complete,
+        explain as code_explain,
+        refactor as code_refactor,
+        health as code_health,
+    )
+except Exception:
+    def _code_module_unavailable(*_args, **_kwargs):
+        raise RuntimeError("Pyx_ai_code module unavailable on this deployment.")
+
+    code_complete = _code_module_unavailable
+    code_explain = _code_module_unavailable
+    code_refactor = _code_module_unavailable
+
+    def code_health():
+        return {"status": "error", "error": "Pyx_ai_code module unavailable"}
 
 app = Flask(__name__)
 
@@ -1265,16 +1282,8 @@ def pyx13_preview_chat():
     use_web = _as_bool(data.get("use_web"))
     use_web_auto = _as_bool(data.get("use_web_auto"))
 
-    if us is not None and us >= BAN_LINE:
-        out = {
-            "bad": True,
-            "reply": "I can’t reply to that. Try a neutral, specific question about Pyx or your project.",
-            "model": "pyx-1.3-preview-moderation",
-            "engine": "pyx-1.3-preview",
-            "web_search": {"used": False, "provider": None, "error": None, "query": None},
-            "score": us,
-        }
-        return jsonify(out)
+    # For website preview, always answer so users can test the model flow.
+    # (We still include score metadata for debugging/telemetry.)
 
     reply, meta = pyx13_preview.build_preview_reply(
         messages,
@@ -1285,7 +1294,7 @@ def pyx13_preview_chat():
     out = {
         "bad": False,
         "reply": reply,
-        "model": meta.get("model", "markov-bigram+optional-web"),
+        "model": "Pyx 1.3 Preview 4.26",
         "engine": meta.get("engine", "pyx-1.3-preview"),
         "web_search": {
             "used": bool(web.get("used")),
@@ -1294,6 +1303,8 @@ def pyx13_preview_chat():
             "query": web.get("query"),
         },
     }
+    if meta.get("in_chat_app"):
+        out["in_chat_app"] = meta["in_chat_app"]
     if us is not None:
         out["score"] = us
     return jsonify(out)

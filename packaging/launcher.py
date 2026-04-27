@@ -385,7 +385,7 @@ def main() -> int:
 
     snap = bootstrap.snapshot()
     force_setup = os.environ.get("PYX_FORCE_SETUP", "").strip() in ("1", "true", "yes")
-    first_page = "index.html"
+    first_page = "pyx-talk.html"
 
     port = _pick_port(int(os.environ.get("PORT", "8765")))
     url = f"http://127.0.0.1:{port}/{first_page}"
