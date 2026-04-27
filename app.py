@@ -896,7 +896,7 @@ def health():
 @app.route("/")
 def homepage():
     try:
-        return send_from_directory("public", "pyx-launcher.html")
+        return send_from_directory("public", "index.html")
     except Exception:
         return jsonify({"status": "ok", "service": "pyx"}), 200
 

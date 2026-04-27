@@ -100,7 +100,7 @@ def _register_static(app, public_dir: Path) -> None:
     @app.route("/pyx.html")
     @app.route("/app")
     def _home():
-        return send_from_directory(str(public_dir), "pyx-launcher.html")
+        return send_from_directory(str(public_dir), "index.html")
 
     @app.route("/static-assets/<path:fname>")
     def _named_static(fname):
@@ -385,7 +385,7 @@ def main() -> int:
 
     snap = bootstrap.snapshot()
     force_setup = os.environ.get("PYX_FORCE_SETUP", "").strip() in ("1", "true", "yes")
-    first_page = "pyx-setup.html" if (force_setup or not snap.get("ready")) else "pyx-launcher.html"
+    first_page = "index.html"
 
     port = _pick_port(int(os.environ.get("PORT", "8765")))
     url = f"http://127.0.0.1:{port}/{first_page}"

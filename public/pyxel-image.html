@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PYX. Pyxel</title>
+  <title>Pyx AI Image Generation</title>
   <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
   <link rel="stylesheet" href="/brand/pyx-brand.css" />
@@ -197,11 +197,11 @@
   <div class="page">
     <div class="nav">
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-        <a class="pyx-brand" href="/pyx-launcher.html" title="PYX. — home">
+        <a class="pyx-brand" href="/" title="PYX. — home">
           <img class="pyx-brand__icon" src="/brand/pyx-app-icon.png" alt="" width="36" height="36" />
           <img class="pyx-brand__wordmark" src="/brand/pyx-wordmark.png" alt="PYX." />
         </a>
-        <a href="/pyx-launcher.html" style="font-size:12px;">← Home</a>
+        <a href="/" style="font-size:12px;">← Home</a>
       </div>
       <div class="nav-links" style="align-items:center;">
         <a href="/pyx-talk.html">Pyx AI Talk</a>
@@ -210,7 +210,7 @@
            style="display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:600; color:#fff;
                   background:linear-gradient(135deg,#6366f1,#0ea5e9); padding:6px 12px; border-radius:999px;
                   text-decoration:none; box-shadow:0 4px 14px rgba(99,102,241,0.35);"
-           title="Download the Pyx 1.5 desktop app — local GPT-OSS, no cloud">↓ Download Pyx 1.5</a>
+           title="Open the Pyx 1.3 app">Pyx 1.3</a>
       </div>
     </div>
 
@@ -218,19 +218,19 @@
       style="display:none; margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.45;
              background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(14, 165, 233, 0.10));
              border: 1px solid rgba(129, 140, 248, 0.4); color: #1f2244;">
-      <strong style="color:#4c3bd8">Get the Pyx 1.5+ app</strong> to run Pyxel locally on GPT-OSS.
+      <strong style="color:#4c3bd8">Pyx 1.0 cloud</strong> (Groq) is active on this site.
       Up to <strong>90% faster</strong> and <strong>~90% more environmentally friendly</strong>* than the cloud build.
       <a href="/pyx-download.html"
-         style="color:#4338ca; font-weight: 600; text-decoration: none; margin-left: 4px;">Download Pyx 1.5 →</a>
+         style="color:#4338ca; font-weight: 600; text-decoration: none; margin-left: 4px;">Open Launcher →</a>
       <span style="font-size:11px; color:#4c3bd8; margin-left: 4px;">* vs. typical cloud chat round-trip</span>
     </div>
 
-    <h1>PYX. Pyxel</h1>
+    <h1>Pyx AI Image Generation</h1>
 
     <div class="model-bar">
       <span>Model</span>
       <select id="pyxelModel" aria-label="Pyxel model">
-        <option value="0.5" selected>Pyxel 0.5 (GPT-OSS)</option>
+        <option value="0.5" selected>Pyxel 0.5</option>
       </select>
     </div>
 
@@ -274,7 +274,7 @@
           var sel = document.getElementById("pyxelModel");
           if (sel && sel.options[0]) {
             sel.options[0].value = "1";
-            sel.options[0].textContent = "Pyxel 1 (GPT-OSS)";
+            sel.options[0].textContent = "Pyxel 0.5";
           }
         }
         fetch("/bootstrap/status", { cache: "no-store" })

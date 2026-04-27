@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PYX. Talk</title>
+  <title>Pyx AI Talk</title>
   <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
   <link rel="stylesheet" href="/brand/pyx-brand.css" />
@@ -545,7 +545,7 @@
 <body>
   <div class="page">
     <div class="top">
-      <a class="pyx-brand" href="/pyx-launcher.html" title="PYX. — home">
+      <a class="pyx-brand" href="/" title="PYX. — home">
         <img class="pyx-brand__icon" src="/brand/pyx-app-icon.png" alt="" width="36" height="36" />
         <img class="pyx-brand__wordmark" src="/brand/pyx-wordmark.png" alt="PYX." />
       </a>
@@ -554,28 +554,28 @@
         <a class="home home--small" href="/pyxel-image.html">Pyxel Image</a>
         <a class="home home--small download" id="getPyx15"
            href="/pyx-download.html"
-           title="Download the Pyx 1.5 desktop app — local Llama + GPT-OSS">
-          Download Pyx 1.5
+           title="Open the Pyx 1.3 app">
+          Pyx 1.3
         </a>
-        <span class="badge">Llama · Groq</span>
+        <span class="badge">Pyx 1.0</span>
       </div>
     </div>
 
     <div class="pyx15-banner" id="pyx15Banner" role="note">
-      <strong>Get the Pyx 1.5+ app</strong> to run Pyx Talk locally on Llama + GPT-OSS.
+      <strong>Pyx 1.0 cloud</strong> (Groq) is active on this site.
       Up to <strong>90% faster</strong> and <strong>~90% more environmentally friendly</strong>* than the cloud build.
-      <a href="/pyx-download.html">Download Pyx 1.5 →</a>
+      <a href="/pyx-download.html">Pyx 1.3 →</a>
       <span class="pills">* vs. typical cloud chat round-trip</span>
     </div>
 
-    <h1>PYX. Talk</h1>
+    <h1>Pyx AI Talk</h1>
     <p class="lede">PYX TALK LIVE COMING SOON</p>
 
     <div class="panel">
       <div class="web-row" id="webRow">
         <label class="web-opt">
           <input type="checkbox" id="useWeb" />
-          <span><strong>Search the web</strong> — Pyx fetches result snippets locally, then Llama answers from them.</span>
+          <span><strong>Search the web</strong> — Pyx fetches result snippets locally, then answers from them.</span>
         </label>
         <label class="web-opt">
           <input type="checkbox" id="useWebAuto" />
@@ -586,9 +586,9 @@
       <div class="model-row">
         <label for="talkMode">Model</label>
         <select id="talkMode" name="talkMode" aria-label="Pyx Talk model">
-          <option value="fast">Pyx Mini 1.0 (Llama 2)</option>
-          <option value="smart">Pyx 1.0 (Llama 4 Scout)</option>
-          <option value="thinking">Pyx Reasoning 1.0 (Llama 4 Scout)</option>
+          <option value="fast">Pyx Mini 1.0</option>
+          <option value="smart">Pyx 1.0</option>
+          <option value="thinking">Pyx Reasoning 1.0</option>
         </select>
       </div>
 
@@ -637,7 +637,7 @@
         var direct = PYX_CLOUD_RUN + "/" + endpoint;
         var proxied = "/api/" + endpoint;
         if (pyxIsLocalHost()) {
-          // Standalone / dev: hit same-origin first (e.g. Pyx 1.5 local installer),
+          // Standalone / dev: hit same-origin first,
           // fall back to the public Cloud Run URL if same-origin isn't the API.
           var sameOrigin = "/" + endpoint;
           return fetch(sameOrigin, opts).catch(function () {
@@ -716,8 +716,7 @@
       function fetchPyxStream(endpoint, bodyString) {
         return fetchPyxHttp(endpoint, bodyString);
       }
-      // Cloud (no /bootstrap/status) ⇒ show download button + 1.5 upgrade banner, keep 1.0 labels.
-      // Desktop app (Pyx 1.5 launcher) ⇒ hide banner + button, upgrade all labels to the 1.5 line.
+      // Cloud site keeps 1.0 labels and shows the download button.
       (function () {
         var banner = document.getElementById("pyx15Banner");
         var dlBtn  = document.getElementById("getPyx15");
@@ -727,9 +726,9 @@
           var sel = document.getElementById("talkMode");
           if (sel) {
             var map15 = {
-              fast: "Pyx Mini 1.5 (Llama 2)",
-              smart: "Pyx 1.5 (Llama 4 Scout)",
-              thinking: "Pyx Reasoning 1.5 (Llama 4 Scout)",
+              fast: "Pyx Mini 1.0",
+              smart: "Pyx 1.0",
+              thinking: "Pyx Reasoning 1.0",
             };
             Array.prototype.forEach.call(sel.options, function (opt) {
               if (map15[opt.value]) opt.textContent = map15[opt.value];
@@ -764,17 +763,16 @@
       var useWebEl = document.getElementById("useWeb");
       var useWebAutoEl = document.getElementById("useWebAuto");
 
-      // Cloud (web) labels — 1.0 line. Desktop app rewrites these to the 1.5 line
-      // after /bootstrap/status confirms we're inside the Pyx 1.5 launcher.
+      // Cloud (web) labels — 1.0 line.
       var MODE_LABELS = {
-        fast: "Pyx Mini 1.0 (Llama 2)",
-        smart: "Pyx 1.0 (Llama 4 Scout)",
-        thinking: "Pyx Reasoning 1.0 (Llama 4 Scout)",
+        fast: "Pyx Mini 1.0",
+        smart: "Pyx 1.0",
+        thinking: "Pyx Reasoning 1.0",
       };
       var MODE_LABELS_15 = {
-        fast: "Pyx Mini 1.5 (Llama 2)",
-        smart: "Pyx 1.5 (Llama 4 Scout)",
-        thinking: "Pyx Reasoning 1.5 (Llama 4 Scout)",
+        fast: "Pyx Mini 1.0",
+        smart: "Pyx 1.0",
+        thinking: "Pyx Reasoning 1.0",
       };
 
       function modeDisplayName(key) {
