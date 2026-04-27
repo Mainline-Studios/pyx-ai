@@ -196,6 +196,7 @@
       border: 1px solid var(--border);
       box-shadow: var(--shadow);
       padding: 20px 18px 18px;
+      position: relative;
     }
 
     .model-row {
@@ -472,6 +473,7 @@
       display: flex;
       gap: 10px;
       align-items: flex-end;
+      position: relative;
     }
     #composer textarea {
       flex: 1;
@@ -520,6 +522,294 @@
       opacity: 0.55;
       cursor: not-allowed;
       box-shadow: none;
+    }
+
+    .pyx-load-spinner {
+      position: relative;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      opacity: 0.98;
+    }
+    .pyx-load-spinner-ring,
+    .pyx-load-spinner-arc {
+      position: absolute;
+      border-radius: 999px;
+      border-style: solid;
+      border-color: transparent;
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+    .pyx-load-spinner-ring {
+      inset: 0;
+      border-width: 3px;
+      border-top-color: rgba(59, 130, 246, 0.95);
+      border-right-color: rgba(59, 130, 246, 0.95);
+      border-bottom-color: rgba(59, 130, 246, 0.18);
+      border-left-color: rgba(59, 130, 246, 0.18);
+      animation: pyxSpin 0.85s linear infinite;
+    }
+    .pyx-load-spinner-arc {
+      inset: 4px;
+      border-width: 3px;
+      border-top-color: #60a5fa;
+      border-right-color: #60a5fa;
+      animation: pyxSpinFast 0.28s linear infinite;
+      filter: drop-shadow(0 0 2px rgba(96, 165, 250, 0.35));
+    }
+    .pyx-load-spinner[hidden] { display: none !important; }
+    @keyframes pyxSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pyxSpinFast {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .app-dock {
+      margin-top: 12px;
+      display: none;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface-2);
+      padding: 10px;
+      width: 100%;
+      max-width: 100%;
+      position: relative;
+    }
+    .app-dock.is-open { display: block; }
+    .app-dock-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border-radius: 12px;
+      background: rgba(7, 11, 22, 0.72);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      z-index: 40;
+    }
+    .app-dock-loading[hidden] { display: none !important; }
+    .app-dock-loading-copy {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: #dbeafe;
+      text-align: center;
+      text-shadow: 0 1px 0 rgba(2, 6, 23, 0.35);
+    }
+    .app-card-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .app-card-body { font-size: 13px; color: var(--text); }
+    .app-inline-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .app-inline-row button {
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .app-inline-row button:hover {
+      border-color: rgba(79, 70, 229, 0.35);
+      color: var(--primary);
+    }
+    .calc-shell {
+      margin-top: 2px;
+      border-radius: 18px;
+      padding: 12px;
+      background:
+        radial-gradient(120% 120% at 18% 8%, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.08) 46%, rgba(255, 255, 255, 0.02) 100%),
+        linear-gradient(140deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05));
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.35),
+        inset 0 -18px 26px rgba(0, 0, 0, 0.12),
+        0 14px 30px rgba(15, 23, 42, 0.2);
+      backdrop-filter: blur(12px) saturate(120%);
+      -webkit-backdrop-filter: blur(12px) saturate(120%);
+    }
+    .calc-display {
+      min-height: 66px;
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.36), rgba(255,255,255,0.16));
+      border: 1px solid rgba(255,255,255,0.42);
+      color: #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: flex-end;
+      gap: 3px;
+      overflow: hidden;
+      box-shadow: inset 0 1px 6px rgba(255,255,255,0.12);
+    }
+    .calc-display .expr {
+      font-size: 12px;
+      color: rgba(71, 85, 105, 0.9);
+      min-height: 16px;
+      font-weight: 600;
+    }
+    .calc-display .out {
+      font-size: 28px;
+      line-height: 1;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: #0f172a;
+      max-width: 100%;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    .calc-result {
+      margin-top: 8px;
+      border-radius: 12px;
+      padding: 8px 10px;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.64));
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .calc-result-label {
+      font-size: 11px;
+      color: rgba(226, 232, 240, 0.75);
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .calc-result-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #f8fafc;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      max-width: 70%;
+      text-align: right;
+    }
+    .calc-grid {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .calc-btn {
+      border: 1px solid rgba(255,255,255,0.28);
+      border-radius: 14px;
+      height: 44px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+      background: linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.62));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.36), 0 5px 12px rgba(15,23,42,0.22);
+      cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+    .calc-btn:hover { filter: brightness(1.06); }
+    .calc-btn:active { transform: translateY(1px) scale(0.99); }
+    .calc-btn.op {
+      background: linear-gradient(180deg, rgba(249, 115, 22, 0.95), rgba(234, 88, 12, 0.86));
+      border-color: rgba(255, 191, 134, 0.55);
+      color: #fff7ed;
+    }
+    .calc-btn.meta {
+      background: linear-gradient(180deg, rgba(148, 163, 184, 0.9), rgba(100, 116, 139, 0.75));
+      border-color: rgba(203, 213, 225, 0.45);
+      color: #f8fafc;
+    }
+    .calc-btn.zero { grid-column: span 2; }
+    .ttt-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 44px);
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .ttt-cell {
+      width: 44px;
+      height: 44px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .ttt-cell:disabled { opacity: 0.55; cursor: not-allowed; }
+    .app-number-input {
+      width: 110px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      padding: 6px 8px;
+      font-size: 13px;
+    }
+    .msg--app-spacer {
+      height: 1px;
+      min-height: 1px;
+      margin: 0;
+      padding: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .mention-menu {
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 8px);
+      width: min(320px, 92%);
+      max-height: 320px;
+      overflow: auto;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      z-index: 20;
+      padding: 6px;
+      display: none;
+    }
+    .mention-menu.is-open { display: block; }
+    .mention-item {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      font-family: inherit;
+      border-radius: 8px;
+      padding: 8px 9px;
+      cursor: pointer;
+    }
+    .mention-item:hover,
+    .mention-item.is-active {
+      background: var(--surface-2);
+    }
+    .mention-item .cmd {
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .mention-item .desc {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
     }
 
     .web-row {
@@ -587,7 +877,7 @@
     </div>
 
     <h1>Pyx AI Talk</h1>
-    <p class="lede">Same chat on the web and in the desktop app — switch between <strong>Pyx 1.0</strong> and <strong>Pyx 1.3 preview</strong> below.</p>
+    <p class="lede">Pyx 1.0 cloud chat with extra in-chat apps and games for fun.</p>
 
     <div class="panel">
       <div class="model-row">
@@ -617,13 +907,19 @@
           <option value="thinking">Pyx Reasoning 1.0</option>
         </select>
       </div>
+      <div id="pyxLoadSpinner" class="pyx-load-spinner" hidden aria-hidden="true">
+        <span class="pyx-load-spinner-ring"></span>
+        <span class="pyx-load-spinner-arc"></span>
+      </div>
 
       <div id="chat" aria-live="polite"></div>
 
       <div id="composer">
+        <div id="mentionMenu" class="mention-menu" role="listbox" aria-label="@ commands"></div>
         <textarea id="input" placeholder="Write a message…" rows="3" aria-label="Message"></textarea>
         <button type="button" id="send">Send</button>
       </div>
+      <div id="appDock" class="app-dock" aria-live="polite"></div>
     </div>
 
     <p class="small" id="status"></p>
@@ -781,6 +1077,16 @@
       var inputEl = document.getElementById("input");
       var sendBtn = document.getElementById("send");
       var statusEl = document.getElementById("status");
+      var appDockEl = document.getElementById("appDock");
+      var loadSpinnerEl = document.getElementById("pyxLoadSpinner");
+      var appDockLoadingEl = document.createElement("div");
+      var appDockLoadingCopyEl = document.createElement("div");
+      appDockLoadingEl.className = "app-dock-loading";
+      appDockLoadingEl.hidden = true;
+      appDockLoadingCopyEl.className = "app-dock-loading-copy";
+      appDockLoadingCopyEl.textContent = "Loading this app... just a sec.";
+      if (loadSpinnerEl) appDockLoadingEl.appendChild(loadSpinnerEl);
+      appDockLoadingEl.appendChild(appDockLoadingCopyEl);
       var messages = [];
       var MAX_STORE_CHARS = 450000;
       var MAX_STORE_MESSAGES = 200;
@@ -788,6 +1094,50 @@
       var useWebEl = document.getElementById("useWeb");
       var useWebAutoEl = document.getElementById("useWebAuto");
       var talkLineEl = document.getElementById("talkLine");
+      var appPyxelBtn = document.getElementById("appPyxel");
+      var appChessBtn = document.getElementById("appChess");
+      var appTttBtn = document.getElementById("appTtt");
+      var appGuessBtn = document.getElementById("appGuess");
+      var appTriviaBtn = document.getElementById("appTrivia");
+      var appRpsBtn = document.getElementById("appRps");
+      var appDiceBtn = document.getElementById("appDice");
+      var appCoinBtn = document.getElementById("appCoin");
+      var mentionMenuEl = document.getElementById("mentionMenu");
+      var APP_EVENT_PREFIX = "__PYX_APP_EVENT__";
+
+      var appState = {
+        guess: null,   // { target:number, attempts:number, min:number, max:number }
+        rps: false,
+        trivia: null,  // { score:number, round:number, q:object|null }
+        chess: null,   // { score:number, round:number, q:object|null }
+        ttt: null,     // { board:string[], active:boolean }
+        calc: null,    // { expr:string, output:string }
+        dice: null,
+        coin: null,
+      };
+      var busyFlag = false;
+      var spinnerDeadline = 0;
+      var spinnerTimer = null;
+      var calcAudioCtx = null;
+
+      var MENTION_APPS = [
+        { cmd: "calculator", desc: "Polished calculator" },
+        { cmd: "chess", desc: "Chess Trainer vs Pyx" },
+        { cmd: "ttt", desc: "Tic-Tac-Toe vs Pyx" },
+        { cmd: "guess", desc: "Number Guess game" },
+        { cmd: "trivia", desc: "Trivia Blitz quiz" },
+        { cmd: "rps", desc: "Rock Paper Scissors" },
+        { cmd: "flipacoin", desc: "Flip a coin" },
+        { cmd: "dice", desc: "Roll dice" },
+        { cmd: "pyxel", desc: "Launch Pyxel grid app" },
+      ];
+      var mentionState = {
+        open: false,
+        items: [],
+        active: 0,
+        tokenStart: -1,
+        tokenEnd: -1,
+      };
 
       function getTalkLine() {
         return talkLineEl && talkLineEl.value === "preview" ? "preview" : "cloud";
@@ -828,6 +1178,7 @@
         var bp = document.getElementById("pyxLineBannerPreview");
         if (bc) bc.hidden = preview;
         if (bp) bp.hidden = !preview;
+        if (preview) appDockClear();
       }
 
       // Cloud (web) labels — 1.0 line.
@@ -1132,12 +1483,768 @@
       }
 
       function addAssistantBubbleContent(content) {
+        if (typeof content === "string" && content.indexOf(APP_EVENT_PREFIX) === 0) {
+          var spacer = document.createElement("div");
+          spacer.className = "msg msg--app-spacer";
+          spacer.setAttribute("aria-hidden", "true");
+          chatEl.appendChild(spacer);
+          chatEl.scrollTop = chatEl.scrollHeight;
+          return;
+        }
         var parsed = parsePixelStored(content);
         if (parsed && parsed.pixels && parsed.pixels.length && parsed.w && parsed.h) {
           addPixelArtBubble(parsed);
           return;
         }
         addBubble(content, "bot");
+      }
+
+      function appReply(markdownText) {
+        var t = String(markdownText || "").trim();
+        messages.push({ role: "assistant", content: APP_EVENT_PREFIX + t.slice(0, 400) });
+        addAssistantBubbleContent(APP_EVENT_PREFIX + t.slice(0, 400));
+        persistChat();
+      }
+
+      function escHtml(s) {
+        return String(s || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function appDockClear() {
+        if (!appDockEl) return;
+        appDockEl.classList.remove("is-open");
+        if (appDockLoadingEl) appDockLoadingEl.hidden = true;
+        if (loadSpinnerEl) loadSpinnerEl.hidden = true;
+        appDockEl.innerHTML = "";
+      }
+
+      function setAppDockInteractive(enabled) {
+        if (!appDockEl) return;
+        var controls = appDockEl.querySelectorAll("button, input, textarea, select");
+        for (var i = 0; i < controls.length; i++) {
+          controls[i].disabled = !enabled;
+        }
+      }
+
+      function appDockSet(title, bodyHtml, bindFn) {
+        if (!appDockEl) return;
+        appDockEl.classList.add("is-open");
+        if (appDockEl.parentNode !== chatEl) {
+          chatEl.appendChild(appDockEl);
+        }
+        appDockEl.innerHTML =
+          '<div class="app-card-title">' + escHtml(title) + "</div>" +
+          '<div class="app-card-body">' + bodyHtml + "</div>";
+        if (appDockLoadingEl && appDockLoadingEl.parentNode !== appDockEl) {
+          appDockEl.appendChild(appDockLoadingEl);
+        }
+        if (loadSpinnerEl && loadSpinnerEl.parentNode !== appDockLoadingEl) {
+          appDockLoadingEl.appendChild(loadSpinnerEl);
+        }
+        if (typeof bindFn === "function") bindFn();
+        if (appDockLoadingEl && !appDockLoadingEl.hidden) {
+          setAppDockInteractive(false);
+        }
+        chatEl.scrollTop = chatEl.scrollHeight;
+      }
+
+      function renderRpsDock(lastLine) {
+        var line = lastLine || "Pick your move.";
+        appDockSet(
+          "In-chat App · Rock Paper Scissors",
+          "<div>" + escHtml(line) + "</div>" +
+          '<div class="app-inline-row">' +
+          '<button type="button" data-rps="rock">Rock</button>' +
+          '<button type="button" data-rps="paper">Paper</button>' +
+          '<button type="button" data-rps="scissors">Scissors</button>' +
+          "</div>",
+          function () {
+            var btns = appDockEl.querySelectorAll("[data-rps]");
+            for (var i = 0; i < btns.length; i++) {
+              btns[i].addEventListener("click", function () {
+                appTryRpsInput(this.getAttribute("data-rps") || "");
+              });
+            }
+          }
+        );
+      }
+
+      function renderGuessDock(note) {
+        var n = note || "Guess 1-50.";
+        var attempts = appState.guess ? appState.guess.attempts : 0;
+        appDockSet(
+          "In-chat App · Number Guess",
+          "<div>" + escHtml(n) + " Attempts: <strong>" + attempts + "</strong></div>" +
+          '<div class="app-inline-row">' +
+          '<input id="guessInput" class="app-number-input" type="number" min="1" max="50" placeholder="1-50" />' +
+          '<button type="button" id="guessBtn">Guess</button>' +
+          "</div>",
+          function () {
+            var gi = document.getElementById("guessInput");
+            var gb = document.getElementById("guessBtn");
+            function submitGuess() {
+              if (!gi) return;
+              var val = String(gi.value || "").trim();
+              if (!val) return;
+              appTryGuessInput(val);
+              gi.value = "";
+              gi.focus();
+            }
+            if (gb) gb.addEventListener("click", submitGuess);
+            if (gi) {
+              gi.addEventListener("keydown", function (e) {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  submitGuess();
+                }
+              });
+              gi.focus();
+            }
+          }
+        );
+      }
+
+      function renderQuizDock(title, prompt, choices, prefix) {
+        appDockSet(
+          title,
+          "<div>" + escHtml(prompt) + "</div>" +
+          '<div class="app-inline-row">' +
+          '<button type="button" data-q="' + prefix + 'a">A</button>' +
+          '<button type="button" data-q="' + prefix + 'b">B</button>' +
+          '<button type="button" data-q="' + prefix + 'c">C</button>' +
+          "</div>" +
+          '<div style="margin-top:8px;color:var(--muted);font-size:12px;">' +
+          escHtml(choices[0]) + "<br/>" + escHtml(choices[1]) + "<br/>" + escHtml(choices[2]) +
+          "</div>",
+          function () {
+            var btns = appDockEl.querySelectorAll("[data-q]");
+            for (var i = 0; i < btns.length; i++) {
+              btns[i].addEventListener("click", function () {
+                var v = (this.getAttribute("data-q") || "").slice(-1);
+                if (prefix === "trivia:") appTryTriviaInput(v);
+                if (prefix === "chess:") appTryChessInput(v);
+              });
+            }
+          }
+        );
+      }
+
+      function renderTttDock(note) {
+        var st = appState.ttt;
+        if (!st) return appDockClear();
+        function c(i) { return st.board[i] || ""; }
+        var disabled = st.active ? "" : " disabled";
+        appDockSet(
+          "In-chat App · Tic-Tac-Toe vs Pyx",
+          '<div>' + escHtml(note || "You are X. Tap a square.") + "</div>" +
+          '<div class="ttt-grid">' +
+          '<button type="button" class="ttt-cell" data-ttt="0"' + disabled + ">" + escHtml(c(0)) + "</button>" +
+          '<button type="button" class="ttt-cell" data-ttt="1"' + disabled + ">" + escHtml(c(1)) + "</button>" +
+          '<button type="button" class="ttt-cell" data-ttt="2"' + disabled + ">" + escHtml(c(2)) + "</button>" +
+          '<button type="button" class="ttt-cell" data-ttt="3"' + disabled + ">" + escHtml(c(3)) + "</button>" +
+          '<button type="button" class="ttt-cell" data-ttt="4"' + disabled + ">" + escHtml(c(4)) + "</button>" +
+          '<button type="button" class="ttt-cell" data-ttt="5"' + disabled + ">" + escHtml(c(5)) + "</button>" +
+          '<button type="button" class="ttt-cell" data-ttt="6"' + disabled + ">" + escHtml(c(6)) + "</button>" +
+          '<button type="button" class="ttt-cell" data-ttt="7"' + disabled + ">" + escHtml(c(7)) + "</button>" +
+          '<button type="button" class="ttt-cell" data-ttt="8"' + disabled + ">" + escHtml(c(8)) + "</button>" +
+          "</div>" +
+          '<div class="app-inline-row"><button type="button" id="tttRestart">Restart</button></div>',
+          function () {
+            var btns = appDockEl.querySelectorAll("[data-ttt]");
+            for (var i = 0; i < btns.length; i++) {
+              btns[i].addEventListener("click", function () {
+                var idx = parseInt(this.getAttribute("data-ttt") || "-1", 10);
+                if (idx >= 0) appTryTttInput(String(idx + 1));
+              });
+            }
+            var rb = document.getElementById("tttRestart");
+            if (rb) rb.addEventListener("click", appStartTtt);
+          }
+        );
+      }
+
+      function appHandleDice() {
+        var a = 1 + Math.floor(Math.random() * 6);
+        var b = 1 + Math.floor(Math.random() * 6);
+        appState.dice = { a: a, b: b };
+        appReply("**In-chat App · Dice**\n\nYou rolled **" + a + "** and **" + b + "** (total **" + (a + b) + "**).");
+        appDockSet(
+          "In-chat App · Dice",
+          "<div>Roll: <strong>" + a + "</strong> and <strong>" + b + "</strong> (total <strong>" + (a + b) + "</strong>)</div>" +
+          '<div class="app-inline-row"><button type="button" id="diceReroll">Roll again</button></div>',
+          function () {
+            var rb = document.getElementById("diceReroll");
+            if (rb) rb.addEventListener("click", appHandleDice);
+          }
+        );
+        statusEl.textContent = "In-chat App · Dice";
+      }
+      function appStartDice() {
+        kickSpinnerWindow();
+        appHandleDice();
+      }
+
+      function appHandleCoin() {
+        var side = Math.random() < 0.5 ? "Heads" : "Tails";
+        appState.coin = { side: side };
+        appReply("**In-chat App · Coin Flip**\n\nResult: **" + side + "**.");
+        appDockSet(
+          "In-chat App · Coin Flip",
+          "<div>Result: <strong>" + escHtml(side) + "</strong></div>" +
+          '<div class="app-inline-row"><button type="button" id="coinFlipAgain">Flip again</button></div>',
+          function () {
+            var fb = document.getElementById("coinFlipAgain");
+            if (fb) fb.addEventListener("click", appHandleCoin);
+          }
+        );
+        statusEl.textContent = "In-chat App · Coin";
+      }
+      function appStartCoin() {
+        kickSpinnerWindow();
+        appHandleCoin();
+      }
+
+      function appStartRps() {
+        kickSpinnerWindow();
+        appState.rps = { active: true, wins: 0, losses: 0, draws: 0 };
+        appReply("**In-chat App · Rock Paper Scissors**\n\nType one of: `rock`, `paper`, or `scissors`.");
+        renderRpsDock("Tap a move.");
+        statusEl.textContent = "In-chat App · RPS";
+      }
+
+      function appTryRpsInput(text) {
+        if (!appState.rps || !appState.rps.active) return false;
+        var t = (text || "").trim().toLowerCase();
+        if (!/^(rock|paper|scissors)$/.test(t)) return false;
+        var picks = ["rock", "paper", "scissors"];
+        var pyx = picks[Math.floor(Math.random() * picks.length)];
+        var win =
+          (t === "rock" && pyx === "scissors") ||
+          (t === "paper" && pyx === "rock") ||
+          (t === "scissors" && pyx === "paper");
+        var draw = t === pyx;
+        var result = draw ? "Draw." : (win ? "You win!" : "Pyx wins!");
+        if (draw) appState.rps.draws += 1;
+        else if (win) appState.rps.wins += 1;
+        else appState.rps.losses += 1;
+        appReply("**In-chat App · Rock Paper Scissors**\n\nYou: **" + t + "**\nPyx: **" + pyx + "**\n\n" + result + " Type another move or launch a different app.");
+        renderRpsDock(
+          "You: " + t + " • Pyx: " + pyx + " • " + result +
+          " Score W/L/D: " + appState.rps.wins + "/" + appState.rps.losses + "/" + appState.rps.draws
+        );
+        statusEl.textContent = "In-chat App · RPS";
+        return true;
+      }
+
+      function appStartGuess() {
+        kickSpinnerWindow();
+        appState.guess = { target: 1 + Math.floor(Math.random() * 50), attempts: 0, min: 1, max: 50 };
+        appReply("**In-chat App · Number Guess**\n\nI picked a number from **1** to **50**. Type your guess.");
+        renderGuessDock("I picked a number from 1 to 50.");
+        statusEl.textContent = "In-chat App · Number Guess";
+      }
+
+      function appTryGuessInput(text) {
+        if (!appState.guess) return false;
+        var t = (text || "").trim();
+        if (!/^-?\\d+$/.test(t)) return false;
+        var n = parseInt(t, 10);
+        var g = appState.guess;
+        g.attempts += 1;
+        if (n === g.target) {
+          appReply("**In-chat App · Number Guess**\n\nCorrect! 🎉 You got it in **" + g.attempts + "** guess(es).");
+          appState.guess = null;
+          appDockSet(
+            "In-chat App · Number Guess",
+            "<div>Correct! 🎉 You got it in <strong>" + g.attempts + "</strong> guess(es).</div>" +
+            '<div class="app-inline-row"><button type="button" id="guessRestart">Play again</button></div>',
+            function () {
+              var rb = document.getElementById("guessRestart");
+              if (rb) rb.addEventListener("click", appStartGuess);
+            }
+          );
+          statusEl.textContent = "In-chat App · Number Guess complete";
+          return true;
+        }
+        if (n < g.target) {
+          appReply("**In-chat App · Number Guess**\n\nToo low. Try higher.");
+          renderGuessDock("Too low. Try higher.");
+        } else {
+          appReply("**In-chat App · Number Guess**\n\nToo high. Try lower.");
+          renderGuessDock("Too high. Try lower.");
+        }
+        statusEl.textContent = "In-chat App · Number Guess";
+        return true;
+      }
+
+      function calcSafeEval(expr) {
+        var raw = String(expr || "").replace(/[×x]/gi, "*").replace(/[÷]/g, "/").replace(/\s+/g, "");
+        if (!raw) return { ok: false, err: "empty" };
+        if (!/^[0-9+\-*/().%]+$/.test(raw)) return { ok: false, err: "chars" };
+        var normalized = raw.replace(/(\d+(?:\.\d+)?)%/g, "($1/100)");
+        try {
+          var n = Function('"use strict"; return (' + normalized + ');')();
+          if (typeof n !== "number" || !isFinite(n)) return { ok: false, err: "num" };
+          var out = Math.round(n * 1000000000) / 1000000000;
+          return { ok: true, value: out };
+        } catch (e) {
+          return { ok: false, err: "syntax" };
+        }
+      }
+
+      function calcFormatDisplay(v) {
+        var s = String(v);
+        return s.length > 14 ? s.slice(0, 14) + "…" : s;
+      }
+
+      function playCalcClick() {
+        try {
+          var AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return;
+          if (!calcAudioCtx) calcAudioCtx = new AC();
+          if (calcAudioCtx.state === "suspended" && typeof calcAudioCtx.resume === "function") {
+            calcAudioCtx.resume();
+          }
+          var now = calcAudioCtx.currentTime;
+          var osc = calcAudioCtx.createOscillator();
+          var gain = calcAudioCtx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(920, now);
+          osc.frequency.exponentialRampToValueAtTime(650, now + 0.045);
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.linearRampToValueAtTime(0.04, now + 0.008);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+          osc.connect(gain);
+          gain.connect(calcAudioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.07);
+        } catch (e) {
+          /* audio is optional */
+        }
+      }
+
+      function renderCalcDock(note) {
+        if (!appState.calc) return;
+        var st = appState.calc;
+        var buttons = [
+          ["C", "AC", "±", "÷"],
+          ["7", "8", "9", "×"],
+          ["4", "5", "6", "-"],
+          ["1", "2", "3", "+"],
+          ["0", ".", "%", "="]
+        ];
+        var html =
+          '<div class="calc-shell">' +
+          '<div class="calc-display">' +
+          '<div class="expr">' + escHtml(st.expr || note || "Ready") + "</div>" +
+          '<div class="out">' + escHtml(calcFormatDisplay(st.output || "0")) + "</div>" +
+          "</div>" +
+          '<div class="calc-result">' +
+          '<span class="calc-result-label">Result</span>' +
+          '<span class="calc-result-value">' + escHtml(calcFormatDisplay(st.output || "0")) + "</span>" +
+          "</div>" +
+          '<div class="calc-grid">';
+        for (var r = 0; r < buttons.length; r++) {
+          for (var c = 0; c < buttons[r].length; c++) {
+            var key = buttons[r][c];
+            var cls = "calc-btn";
+            if (/[+\-×÷=]/.test(key)) cls += " op";
+            if (/^(AC|C|±|%)$/.test(key)) cls += " meta";
+            if (key === "0") cls += " zero";
+            html += '<button type="button" class="' + cls + '" data-calc="' + key + '">' + escHtml(key) + "</button>";
+          }
+        }
+        html += "</div></div>";
+        appDockSet("In-chat App · Calculator", html, function () {
+          var btns = appDockEl.querySelectorAll("[data-calc]");
+          for (var i = 0; i < btns.length; i++) {
+            btns[i].addEventListener("click", function () {
+              playCalcClick();
+              appTryCalcInput(this.getAttribute("data-calc") || "");
+            });
+          }
+        });
+      }
+
+      function appStartCalc() {
+        appState.calc = { expr: "", output: "0" };
+        appReply("**In-chat App · Calculator**\n\nCalculator launched. Use buttons or type expressions in chat.");
+        renderCalcDock("Ready");
+        kickSpinnerWindow(10000, 16000); // 10.x to 15.x sec
+        statusEl.textContent = "In-chat App · Calculator";
+      }
+
+      function appTryCalcInput(text) {
+        if (!appState.calc) return false;
+        if (!appDockEl || !appDockEl.classList.contains("is-open")) return false;
+        var dockTitle = appDockEl.querySelector(".app-card-title");
+        if (!dockTitle || dockTitle.textContent.indexOf("Calculator") === -1) return false;
+        var t = String(text || "").trim();
+        if (!t) return false;
+        var st = appState.calc;
+        if (t === "AC" || t.toLowerCase() === "clear" || t === "C") {
+          st.expr = "";
+          st.output = "0";
+          renderCalcDock("Cleared");
+          statusEl.textContent = "In-chat App · Calculator";
+          return true;
+        }
+        if (t === "±") {
+          var num = parseFloat(st.output || "0");
+          if (isFinite(num)) st.output = String(-num);
+          renderCalcDock("Sign toggled");
+          return true;
+        }
+        if (t === "=" || t.toLowerCase() === "enter") {
+          var fromExpr = st.expr || st.output;
+          var solved = calcSafeEval(fromExpr);
+          if (!solved.ok) {
+            st.output = "Error";
+            renderCalcDock("Invalid expression");
+            return true;
+          }
+          st.output = String(solved.value);
+          st.expr = st.output;
+          renderCalcDock("Calculated");
+          return true;
+        }
+        if (/^[0-9.+\-*/()%×÷]+$/.test(t)) {
+          st.expr += t;
+          var preview = calcSafeEval(st.expr);
+          st.output = preview.ok ? String(preview.value) : st.output;
+          renderCalcDock("Typing");
+          return true;
+        }
+        return false;
+      }
+
+      var TRIVIA_QUESTIONS = [
+        { q: "Which planet is known as the Red Planet?", choices: ["A) Mars", "B) Venus", "C) Jupiter"], a: "a" },
+        { q: "How many bytes are in a kilobyte (binary)?", choices: ["A) 1000", "B) 1024", "C) 2048"], a: "b" },
+        { q: "Which language runs natively in web browsers?", choices: ["A) Python", "B) Java", "C) JavaScript"], a: "c" },
+        { q: "What does HTTP stand for?", choices: ["A) HyperText Transfer Protocol", "B) HighText Transit Program", "C) Hyper Tool Transfer Process"], a: "a" },
+      ];
+
+      function appAskTriviaQuestion() {
+        if (!appState.trivia) return;
+        var q = TRIVIA_QUESTIONS[Math.floor(Math.random() * TRIVIA_QUESTIONS.length)];
+        appState.trivia.q = q;
+        appReply(
+          "**In-chat App · Trivia Blitz**\n\nRound **" +
+            appState.trivia.round +
+            "/5**\n\n" +
+            q.q +
+            "\n" +
+            q.choices.join("\n") +
+            "\n\nType: `a`, `b`, or `c`."
+        );
+        renderQuizDock(
+          "In-chat App · Trivia Blitz",
+          "Round " + appState.trivia.round + "/5 — " + q.q,
+          q.choices,
+          "trivia:"
+        );
+      }
+
+      function appStartTrivia() {
+        kickSpinnerWindow();
+        appState.trivia = { score: 0, round: 1, q: null };
+        appAskTriviaQuestion();
+        statusEl.textContent = "In-chat App · Trivia Blitz";
+      }
+
+      function appTryTriviaInput(text) {
+        if (!appState.trivia || !appState.trivia.q) return false;
+        var t = (text || "").trim().toLowerCase();
+        if (!/^[abc]$/.test(t)) return false;
+        var tr = appState.trivia;
+        var ok = t === tr.q.a;
+        if (ok) tr.score += 1;
+        appReply("**In-chat App · Trivia Blitz**\n\n" + (ok ? "✅ Correct." : "❌ Not quite.") + " Score: **" + tr.score + "/" + tr.round + "**.");
+        if (tr.round >= 5) {
+          appReply("**In-chat App · Trivia Blitz complete**\n\nFinal score: **" + tr.score + "/5**.");
+          appState.trivia = null;
+          statusEl.textContent = "In-chat App · Trivia complete";
+        } else {
+          tr.round += 1;
+          appAskTriviaQuestion();
+        }
+        return true;
+      }
+
+      var CHESS_PUZZLES = [
+        { q: "White to move: find the checkmate in one.", choices: ["A) Qh7#", "B) Qe8+", "C) Re8+"], a: "a" },
+        { q: "Black to move: win the queen tactic.", choices: ["A) ...Bb4+", "B) ...Nxe4", "C) ...Qxd4"], a: "a" },
+        { q: "White to move: best tactical shot.", choices: ["A) Nxf7", "B) Bxh7+", "C) Qh5"], a: "b" },
+      ];
+
+      function appAskChessQuestion() {
+        if (!appState.chess) return;
+        var q = CHESS_PUZZLES[Math.floor(Math.random() * CHESS_PUZZLES.length)];
+        appState.chess.q = q;
+        appReply(
+          "**In-chat App · Chess Trainer vs Pyx**\n\nPuzzle **" +
+            appState.chess.round +
+            "/3**\n\n" +
+            q.q +
+            "\n" +
+            q.choices.join("\n") +
+            "\n\nType: `a`, `b`, or `c`."
+        );
+        renderQuizDock(
+          "In-chat App · Chess Trainer vs Pyx",
+          "Puzzle " + appState.chess.round + "/3 — " + q.q,
+          q.choices,
+          "chess:"
+        );
+      }
+
+      function appStartChess() {
+        kickSpinnerWindow();
+        appState.chess = { score: 0, round: 1, q: null };
+        appAskChessQuestion();
+        statusEl.textContent = "In-chat App · Chess Trainer";
+      }
+
+      function appTryChessInput(text) {
+        if (!appState.chess || !appState.chess.q) return false;
+        var t = (text || "").trim().toLowerCase();
+        if (!/^[abc]$/.test(t)) return false;
+        var ch = appState.chess;
+        var ok = t === ch.q.a;
+        if (ok) ch.score += 1;
+        appReply("**In-chat App · Chess Trainer**\n\n" + (ok ? "♟️ Strong move." : "Try another line next time.") + " Score: **" + ch.score + "/" + ch.round + "**.");
+        if (ch.round >= 3) {
+          appReply("**In-chat App · Chess Trainer complete**\n\nFinal score: **" + ch.score + "/3**.");
+          appState.chess = null;
+          statusEl.textContent = "In-chat App · Chess complete";
+        } else {
+          ch.round += 1;
+          appAskChessQuestion();
+        }
+        return true;
+      }
+
+      function tttWinner(board, mark) {
+        var wins = [
+          [0,1,2],[3,4,5],[6,7,8],
+          [0,3,6],[1,4,7],[2,5,8],
+          [0,4,8],[2,4,6]
+        ];
+        for (var i = 0; i < wins.length; i++) {
+          var w = wins[i];
+          if (board[w[0]] === mark && board[w[1]] === mark && board[w[2]] === mark) return true;
+        }
+        return false;
+      }
+
+      function tttRender(board) {
+        function c(i) { return board[i] || String(i + 1); }
+        return c(0) + " | " + c(1) + " | " + c(2) + "\n" +
+               "--+---+--\n" +
+               c(3) + " | " + c(4) + " | " + c(5) + "\n" +
+               "--+---+--\n" +
+               c(6) + " | " + c(7) + " | " + c(8);
+      }
+
+      function tttChooseMove(board) {
+        var i;
+        for (i = 0; i < 9; i++) {
+          if (!board[i]) { board[i] = "O"; if (tttWinner(board, "O")) { board[i] = ""; return i; } board[i] = ""; }
+        }
+        for (i = 0; i < 9; i++) {
+          if (!board[i]) { board[i] = "X"; if (tttWinner(board, "X")) { board[i] = ""; return i; } board[i] = ""; }
+        }
+        if (!board[4]) return 4;
+        var corners = [0, 2, 6, 8].filter(function (x) { return !board[x]; });
+        if (corners.length) return corners[Math.floor(Math.random() * corners.length)];
+        var empties = [];
+        for (i = 0; i < 9; i++) if (!board[i]) empties.push(i);
+        return empties.length ? empties[Math.floor(Math.random() * empties.length)] : -1;
+      }
+
+      function appStartTtt() {
+        kickSpinnerWindow();
+        appState.ttt = { board: ["","","","","","","","",""], active: true };
+        appReply("**In-chat App · Tic-Tac-Toe vs Pyx**\n\nYou are **X**. Type a square number (1-9).\n\n```\n" + tttRender(appState.ttt.board) + "\n```");
+        renderTttDock("You are X. Tap a square.");
+        statusEl.textContent = "In-chat App · Tic-Tac-Toe";
+      }
+
+      function appTryTttInput(text) {
+        if (!appState.ttt || !appState.ttt.active) return false;
+        var t = (text || "").trim();
+        if (!/^[1-9]$/.test(t)) return false;
+        var idx = parseInt(t, 10) - 1;
+        var st = appState.ttt;
+        if (st.board[idx]) {
+          appReply("**In-chat App · Tic-Tac-Toe**\n\nThat square is taken. Pick another (1-9).");
+          renderTttDock("That square is taken. Pick another.");
+          return true;
+        }
+        st.board[idx] = "X";
+        if (tttWinner(st.board, "X")) {
+          st.active = false;
+          appReply("**In-chat App · Tic-Tac-Toe**\n\nYou win! 🎉\n\n```\n" + tttRender(st.board) + "\n```");
+          renderTttDock("You win! 🎉");
+          return true;
+        }
+        if (st.board.every(function (c) { return !!c; })) {
+          st.active = false;
+          appReply("**In-chat App · Tic-Tac-Toe**\n\nDraw.\n\n```\n" + tttRender(st.board) + "\n```");
+          renderTttDock("Draw.");
+          return true;
+        }
+        var pyxMove = tttChooseMove(st.board);
+        if (pyxMove >= 0) st.board[pyxMove] = "O";
+        if (tttWinner(st.board, "O")) {
+          st.active = false;
+          appReply("**In-chat App · Tic-Tac-Toe**\n\nPyx wins this round.\n\n```\n" + tttRender(st.board) + "\n```");
+          renderTttDock("Pyx wins this round.");
+          return true;
+        }
+        if (st.board.every(function (c) { return !!c; })) {
+          st.active = false;
+          appReply("**In-chat App · Tic-Tac-Toe**\n\nDraw.\n\n```\n" + tttRender(st.board) + "\n```");
+          renderTttDock("Draw.");
+          return true;
+        }
+        appReply("**In-chat App · Tic-Tac-Toe vs Pyx**\n\nYour move (1-9):\n\n```\n" + tttRender(st.board) + "\n```");
+        renderTttDock("Your move.");
+        return true;
+      }
+
+      function handleLocalAppCommand(text) {
+        var t = (text || "").trim().toLowerCase();
+        if (!t) return false;
+
+        var at = t.match(/^@([a-z0-9_-]+)\b(?:\s+(.*))?$/i);
+        if (at) {
+          var cmd = (at[1] || "").toLowerCase();
+          var rest = (at[2] || "").trim();
+          if (cmd === "calculator" || cmd === "calc") { appStartCalc(); return true; }
+          if (cmd === "chess") { appStartChess(); return true; }
+          if (cmd === "ttt" || cmd === "tictactoe" || cmd === "tic") { appStartTtt(); return true; }
+          if (cmd === "guess" || cmd === "numberguess") { appStartGuess(); return true; }
+          if (cmd === "trivia") { appStartTrivia(); return true; }
+          if (cmd === "rps" || cmd === "rockpaperscissors") { appStartRps(); return true; }
+          if (cmd === "dice" || cmd === "rolldice") { appStartDice(); return true; }
+          if (cmd === "flipacoin" || cmd === "coin" || cmd === "flip") { appStartCoin(); return true; }
+          if (cmd === "pyxel" || cmd === "pixel") { runInChatPixelArt(rest || "custom prompt"); return true; }
+        }
+
+        if (appTryCalcInput(t)) return true;
+        if (appTryGuessInput(t)) return true;
+        if (appTryRpsInput(t)) return true;
+        if (appTryTriviaInput(t)) return true;
+        if (appTryChessInput(t)) return true;
+        if (appTryTttInput(t)) return true;
+
+        if (/(^|\\s)(open|start|launch|use)\\s+.*(calculator|calc)/i.test(t)) { appStartCalc(); return true; }
+        if (/(^|\\s)(open|start|launch|play)\\s+.*(chess)/i.test(t)) { appStartChess(); return true; }
+        if (/(^|\\s)(open|start|launch|play)\\s+.*(tic\\s*-?\\s*tac\\s*-?\\s*toe|ttt)/i.test(t)) { appStartTtt(); return true; }
+        if (/(^|\\s)(open|start|launch|play)\\s+.*(number\\s*guess|guess)/i.test(t)) { appStartGuess(); return true; }
+        if (/(^|\\s)(open|start|launch|play)\\s+.*(trivia)/i.test(t)) { appStartTrivia(); return true; }
+        if (/(^|\\s)(open|start|launch|play)\\s+.*(rock\\s*paper\\s*scissors|rps)/i.test(t)) { appStartRps(); return true; }
+        if (/(^|\\s)(roll|dice)/i.test(t)) { appStartDice(); return true; }
+        if (/(^|\\s)(flip|coin)/i.test(t)) { appStartCoin(); return true; }
+        return false;
+      }
+
+      function isAppCommandLike(text) {
+        var t = (text || "").trim().toLowerCase();
+        if (!t) return false;
+        if (/^@([a-z0-9_-]+)/i.test(t)) return true;
+        if (appState.calc || appState.guess || appState.rps || appState.trivia || appState.chess || (appState.ttt && appState.ttt.active)) return true;
+        if (/(^|\\s)(open|start|launch|play|use)\\s+.*(calculator|calc|chess|tic\\s*-?\\s*tac\\s*-?\\s*toe|ttt|guess|trivia|rps|rock\\s*paper\\s*scissors)/i.test(t)) return true;
+        if (/(^|\\s)(roll|dice|flip|coin)/i.test(t)) return true;
+        if (/(^|\\s)(pyxel|pixel\\s*art|pix\\s*art)/i.test(t)) return true;
+        return false;
+      }
+
+      function mentionClose() {
+        mentionState.open = false;
+        mentionState.items = [];
+        mentionState.active = 0;
+        mentionState.tokenStart = -1;
+        mentionState.tokenEnd = -1;
+        if (mentionMenuEl) {
+          mentionMenuEl.classList.remove("is-open");
+          mentionMenuEl.innerHTML = "";
+        }
+      }
+
+      function mentionApplyIndex(idx) {
+        if (!mentionState.open || !mentionState.items.length) return;
+        var i = Math.max(0, Math.min(idx, mentionState.items.length - 1));
+        var item = mentionState.items[i];
+        var val = inputEl.value || "";
+        var start = mentionState.tokenStart;
+        var end = mentionState.tokenEnd >= 0 ? mentionState.tokenEnd : inputEl.selectionStart;
+        if (start < 0) return;
+        var before = val.slice(0, start);
+        var after = val.slice(end);
+        inputEl.value = before + "@" + item.cmd + " " + after;
+        var caret = (before + "@" + item.cmd + " ").length;
+        inputEl.focus();
+        inputEl.setSelectionRange(caret, caret);
+        mentionClose();
+      }
+
+      function mentionRender() {
+        if (!mentionMenuEl) return;
+        if (!mentionState.open || !mentionState.items.length) {
+          mentionClose();
+          return;
+        }
+        mentionMenuEl.classList.add("is-open");
+        mentionMenuEl.innerHTML = mentionState.items
+          .map(function (it, i) {
+            return (
+              '<button type="button" class="mention-item' + (i === mentionState.active ? " is-active" : "") + '" data-idx="' + i + '">' +
+              '<div class="cmd">@' + it.cmd + "</div>" +
+              '<div class="desc">' + it.desc + "</div>" +
+              "</button>"
+            );
+          })
+          .join("");
+        var btns = mentionMenuEl.querySelectorAll(".mention-item");
+        for (var b = 0; b < btns.length; b++) {
+          btns[b].addEventListener("click", function () {
+            var idx = parseInt(this.getAttribute("data-idx") || "0", 10);
+            mentionApplyIndex(idx);
+          });
+        }
+      }
+
+      function mentionUpdateFromInput() {
+        if (!mentionMenuEl || !inputEl) return;
+        if (getTalkLine() === "preview") {
+          mentionClose();
+          return;
+        }
+        var val = inputEl.value || "";
+        var caret = inputEl.selectionStart || 0;
+        var left = val.slice(0, caret);
+        var m = left.match(/(^|\\s)@([a-z0-9_-]*)$/i);
+        if (!m) {
+          mentionClose();
+          return;
+        }
+        var q = (m[2] || "").toLowerCase();
+        var tokenStart = caret - m[2].length - 1;
+        mentionState.tokenStart = tokenStart;
+        mentionState.tokenEnd = caret;
+        mentionState.items = MENTION_APPS.filter(function (x) {
+          return !q || x.cmd.indexOf(q) === 0;
+        }).slice(0, 8);
+        mentionState.open = mentionState.items.length > 0;
+        mentionState.active = 0;
+        mentionRender();
       }
 
       /** Empty assistant bubble; call append() with token deltas, then finalize() for Markdown + links. */
@@ -1236,9 +2343,62 @@
         return buf;
       }
 
+      function kickSpinnerWindow(minMs, maxMs) {
+        if (!loadSpinnerEl) return;
+        if (appDockEl && appDockEl.classList.contains("is-open")) {
+          if (appDockLoadingEl && appDockLoadingEl.parentNode !== appDockEl) {
+            appDockEl.appendChild(appDockLoadingEl);
+          }
+          if (loadSpinnerEl.parentNode !== appDockLoadingEl) {
+            appDockLoadingEl.appendChild(loadSpinnerEl);
+          }
+        }
+        var low = typeof minMs === "number" ? minMs : 5000;
+        var high = typeof maxMs === "number" ? maxMs : 11000;
+        if (high <= low) high = low + 1;
+        var holdMs = low + Math.floor(Math.random() * (high - low));
+        var nextDeadline = Date.now() + holdMs;
+        if (nextDeadline > spinnerDeadline) spinnerDeadline = nextDeadline;
+        loadSpinnerEl.hidden = false;
+        if (appDockEl && appDockEl.classList.contains("is-open")) {
+          appDockLoadingEl.hidden = false;
+          setAppDockInteractive(false);
+          if (typeof document !== "undefined" && document.activeElement && appDockEl.contains(document.activeElement)) {
+            document.activeElement.blur();
+          }
+        }
+        if (spinnerTimer) clearTimeout(spinnerTimer);
+        spinnerTimer = setTimeout(function () {
+          if (!busyFlag) {
+            loadSpinnerEl.hidden = true;
+            appDockLoadingEl.hidden = true;
+            setAppDockInteractive(true);
+          }
+        }, Math.max(0, spinnerDeadline - Date.now()));
+      }
+
       function setBusy(b) {
+        busyFlag = !!b;
         sendBtn.disabled = b;
         inputEl.disabled = b;
+        if (!loadSpinnerEl) return;
+        if (!b) {
+          var remain = spinnerDeadline - Date.now();
+          if (remain <= 0) {
+            loadSpinnerEl.hidden = true;
+            appDockLoadingEl.hidden = true;
+            setAppDockInteractive(true);
+          } else {
+            if (spinnerTimer) clearTimeout(spinnerTimer);
+            spinnerTimer = setTimeout(function () {
+              if (!busyFlag) {
+                loadSpinnerEl.hidden = true;
+                appDockLoadingEl.hidden = true;
+                setAppDockInteractive(true);
+              }
+            }, remain);
+          }
+        }
       }
 
       function runInChatPixelArt(subject) {
@@ -1351,6 +2511,24 @@
       function send() {
         var text = (inputEl.value || "").trim();
         if (!text) return;
+        if (getTalkLine() === "preview" && isAppCommandLike(text)) {
+          inputEl.value = "";
+          messages.push({ role: "user", content: text });
+          addBubble(text, "user");
+          appReply("**In-chat Apps are not available on Pyx 1.3 Preview yet.**\n\nSwitch to **Pyx 1.0 (cloud)** to use `@` apps and games.");
+          statusEl.textContent = "Apps unavailable on Pyx 1.3 Preview";
+          persistChat();
+          return;
+        }
+        // In-chat apps/games intercept before API chat.
+        if (handleLocalAppCommand(text)) {
+          inputEl.value = "";
+          messages.push({ role: "user", content: text });
+          addBubble(text, "user");
+          chatEl.scrollTop = chatEl.scrollHeight;
+          persistChat();
+          return;
+        }
         var pixelSubject = matchPixelArtIntent(text);
         if (pixelSubject && getTalkLine() !== "preview") {
           sendPixelArt(text, pixelSubject);
@@ -1573,12 +2751,61 @@
           });
       }
 
+      if (appPyxelBtn) {
+        appPyxelBtn.addEventListener("click", function () {
+          var sub = window.prompt("Pyxel subject?", "a happy robot waving");
+          if (!sub) return;
+          messages.push({ role: "user", content: "pyxel " + sub });
+          addBubble("pyxel " + sub, "user");
+          runInChatPixelArt(sub);
+        });
+      }
+      if (appChessBtn) appChessBtn.addEventListener("click", function(){ appStartChess(); });
+      if (appTttBtn) appTttBtn.addEventListener("click", function(){ appStartTtt(); });
+      if (appGuessBtn) appGuessBtn.addEventListener("click", function(){ appStartGuess(); });
+      if (appTriviaBtn) appTriviaBtn.addEventListener("click", function(){ appStartTrivia(); });
+      if (appRpsBtn) appRpsBtn.addEventListener("click", function(){ appStartRps(); });
+      if (appDiceBtn) appDiceBtn.addEventListener("click", function(){ appStartDice(); });
+      if (appCoinBtn) appCoinBtn.addEventListener("click", function(){ appStartCoin(); });
+
       sendBtn.addEventListener("click", send);
+      inputEl.addEventListener("input", mentionUpdateFromInput);
       inputEl.addEventListener("keydown", function (e) {
+        if (mentionState.open && mentionState.items.length) {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            mentionState.active = (mentionState.active + 1) % mentionState.items.length;
+            mentionRender();
+            return;
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            mentionState.active = (mentionState.active - 1 + mentionState.items.length) % mentionState.items.length;
+            mentionRender();
+            return;
+          }
+          if (e.key === "Enter" || e.key === "Tab") {
+            e.preventDefault();
+            mentionApplyIndex(mentionState.active);
+            return;
+          }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            mentionClose();
+            return;
+          }
+        }
         if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
           send();
         }
+      });
+      document.addEventListener("click", function (ev) {
+        if (!mentionState.open) return;
+        if (!mentionMenuEl) return;
+        var t = ev.target;
+        if (t === inputEl || mentionMenuEl.contains(t)) return;
+        mentionClose();
       });
 
       function reloadThreadForLine() {
@@ -1605,6 +2832,7 @@
         talkLineEl.addEventListener("change", function () {
           saveTalkLine();
           updateLineUi();
+          mentionClose();
           reloadThreadForLine();
         });
         saveTalkLine();
