@@ -7,6 +7,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+echo "Syncing local branch with remote..."
+git pull
+
 TARGET="${1:?usage: run-deploy.sh all|api|hosting [reason...]}"
 shift
 
