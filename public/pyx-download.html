@@ -27,8 +27,8 @@
       padding: 32px 20px 48px;
     }
     .wrap { max-width: 640px; margin: 0 auto; }
-    h1 { font-size: 1.65rem; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.02em; }
-    .lede { color: var(--muted); margin: 0 0 28px; font-size: 0.95rem; }
+    h1 { font-size: 1.7rem; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.02em; line-height: 1.2; }
+    .lede { color: var(--muted); margin: 0 0 24px; font-size: 0.95rem; max-width: 62ch; }
     a { color: var(--accent); }
     .card {
       background: var(--card);
@@ -82,17 +82,17 @@
         <img class="pyx-brand__wordmark pyx-brand__wordmark--pill" src="/brand/pyx-wordmark.png" alt="PYX." />
       </a>
     </div>
-    <h1 style="margin-top:6px;">Download Pyx 1.3</h1>
+    <h1 style="margin-top:6px;">Pyx Downloads</h1>
     <p class="lede">
-      Native macOS and Windows installers for the local Pyx 1.3 app.
-      Files are served from this site under <code>/downloads/</code> after each release tag is published.
+      Download current Pyx bundles and starter files.
+      Desktop installers and repo ZIPs are linked here in one place.
     </p>
 
     <div class="card">
       <h2>Pyx Talk app with 1.0 + 1.3</h2>
       <p style="margin:0; color:var(--muted); font-size:0.92rem;">
-        Want both Pyx Talk 1.0 cloud and Pyx 1.3 preview in one flow?
-        Open the combined app/download page.
+        Want one flow for web + desktop links?
+        Use the combined Talk app page.
       </p>
       <div class="row" style="margin-top:14px;">
         <a class="btn" href="/pyx-talk-app.html">Open Pyx Talk app page</a>
@@ -100,10 +100,10 @@
     </div>
 
     <div class="card">
-      <h2>Pyx 1.3 starter ZIP (coming project)</h2>
+      <h2>Pyx 1.3 Starter ZIP</h2>
       <p style="margin:0; color:var(--muted); font-size:0.92rem;">
-        Pyx 1.3 is being built in a separate repository and is not released as installers yet.
-        Use the GitHub ZIP for now, then wire pieces into your own code + UI.
+        Use the standalone starter repository while the full local stack evolves.
+        Best for builders who want to wire their own UI and local runtime flow.
       </p>
       <div class="row" style="margin-top:14px;">
         <a class="btn" href="https://github.com/Mainline-Studios/Pyx-1.3/archive/refs/heads/main.zip">Download ZIP</a>
@@ -113,8 +113,8 @@
 
     <p class="err" id="err" hidden></p>
     <footer>
-      Source: <a href="https://github.com/Mainline-Studios/Pyx-1.3" target="_blank" rel="noopener">Mainline-Studios/Pyx-1.3</a>
-      · <a href="/pyx-talk.html">Pyx Talk</a>
+      Source repo: <a href="https://github.com/Mainline-Studios/Pyx-1.3" target="_blank" rel="noopener">Mainline-Studios/Pyx-1.3</a>
+      · <a href="/pyx-talk.html">Open Pyx Talk</a>
     </footer>
   </div>
 </body>

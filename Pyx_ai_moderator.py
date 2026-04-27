@@ -1081,7 +1081,7 @@ TRAINING_GROUNDS_PHRASES: List[Tuple[str, bool]] = [
     ("barack obama", False),
     ("putin", False),
     ("vladimir putin", False),
-    ("xi jinping", False),
+    ("xi jinping", True),
     ("kim jong un", False),
     ("desantis", False),
     ("ron desantis", False),
@@ -1421,7 +1421,7 @@ TRAINING_GROUNDS_PHRASES: List[Tuple[str, bool]] = [
     ("kidnap", False),
     ("kidnapping", False),
     ("hostage", False),
-    ("bomb", False),
+    ("bomb", True),
     ("bomb threat", False),
     ("arson", False),
     ("burn down", False),
@@ -1437,7 +1437,7 @@ TRAINING_GROUNDS_PHRASES: List[Tuple[str, bool]] = [
     ("leak your address", False),
     ("swat", False),
     ("swatting", False),
-    ("prank call", False),
+    ("prank call", True),
     ("fake emergency", False),
     ("catfish", False),
     ("catfishing", False),
@@ -1494,7 +1494,7 @@ TRAINING_GROUNDS_PHRASES: List[Tuple[str, bool]] = [
     ("lock you up", False),
     ("tie you up", False),
     ("gag", False),
-    ("blindfold", False),
+    ("blindfold", True),
     ("restrain", False),
     ("chain", False),
     ("cage", False),
@@ -1511,7 +1511,7 @@ TRAINING_GROUNDS_PHRASES: List[Tuple[str, bool]] = [
     ("raid", False),
     ("warrant", False),
     ("lawsuit", False),
-    ("sue", False),
+    ("sue", True),
     ("illegal", False),
     ("crime", False),
     ("criminal", False),
@@ -1532,7 +1532,10 @@ TRAINING_GROUNDS_PHRASES: List[Tuple[str, bool]] = [
     ("hang", False),
     ("execute", False),
 ]
-
+# ═══════════════════════════════════════════════════════════════════════════
+#                   DO NOT TOUCH BELOW THIS LINE
+# ═══════════════════════════════════════════════════════════════════════════
+# THIS IS THE NEURAL NETWORK ENGINE. DO NOT TOUCH.
 
 class PyxAI:
     def __init__(self):

@@ -671,7 +671,6 @@
       color: #0f172a;
       max-width: 100%;
       white-space: nowrap;
-      text-overflow: ellipsis;
       overflow: hidden;
     }
     .calc-result {
@@ -697,7 +696,6 @@
       font-weight: 700;
       color: #f8fafc;
       white-space: nowrap;
-      text-overflow: ellipsis;
       overflow: hidden;
       max-width: 70%;
       text-align: right;
@@ -734,6 +732,39 @@
       color: #f8fafc;
     }
     .calc-btn.zero { grid-column: span 2; }
+    .calc-footer {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .calc-foot-note {
+      font-size: 11px;
+      color: rgba(30, 41, 59, 0.78);
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      max-width: 62%;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .calc-assist {
+      margin-left: auto;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      background: linear-gradient(180deg, rgba(191, 219, 254, 0.95), rgba(147, 197, 253, 0.85));
+      color: #1e3a8a;
+      border-radius: 12px;
+      height: 34px;
+      padding: 0 12px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 5px 12px rgba(30,58,138,0.22);
+      cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+    .calc-assist:hover { filter: brightness(1.05); }
+    .calc-assist:active { transform: translateY(1px) scale(0.99); }
     .ttt-grid {
       display: grid;
       grid-template-columns: repeat(3, 44px);
@@ -867,17 +898,19 @@
     </div>
 
     <div class="pyx15-banner" id="pyxLineBannerCloud" role="note">
-      <strong>Pyx 1.0 cloud</strong> (Groq) is active on this site.
-      Up to <strong>90% faster</strong> and <strong>~90% more environmentally friendly</strong>* than the cloud build.
-      <a href="/pyx-download.html">Pyx 1.3 →</a>
-      <span class="pills">* vs. typical cloud chat round-trip</span>
+      <strong>Pyx 1.0 cloud</strong> is active on this line.
+      Fast hosted responses, plus in-chat app support on the same screen.
+      <a href="/pyx-download.html">Explore Pyx 1.3 →</a>
+      <span class="pills">Switch lines anytime</span>
     </div>
     <div class="pyx15-banner" id="pyxLineBannerPreview" role="note" hidden>
-      <strong>Pyx 1.3 website preview</strong> — same Talk screen as the desktop app; lightweight on-server engine (no GGUF). For the full local kit, <a href="/pyx-download.html">download Pyx 1.3</a>.
+      <strong>Pyx 1.3 website preview</strong> is active.
+      Same Talk UI as desktop, running a lightweight preview engine (no GGUF).
+      For local kit files, <a href="/pyx-download.html">open downloads</a>.
     </div>
 
     <h1>Pyx AI Talk</h1>
-    <p class="lede">Pyx 1.0 cloud chat with extra in-chat apps and games for fun.</p>
+    <p class="lede">Chat with Pyx, switch lines instantly, and launch in-chat apps from <strong>@</strong> commands.</p>
 
     <div class="panel">
       <div class="model-row">
@@ -916,7 +949,7 @@
 
       <div id="composer">
         <div id="mentionMenu" class="mention-menu" role="listbox" aria-label="@ commands"></div>
-        <textarea id="input" placeholder="Write a message…" rows="3" aria-label="Message"></textarea>
+        <textarea id="input" placeholder="Message Pyx… (type @ for apps)" rows="3" aria-label="Message"></textarea>
         <button type="button" id="send">Send</button>
       </div>
       <div id="appDock" class="app-dock" aria-live="polite"></div>
@@ -1119,17 +1152,18 @@
       var spinnerDeadline = 0;
       var spinnerTimer = null;
       var calcAudioCtx = null;
+      var calcClickBuffer = null;
 
       var MENTION_APPS = [
-        { cmd: "calculator", desc: "Polished calculator" },
+        { cmd: "calculator", desc: "Interactive calculator with assistant" },
         { cmd: "chess", desc: "Chess Trainer vs Pyx" },
         { cmd: "ttt", desc: "Tic-Tac-Toe vs Pyx" },
-        { cmd: "guess", desc: "Number Guess game" },
+        { cmd: "guess", desc: "Number Guess challenge" },
         { cmd: "trivia", desc: "Trivia Blitz quiz" },
         { cmd: "rps", desc: "Rock Paper Scissors" },
-        { cmd: "flipacoin", desc: "Flip a coin" },
-        { cmd: "dice", desc: "Roll dice" },
-        { cmd: "pyxel", desc: "Launch Pyxel grid app" },
+        { cmd: "flipacoin", desc: "Quick coin flip" },
+        { cmd: "dice", desc: "Dice roller" },
+        { cmd: "pyxel", desc: "Generate a Pyxel 10x10 grid" },
       ];
       var mentionState = {
         open: false,
@@ -1797,11 +1831,33 @@
       }
 
       function calcFormatDisplay(v) {
-        var s = String(v);
-        return s.length > 14 ? s.slice(0, 14) + "…" : s;
+        return String(v == null ? "" : v).trim();
       }
 
-      function playCalcClick() {
+      function calcFitText(el, maxPx, minPx) {
+        if (!el) return;
+        var max = typeof maxPx === "number" ? maxPx : 12;
+        var min = typeof minPx === "number" ? minPx : 10;
+        var size = max;
+        el.style.fontSize = size + "px";
+        // Shrink just enough to fit the available width.
+        while (size > min && el.scrollWidth > el.clientWidth + 1) {
+          size -= 0.5;
+          el.style.fontSize = size + "px";
+        }
+      }
+
+      function calcApplyFittedText() {
+        if (!appDockEl) return;
+        var noteEl = appDockEl.querySelector(".calc-foot-note");
+        var resultEl = appDockEl.querySelector(".calc-result-value");
+        var outEl = appDockEl.querySelector(".calc-display .out");
+        if (noteEl) calcFitText(noteEl, 11, 9.5);
+        if (resultEl) calcFitText(resultEl, 18, 13.5);
+        if (outEl) calcFitText(outEl, 28, 16);
+      }
+
+      function playCalcClick(kind) {
         try {
           var AC = window.AudioContext || window.webkitAudioContext;
           if (!AC) return;
@@ -1809,22 +1865,171 @@
           if (calcAudioCtx.state === "suspended" && typeof calcAudioCtx.resume === "function") {
             calcAudioCtx.resume();
           }
+          if (!calcClickBuffer) {
+            var sr = calcAudioCtx.sampleRate;
+            var len = Math.max(1, Math.floor(sr * 0.03));
+            calcClickBuffer = calcAudioCtx.createBuffer(1, len, sr);
+            var data = calcClickBuffer.getChannelData(0);
+            for (var i = 0; i < len; i++) {
+              var env = 1 - i / len;
+              data[i] = (Math.random() * 2 - 1) * env * env;
+            }
+          }
           var now = calcAudioCtx.currentTime;
-          var osc = calcAudioCtx.createOscillator();
+          var src = calcAudioCtx.createBufferSource();
+          src.buffer = calcClickBuffer;
+          src.playbackRate.value = 0.9 + Math.random() * 0.35;
+          var hp = calcAudioCtx.createBiquadFilter();
+          hp.type = "highpass";
+          var lp = calcAudioCtx.createBiquadFilter();
+          lp.type = "lowpass";
+          var isOp = /^(=|\+|\-|\*|×|\/|÷)$/.test(String(kind || ""));
+          var isMeta = /^(AC|C|±|%)$/.test(String(kind || ""));
+          hp.frequency.setValueAtTime(isOp ? 900 : (isMeta ? 1100 : 1400), now);
+          hp.frequency.setValueAtTime(hp.frequency.value + Math.random() * 420, now);
+          lp.frequency.setValueAtTime(isOp ? 3200 : 4200, now);
           var gain = calcAudioCtx.createGain();
-          osc.type = "triangle";
-          osc.frequency.setValueAtTime(920, now);
-          osc.frequency.exponentialRampToValueAtTime(650, now + 0.045);
+          var peak = isOp ? 0.042 : (isMeta ? 0.034 : 0.028);
+          peak += Math.random() * 0.01;
           gain.gain.setValueAtTime(0.0001, now);
-          gain.gain.linearRampToValueAtTime(0.04, now + 0.008);
-          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
-          osc.connect(gain);
+          gain.gain.linearRampToValueAtTime(peak, now + 0.0035);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.028 + Math.random() * 0.013);
+          src.connect(hp);
+          hp.connect(lp);
+          lp.connect(gain);
           gain.connect(calcAudioCtx.destination);
-          osc.start(now);
-          osc.stop(now + 0.07);
+          src.start(now);
+          src.stop(now + 0.045);
         } catch (e) {
           /* audio is optional */
         }
+      }
+
+      function calcAssistantFallback(st) {
+        var action = String((st && st.lastAction) || "").toLowerCase();
+        var input = String((st && st.lastInput) || "").trim();
+        var expr = String((st && st.expr) || "").trim();
+        var out = String((st && st.output) || "0").trim();
+        if (action === "start") return "Calculator opened, waiting for input";
+        if (action === "cleared") return "You reset the calculator state";
+        if (action === "typed") return input ? ("Added " + input + " to expression") : "Expression updated";
+        if (action === "sign") return "Sign flipped on current value";
+        if (action === "evaluated") return "Evaluated expression, result is " + out;
+        if (action === "error") return "Evaluation failed from current expression";
+        var solved = calcSafeEval(expr);
+        if (!expr) return "Calculator open, no expression entered";
+        if (solved.ok) return "Current expression previews to " + calcFormatDisplay(solved.value);
+        return "Current expression looks malformed";
+      }
+
+      function normalizeCalcAssistantReply(text) {
+        var s = String(text || "")
+          .replace(/[*_`#>\[\]\(\)]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        if (!s) return "";
+        var words = s.split(" ");
+        var out = [];
+        var skipLead = {
+          ok: true,
+          okay: true,
+          sure: true,
+          got: true,
+          great: true,
+          yes: true,
+          yep: true,
+          understood: true,
+          absolutely: true,
+          certainly: true,
+          alright: true,
+        };
+        var maxWords = 15;
+        var maxChars = 96;
+        for (var i = 0; i < words.length; i++) {
+          var w = words[i];
+          if (!w) continue;
+          var lead = w.toLowerCase().replace(/[^a-z0-9]/g, "");
+          if (!out.length && skipLead[lead]) continue;
+          if ((out.join(" ").length + w.length + (out.length ? 1 : 0)) > maxChars) break;
+          out.push(w);
+          if (out.length >= maxWords) break;
+        }
+        return out.join(" ").trim();
+      }
+
+      function appCalcAssist() {
+        if (!appState.calc) return;
+        var st = appState.calc;
+        if (st.assistLoading) return;
+        st.assistLoading = true;
+        st.note = "Pyx assistant thinking...";
+        renderCalcDock(st.note);
+        statusEl.textContent = "In-chat App · Calculator assistant";
+
+        var expr = String(st.expr || "").trim() || "(empty)";
+        var output = String(st.output || "0").trim() || "0";
+        var body = JSON.stringify({
+          mode: "fast",
+          use_web: false,
+          use_web_auto: false,
+          messages: [
+            {
+              role: "user",
+              content:
+                "You are Pyx calculator assistant. " +
+                "Reply with only calculator context. " +
+                "Use up to 15 words total. " +
+                "Do not explain how to use calculator. " +
+                "Describe what the user just did and current state. " +
+                "No acknowledgements, greetings, or extra text. " +
+                "Last action: " +
+                String(st.lastAction || "unknown") +
+                ". Last input: " +
+                String(st.lastInput || "(none)") +
+                ". " +
+                "Expression: " +
+                expr +
+                ". Result: " +
+                output +
+                ". Give a short observational calculator note in at most 15 words.",
+            },
+          ],
+        });
+
+        fetchPyxPost("talk", body)
+          .then(function (res) {
+            return res.text().then(function (raw) {
+              return { ok: res.ok, status: res.status, raw: raw };
+            });
+          })
+          .then(function (x) {
+            if (appState.calc !== st) return;
+            var note = "";
+            if (x.ok) {
+              var j;
+              try {
+                j = JSON.parse(x.raw);
+              } catch (e) {
+                j = null;
+              }
+              note = normalizeCalcAssistantReply((j && j.reply) || "");
+            }
+            if (!note) note = calcAssistantFallback(st);
+            st.note = note;
+            renderCalcDock(st.note);
+            statusEl.textContent = "In-chat App · Calculator assistant";
+          })
+          .catch(function () {
+            if (appState.calc !== st) return;
+            st.note = calcAssistantFallback(st);
+            renderCalcDock(st.note);
+            statusEl.textContent = "In-chat App · Calculator assistant";
+          })
+          .finally(function () {
+            if (appState.calc !== st) return;
+            st.assistLoading = false;
+            renderCalcDock(st.note);
+          });
       }
 
       function renderCalcDock(note) {
@@ -1840,7 +2045,7 @@
         var html =
           '<div class="calc-shell">' +
           '<div class="calc-display">' +
-          '<div class="expr">' + escHtml(st.expr || note || "Ready") + "</div>" +
+          '<div class="expr">' + escHtml(st.expr || st.note || note || "Ready") + "</div>" +
           '<div class="out">' + escHtml(calcFormatDisplay(st.output || "0")) + "</div>" +
           "</div>" +
           '<div class="calc-result">' +
@@ -1858,20 +2063,41 @@
             html += '<button type="button" class="' + cls + '" data-calc="' + key + '">' + escHtml(key) + "</button>";
           }
         }
-        html += "</div></div>";
+        html += "</div>" +
+          '<div class="calc-footer">' +
+          '<span class="calc-foot-note">' + escHtml(st.note || "Pyx assistant ready") + "</span>" +
+          '<button type="button" class="calc-assist" data-calc-assist="1"' + (st.assistLoading ? " disabled" : "") + ">" + (st.assistLoading ? "Asking Pyx..." : "Pyx Assistant") + "</button>" +
+          "</div>" +
+          "</div>";
         appDockSet("In-chat App · Calculator", html, function () {
           var btns = appDockEl.querySelectorAll("[data-calc]");
           for (var i = 0; i < btns.length; i++) {
             btns[i].addEventListener("click", function () {
-              playCalcClick();
-              appTryCalcInput(this.getAttribute("data-calc") || "");
+              var key = this.getAttribute("data-calc") || "";
+              playCalcClick(key);
+              appTryCalcInput(key);
             });
           }
+          var assistBtn = appDockEl.querySelector("[data-calc-assist]");
+          if (assistBtn) {
+            assistBtn.addEventListener("click", function () {
+              playCalcClick("assist");
+              appCalcAssist();
+            });
+          }
+          calcApplyFittedText();
         });
       }
 
       function appStartCalc() {
-        appState.calc = { expr: "", output: "0" };
+        appState.calc = {
+          expr: "",
+          output: "0",
+          note: "Pyx assistant ready",
+          assistLoading: false,
+          lastAction: "start",
+          lastInput: "",
+        };
         appReply("**In-chat App · Calculator**\n\nCalculator launched. Use buttons or type expressions in chat.");
         renderCalcDock("Ready");
         kickSpinnerWindow(10000, 16000); // 10.x to 15.x sec
@@ -1889,6 +2115,9 @@
         if (t === "AC" || t.toLowerCase() === "clear" || t === "C") {
           st.expr = "";
           st.output = "0";
+          st.note = "Cleared";
+          st.lastAction = "cleared";
+          st.lastInput = t;
           renderCalcDock("Cleared");
           statusEl.textContent = "In-chat App · Calculator";
           return true;
@@ -1896,6 +2125,9 @@
         if (t === "±") {
           var num = parseFloat(st.output || "0");
           if (isFinite(num)) st.output = String(-num);
+          st.note = "Sign toggled";
+          st.lastAction = "sign";
+          st.lastInput = t;
           renderCalcDock("Sign toggled");
           return true;
         }
@@ -1904,11 +2136,17 @@
           var solved = calcSafeEval(fromExpr);
           if (!solved.ok) {
             st.output = "Error";
+            st.note = "Invalid expression";
+            st.lastAction = "error";
+            st.lastInput = t;
             renderCalcDock("Invalid expression");
             return true;
           }
           st.output = String(solved.value);
           st.expr = st.output;
+          st.note = "Result locked";
+          st.lastAction = "evaluated";
+          st.lastInput = t;
           renderCalcDock("Calculated");
           return true;
         }
@@ -1916,6 +2154,9 @@
           st.expr += t;
           var preview = calcSafeEval(st.expr);
           st.output = preview.ok ? String(preview.value) : st.output;
+          st.note = "Typing";
+          st.lastAction = "typed";
+          st.lastInput = t;
           renderCalcDock("Typing");
           return true;
         }
@@ -2770,6 +3011,11 @@
 
       sendBtn.addEventListener("click", send);
       inputEl.addEventListener("input", mentionUpdateFromInput);
+      window.addEventListener("resize", function () {
+        if (appState.calc && appDockEl && appDockEl.classList.contains("is-open")) {
+          calcApplyFittedText();
+        }
+      });
       inputEl.addEventListener("keydown", function (e) {
         if (mentionState.open && mentionState.items.length) {
           if (e.key === "ArrowDown") {

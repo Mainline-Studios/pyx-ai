@@ -2,8 +2,8 @@
 
 ## Authentication
 
-- [ ] Logged in with Firebase CLI (`firebase login`)
-- [ ] Default project set for this repo (`firebase use pyx-ai`)
+- [x] Logged in with Firebase CLI (`firebase login`)
+- [x] Default project set for this repo (`firebase use pyx-ai`)
 
 **Last verified:** APRIL 19 2026
 

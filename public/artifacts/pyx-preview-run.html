@@ -37,6 +37,8 @@
       var restart = document.getElementById("restart");
       var step = 0;
       var yes = "";
+      var endedNagCount = 0;
+      var endedNagLimit = 7;
 
       function line(t) {
         term.textContent += (term.textContent ? "\n" : "") + t;
@@ -46,6 +48,8 @@
       function resetRun() {
         step = 0;
         yes = "";
+        endedNagCount = 0;
+        endedNagLimit = 7 + Math.floor(Math.random() * 9); // 7..15
         term.textContent = "";
         line("hello world! I'm pyx AI");
         line("I'm still being worked on. come back later to see what is going on within Pyx!");
@@ -88,7 +92,12 @@
           return;
         }
 
-        line("[Program already ended. Click Restart.]");
+        endedNagCount += 1;
+        if (endedNagCount >= endedNagLimit) {
+          line("[THE PROGRAM IS OVER!!! JUST PRESS RESTART!]");
+        } else {
+          line("[Program already ended. Click Restart.]");
+        }
       }
 
       send.addEventListener("click", processInput);

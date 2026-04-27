@@ -27,8 +27,8 @@
       padding: 32px 20px 48px;
     }
     .wrap { max-width: 720px; margin: 0 auto; }
-    h1 { font-size: 1.65rem; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.02em; }
-    .lede { color: var(--muted); margin: 0 0 28px; font-size: 0.95rem; }
+    h1 { font-size: 1.7rem; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.02em; line-height: 1.2; }
+    .lede { color: var(--muted); margin: 0 0 26px; font-size: 0.96rem; max-width: 65ch; }
     a { color: var(--accent); }
     .card {
       background: var(--card);
@@ -59,6 +59,13 @@
       color: var(--text) !important;
     }
     .note { font-size: 0.85rem; color: var(--muted); margin-top: 10px; }
+    .list {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .list li { margin: 5px 0; }
     code { font-size: 0.82em; background: rgba(0,0,0,0.35); padding: 2px 6px; border-radius: 6px; }
     .dl-brand {
       display: flex;
@@ -80,27 +87,27 @@
       </a>
     </div>
 
-    <h1 style="margin-top:6px;">Pyx Talk app: 1.0 + 1.3</h1>
+    <h1 style="margin-top:6px;">Pyx Talk: Web + Desktop</h1>
     <p class="lede">
-      Use Pyx Talk in two modes: <strong>Pyx 1.0 cloud</strong> and <strong>Pyx 1.3 preview</strong>.
-      Try both in-browser now, or download desktop installers.
+      Start in the browser, then move to desktop when ready.
+      Both <strong>Pyx 1.0 cloud</strong> and <strong>Pyx 1.3 preview</strong> are available from the same Talk experience.
     </p>
 
     <div class="card">
-      <h2>Try on the website now</h2>
+      <h2>Try In Browser</h2>
       <div class="row">
         <a class="btn" href="/pyx-talk.html">Open Pyx Talk</a>
-        <a class="btn secondary" href="/pyx-talk.html?line=preview">Pyx 1.3 preview (same app)</a>
+        <a class="btn secondary" href="/pyx-talk.html?line=preview">Open directly in 1.3 preview</a>
       </div>
       <p class="note">
-        One chat screen — pick <strong>Pyx line</strong> in the dropdown (1.0 cloud vs 1.3 website preview). The desktop app opens the same page.
+        One chat screen, one dropdown. Choose your <strong>Pyx line</strong> in-app at any time.
       </p>
     </div>
 
     <div class="card">
-      <h2>Download the Pyx Talk desktop app</h2>
+      <h2>Download Desktop App</h2>
       <p class="note" style="margin-top:0;">
-        Installers are pulled from the latest release manifest and mirror links.
+        Installer links are loaded from the latest release manifest.
       </p>
       <div class="row" id="installerRow" style="margin-top:12px;">
         <a class="btn" id="btnMacDmg" href="https://github.com/Mainline-Studios/pyx-ai/releases/latest">macOS (.dmg)</a>
@@ -108,17 +115,29 @@
         <a class="btn secondary" id="btnMacPkg" href="https://github.com/Mainline-Studios/pyx-ai/releases/latest">macOS (.pkg)</a>
       </div>
       <div class="links">
-        <a href="https://github.com/Mainline-Studios/pyx-ai/releases/latest" target="_blank" rel="noopener">All desktop release files</a>
-        <a href="/pyx-download.html">Pyx 1.3 starter ZIP (repo download)</a>
+        <a href="https://github.com/Mainline-Studios/pyx-ai/releases/latest" target="_blank" rel="noopener">Browse all release files</a>
+        <a href="/pyx-download.html">Open the full download hub</a>
       </div>
     </div>
 
     <div class="card">
-      <h2>How the two models are exposed</h2>
+      <h2>Model Routing</h2>
+      <ul class="list">
+        <li><strong>Pyx 1.0</strong> uses cloud-backed chat routes in <code>/pyx-talk.html</code>.</li>
+        <li><strong>Pyx 1.3 preview</strong> runs the website preview flow from the same Talk UI.</li>
+        <li><code>/pyx-13-preview.html</code> redirects into preview mode for compatibility.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Voice Studio (Separate App)</h2>
       <p class="note" style="margin-top:0;">
-        - Pyx 1.0: hosted cloud route via <code>/pyx-talk.html</code><br />
-        - Pyx 1.3: local-style website preview via <code>/pyx-13-preview.html</code>
+        Pyx Speak is a standalone TTS app for voice generation and playback tuning.
+        Talk integration can be layered in later.
       </p>
+      <div class="row" style="margin-top:12px;">
+        <a class="btn" href="/pyx-speak.html">Open Pyx Speak</a>
+      </div>
     </div>
   </div>
 

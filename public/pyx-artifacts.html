@@ -5,96 +5,170 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pyx — Artifacts</title>
   <style>
+    :root {
+      --bg: #0b1020;
+      --card: rgba(15, 23, 42, 0.82);
+      --card-border: rgba(148, 163, 184, 0.2);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #c4b5fd;
+      --warn-bg: rgba(251, 191, 36, 0.15);
+      --warn-border: rgba(251, 191, 36, 0.42);
+      --warn-text: #fef3c7;
+    }
+    * { box-sizing: border-box; }
     body {
+      margin: 0;
+      min-height: 100vh;
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-      background: #ffffff;
-      color: #000000;
-      margin: 20px;
-      line-height: 1.45;
-      max-width: 52rem;
+      background:
+        radial-gradient(1000px 540px at 10% -10%, rgba(99, 102, 241, 0.23), transparent 54%),
+        radial-gradient(900px 500px at 100% 0%, rgba(14, 165, 233, 0.14), transparent 50%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      padding: 28px 18px 52px;
+    }
+    .wrap { max-width: 860px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 1.7rem; letter-spacing: -0.02em; }
+    p { margin: 0.7em 0; color: var(--muted); }
+    a { color: var(--accent); }
+    .home {
+      display: inline-block;
+      font-size: 0.88rem;
+      color: var(--muted);
+      text-decoration: none;
+      margin-bottom: 12px;
     }
     .warn {
-      background: #fff7ed;
-      border: 1px solid #fdba74;
-      border-radius: 8px;
-      padding: 14px 16px;
-      margin: 1em 0 1.5em;
-      font-size: 0.95rem;
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-border);
+      border-radius: 10px;
+      padding: 13px 14px;
+      margin: 14px 0 18px;
+      color: var(--warn-text);
+      font-size: 0.92rem;
     }
-    .warn strong { color: #9a3412; }
-    p { margin: 0.75em 0; }
-    code { font-family: ui-monospace, monospace; font-size: 0.9em; }
-    a { color: #00e; }
-    .btn {
-      display: inline-block;
-      padding: 4px 10px;
-      border: 1px solid #2563eb;
+    .warn a { color: #fde68a; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 14px;
+      margin-top: 12px;
+      box-shadow: 0 12px 28px -20px rgba(2, 6, 23, 0.85);
+    }
+    h2 { margin: 0 0 8px; font-size: 1rem; }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.84em;
+      background: rgba(2, 6, 23, 0.4);
+      border: 1px solid rgba(148, 163, 184, 0.2);
       border-radius: 6px;
+      padding: 2px 6px;
+      color: #dbeafe;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 11px;
+      border: 1px solid rgba(147, 197, 253, 0.35);
+      border-radius: 8px;
       background: #2563eb;
       color: #fff;
       text-decoration: none;
-      font-size: 0.85rem;
-      font-weight: 600;
+      font-size: 0.82rem;
+      font-weight: 700;
       margin-right: 6px;
     }
-    .btn:hover { background: #1d4ed8; border-color: #1d4ed8; }
+    .btn:hover { background: #1d4ed8; }
     .btn.secondary {
-      background: #fff;
-      color: #1d4ed8;
-      border-color: #93c5fd;
+      background: rgba(15, 23, 42, 0.5);
+      color: #dbeafe;
+      border-color: rgba(147, 197, 253, 0.3);
     }
-    .btn.secondary:hover {
-      background: #eff6ff;
-      border-color: #60a5fa;
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 0.75em 0 0.2em;
+      font-size: 0.9rem;
+      border-radius: 10px;
+      overflow: hidden;
     }
-    h1 { margin: 0 0 0.25em; font-size: 1.5rem; }
-    h2 { margin: 1.25em 0 0.4em; font-size: 1.05rem; }
-    table { border-collapse: collapse; width: 100%; margin: 0.75em 0; font-size: 0.95rem; }
-    th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; vertical-align: top; }
-    th { background: #f5f5f5; }
+    th, td {
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: rgba(30, 41, 59, 0.75);
+      color: #e2e8f0;
+    }
+    td { color: #cbd5e1; }
+    .fine {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
-  <p><a href="/">← Home</a></p>
-  <h1>Artifacts</h1>
-  <p>Old Pyx demos and scripts kept for history and curiosity. Nothing here is secret (no API keys, no <code>secret.py</code>).</p>
+  <main class="wrap">
+    <a class="home" href="/">← Home</a>
+    <h1>Artifacts</h1>
+    <p>Historical Pyx demos and scripts preserved for reference. No secrets are published here.</p>
 
-  <div class="warn">
-    <strong>These may not work.</strong> They are unmaintained snapshots: wrong paths, old APIs, Python 2-era habits, or localhost-only assumptions. Use <a href="/pyx-talk.html">Pyx Talk</a> for the current site experience.
-  </div>
+    <div class="warn">
+      <strong>Expect breakage.</strong> These files are archival snapshots with old assumptions (local APIs, legacy paths, older runtime behavior).
+      Use <a href="/pyx-talk.html">Pyx Talk</a> for the current supported experience.
+    </div>
 
-  <h2>Run</h2>
-  <p>You can run the old Pyx Preview directly in your browser from this site:</p>
-  <p><a href="/artifacts/pyx-preview-run.html"><strong>Run pyx-preview.py artifact now</strong></a></p>
-  <p>Or run it locally in terminal with <code>python3 pyx-preview.py</code>.</p>
+    <section class="card">
+      <h2>Quick Run</h2>
+      <p>Run the archived Pyx Preview script directly in-browser:</p>
+      <p>
+        <a class="btn" href="/artifacts/pyx-preview-run.html">Run Pyx Preview</a>
+        <a class="btn secondary" href="/artifacts/pyx-preview.py">View Source</a>
+      </p>
+      <p class="fine">Local CLI equivalent: <code>python3 pyx-preview.py</code></p>
+    </section>
 
-  <h2>Files</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Artifact</th>
-        <th>What it is</th>
-        <th>Link</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>pyx-preview.py</code></td>
-        <td>Original terminal “Pyx Preview” script (prints prompts; CC / license lines in-script).</td>
-        <td><a href="/artifacts/pyx-preview-run.html"><strong>Run</strong></a> · <a href="/artifacts/pyx-preview.py">Source</a> · <a href="/pyx-preview.py">/pyx-preview.py</a></td>
-      </tr>
-      <tr>
-        <td><code>pyx-chat-demo.html</code> + <code>pyx-ai-chat.js</code></td>
-        <td>Legacy embeddable chat UI calling <code>/ai-decide</code> on a local API. Hosted copy for reference; will error unless <code>127.0.0.1:8765</code> is running.</td>
-        <td>
-          <a class="btn" href="/artifacts/pyx-chat-demo.html">Run</a>
-          <a class="btn secondary" href="/artifacts/pyx-chat-demo.html">Open demo</a>
-          <a href="/artifacts/pyx-ai-chat.js">pyx-ai-chat.js</a>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-
-  <p style="font-size:0.9rem;color:#444;">Repo originals (for developers): <code>Pyx Preview.py</code> (root), <code>pyx-chat-demo.html</code> + <code>pyx-ai-chat.js</code> at repo root — mirrored here under <code>/artifacts/</code> for stable URLs.</p>
+    <section class="card">
+      <h2>Artifact Files</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Artifact</th>
+            <th>Description</th>
+            <th>Links</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>pyx-preview.py</code></td>
+            <td>Original terminal script with conversational prompt flow.</td>
+            <td>
+              <a class="btn" href="/artifacts/pyx-preview-run.html">Run</a>
+              <a href="/artifacts/pyx-preview.py">Source</a>
+              · <a href="/pyx-preview.py">Mirror path</a>
+            </td>
+          </tr>
+          <tr>
+            <td><code>pyx-chat-demo.html</code> + <code>pyx-ai-chat.js</code></td>
+            <td>Legacy demo wired to a local endpoint (<code>127.0.0.1:8765</code>).</td>
+            <td>
+              <a class="btn" href="/artifacts/pyx-chat-demo.html">Run Demo</a>
+              <a class="btn secondary" href="/artifacts/pyx-ai-chat.js">JS File</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="fine">
+        Originals are mirrored from repo-root historical files to keep stable public URLs under <code>/artifacts/</code>.
+      </p>
+    </section>
+  </main>
 </body>
 </html>

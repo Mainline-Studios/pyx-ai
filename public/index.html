@@ -3,46 +3,188 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pyx AI - Official website</title>
+  <title>Pyx AI - Official Website</title>
+  <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
   <style>
-    body {
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-      background: #ffffff;
-      color: #000000;
-      margin: 20px;
-      line-height: 1.45;
-      max-width: 52rem;
+    :root {
+      --bg: #0b1020;
+      --bg-glow-a: rgba(99, 102, 241, 0.28);
+      --bg-glow-b: rgba(14, 165, 233, 0.18);
+      --card: rgba(15, 23, 42, 0.82);
+      --card-border: rgba(148, 163, 184, 0.22);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #93c5fd;
+      --accent-2: #c4b5fd;
+      --btn: #4f46e5;
+      --btn-hover: #4338ca;
     }
-    p { margin: 0.75em 0; }
-    code { font-family: ui-monospace, monospace; }
-    a { color: #00e; }
-    h1 { margin: 0 0 0.25em; font-size: 1.5rem; }
-    h2 { margin: 1.25em 0 0.4em; font-size: 1.05rem; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      line-height: 1.55;
+      color: var(--text);
+      background:
+        radial-gradient(900px 500px at 10% -10%, var(--bg-glow-a), transparent 55%),
+        radial-gradient(900px 520px at 100% 0%, var(--bg-glow-b), transparent 50%),
+        var(--bg);
+      padding: 32px 18px 56px;
+    }
+    .wrap {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(1.7rem, 3vw, 2.2rem);
+      letter-spacing: -0.02em;
+      line-height: 1.12;
+    }
+    .lede {
+      margin: 0 0 24px;
+      color: var(--muted);
+      max-width: 68ch;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 30px -18px rgba(2, 6, 23, 0.9);
+    }
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      color: #f8fafc;
+      letter-spacing: -0.01em;
+    }
+    .card p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 0.93rem;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.84rem;
+      border-radius: 10px;
+      padding: 8px 12px;
+      background: var(--btn);
+      color: #fff;
+      border: 1px solid rgba(196, 181, 253, 0.35);
+    }
+    .btn:hover { background: var(--btn-hover); }
+    .btn.secondary {
+      background: rgba(15, 23, 42, 0.55);
+      color: #dbeafe;
+      border: 1px solid rgba(147, 197, 253, 0.28);
+    }
+    .meta {
+      margin-top: 24px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .meta a { color: var(--accent); }
+    a { color: var(--accent-2); }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: rgba(2, 6, 23, 0.45);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 0.82em;
+      color: #e0e7ff;
+    }
   </style>
 </head>
 <body>
-  <h1>Pyx AI</h1>
-  <p><strong>Official site (Pyx 1.0 cloud).</strong> Talk, Code, and Pyxel run on Groq-backed API routes.</p>
+  <main class="wrap">
+    <h1>Pyx AI</h1>
+    <p class="lede">
+      Official home for Pyx web apps, previews, and downloads.
+      Run <strong>Pyx 1.0 cloud</strong>, test the <strong>Pyx 1.3 website preview</strong>, and explore older artifacts.
+    </p>
 
-  <h2>Apps</h2>
-  <p><a href="/pyx-talk.html"><strong>Pyx AI Talk</strong></a> - chat with Pyx 1.0 (cloud) or 1.3 website preview in one screen.</p>
-  <p><a href="/pyx-code.html"><strong>Pyx AI Code</strong></a> - code assistant on Pyx 1.0.</p>
-  <p><a href="/pyxel-image.html"><strong>Pyxel Image Generation</strong></a> - 10x10 pixel art.</p>
-  <p><a href="/pyx-talk-app.html"><strong>Pyx Talk app (1.0 + 1.3)</strong></a> - try both models on web, plus desktop downloads.</p>
+    <section class="grid" aria-label="Pyx pages">
+      <article class="card">
+        <h2>Pyx Talk</h2>
+        <p>One chat screen with Pyx 1.0 cloud and Pyx 1.3 preview lines, plus in-chat apps.</p>
+        <div class="actions">
+          <a class="btn" href="/pyx-talk.html">Open Talk</a>
+          <a class="btn secondary" href="/pyx-talk.html?line=preview">Jump to 1.3</a>
+        </div>
+      </article>
 
-  <h2>Pyx 1.3 preview</h2>
-  <p><a href="/pyx-talk.html?line=preview"><strong>Pyx 1.3 preview</strong></a> — same Talk UI as the app; lightweight on-site engine (no GGUF). Old URL <code>/pyx-13-preview.html</code> redirects here.</p>
+      <article class="card">
+        <h2>Pyx Code</h2>
+        <p>Code-focused assistant on the Pyx 1.0 route for quick generation and iteration.</p>
+        <div class="actions">
+          <a class="btn" href="/pyx-code.html">Open Code</a>
+        </div>
+      </article>
 
-  <h2>Downloads</h2>
-  <p><a href="/pyx-download.html">Pyx 1.3 download</a> - starter ZIP repo for upcoming local app work.</p>
+      <article class="card">
+        <h2>Pyxel Image</h2>
+        <p>Create 10x10 pixel art from prompts with fast generation and editable outputs.</p>
+        <div class="actions">
+          <a class="btn" href="/pyxel-image.html">Open Pyxel</a>
+        </div>
+      </article>
 
-  <h2>Artifacts</h2>
-  <p>
-    <a href="/pyx-artifacts.html"><strong>Artifacts</strong></a> — old Pyx demos and scripts (e.g. <a href="/artifacts/pyx-preview-run.html">run Pyx Preview</a>, legacy chat demo).
-    <strong>They may not work</strong> (outdated, localhost-only, or interactive terminal scripts). Nothing sensitive is published there.
-  </p>
+      <article class="card">
+        <h2>Pyx Speak</h2>
+        <p>Standalone voice studio for high-quality text-to-speech playback and voice controls.</p>
+        <div class="actions">
+          <a class="btn" href="/pyx-speak.html">Open Speak</a>
+        </div>
+      </article>
 
-  <h2>Trainer</h2>
-  <p><a href="/pyx-trainer-auth.html">Open trainer gate</a> - <code>/pyx-trainer-auth.html</code></p>
+      <article class="card">
+        <h2>Talk App + Downloads</h2>
+        <p>Use the combined app page for web demo links and desktop installer links.</p>
+        <div class="actions">
+          <a class="btn" href="/pyx-talk-app.html">Open App Page</a>
+          <a class="btn secondary" href="/pyx-download.html">Download Hub</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Artifacts</h2>
+        <p>Historical demos/scripts preserved for reference. Some are outdated or localhost-only.</p>
+        <div class="actions">
+          <a class="btn" href="/pyx-artifacts.html">Open Artifacts</a>
+          <a class="btn secondary" href="/artifacts/pyx-preview-run.html">Run Pyx Preview</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Trainer</h2>
+        <p>Authenticated trainer entrypoint for internal use.</p>
+        <div class="actions">
+          <a class="btn" href="/pyx-trainer-auth.html">Open Trainer Gate</a>
+        </div>
+      </article>
+    </section>
+
+    <p class="meta">
+      Legacy preview URL <code>/pyx-13-preview.html</code> redirects into Talk preview mode.
+    </p>
+  </main>
 </body>
 </html>
