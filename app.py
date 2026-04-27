@@ -24,6 +24,8 @@ from Pyx_ai_check import check_code, check_three_js, __version__ as check_versio
 from Pyx_ai_analyze import analyze_code, analyze_three_js, __version__ as analyze_version
 from werkzeug.exceptions import HTTPException
 
+import pyx13_preview
+
 app = Flask(__name__)
 
 
@@ -883,6 +885,7 @@ def health():
             "pyx_check": "ok",
             "pyx_analyze": "ok",
             "pyx_talk": "ok",
+            "pyx_13_preview": "ok",
             "pyx_ai_code": "ok",
             "pyx_pixel_art": "ok",
             "firebase": "connected" if firebase_connected else "offline",
@@ -1235,6 +1238,62 @@ def talk():
         "web_search": web_meta,
     }
     us = _json_safe_score(u_score)
+    if us is not None:
+        out["score"] = us
+    return jsonify(out)
+
+
+@app.route("/pyx13-preview/chat", methods=["POST", "OPTIONS"])
+@app.route("/api/pyx13-preview/chat", methods=["POST", "OPTIONS"])
+def pyx13_preview_chat():
+    """Pyx 1.3 **website** preview: Markov + optional DDG snippets — no GGUF, no cloud LLM."""
+    if request.method == "OPTIONS":
+        return "", 204
+    if request.method != "POST":
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.get_json(silent=True) or {}
+    messages, err = _normalize_talk_messages(data.get("messages"))
+    if err:
+        return jsonify({"error": err}), 400
+    last_user = messages[-1]["content"]
+    u_score = None
+    try:
+        u_score = pyx.score(last_user)
+    except Exception:
+        pass
+    us = _json_safe_score(u_score)
+    use_web = _as_bool(data.get("use_web"))
+    use_web_auto = _as_bool(data.get("use_web_auto"))
+
+    if us is not None and us >= BAN_LINE:
+        out = {
+            "bad": True,
+            "reply": "I can’t reply to that. Try a neutral, specific question about Pyx or your project.",
+            "model": "pyx-1.3-preview-moderation",
+            "engine": "pyx-1.3-preview",
+            "web_search": {"used": False, "provider": None, "error": None, "query": None},
+            "score": us,
+        }
+        return jsonify(out)
+
+    reply, meta = pyx13_preview.build_preview_reply(
+        messages,
+        use_web=use_web,
+        use_web_auto=use_web_auto,
+    )
+    web = meta.get("web") or {}
+    out = {
+        "bad": False,
+        "reply": reply,
+        "model": meta.get("model", "markov-bigram+optional-web"),
+        "engine": meta.get("engine", "pyx-1.3-preview"),
+        "web_search": {
+            "used": bool(web.get("used")),
+            "provider": web.get("provider"),
+            "error": web.get("error"),
+            "query": web.get("query"),
+        },
+    }
     if us is not None:
         out["score"] = us
     return jsonify(out)

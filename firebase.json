@@ -55,6 +55,13 @@
           "serviceId": "pyxaiapi",
           "region": "us-central1"
         }
+      },
+      {
+        "source": "/api/pyx13-preview/chat",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
       }
     ]
   }
