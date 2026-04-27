@@ -480,11 +480,12 @@
         { id: "pyx_vector", name: "Pyx Vector", basePitch: 110, vibratoHz: 3.2, vibratoDepth: 0.045, formantShift: 0.9, brightness: 0.86, breath: 0.05 },
       ];
       var CLOUD_VOICES = [
-        { id: "", name: "Provider Default" },
-        { id: "alloy", name: "Alloy" },
-        { id: "aria", name: "Aria" },
-        { id: "sage", name: "Sage" },
-        { id: "verse", name: "Verse" },
+        { id: "austin", name: "Austin" },
+        { id: "troy", name: "Troy" },
+        { id: "daniel", name: "Daniel" },
+        { id: "autumn", name: "Autumn" },
+        { id: "diana", name: "Diana" },
+        { id: "hannah", name: "Hannah" },
       ];
 
       var WORD_OVERRIDES = {
@@ -1629,7 +1630,7 @@
         var payload = {
           text: cloudText,
           speed: Math.max(0.7, Math.min(1.35, Number(rateRange.value) || 1)),
-          format: "mp3",
+          format: "wav",
         };
         if (styleInstruction) payload.instructions = styleInstruction.slice(0, 180);
         if (voiceSelectEl.value) payload.voice = voiceSelectEl.value;
@@ -1703,6 +1704,10 @@
           return;
         }
         chunks = splitIntoChunks(text, Number(chunkSizeInput.value));
+        if (!useNative && Number(chunkSizeInput.value) > 180) {
+          // Groq Orpheus currently supports short inputs; keep chunks under the hard limit.
+          chunks = splitIntoChunks(text, 180);
+        }
         if (!chunks.length) {
           setStatus("Enter text before speaking.", "warn");
           return;

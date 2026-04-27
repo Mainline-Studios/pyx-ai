@@ -563,6 +563,64 @@ def _groq_openai_chat(messages_for_api, mode="fast", web_context="", ground_web=
 # --- Pyx Speak TTS (OpenAI-compatible / Groq audio endpoint) ---
 _GROQ_SPEECH_URL = "https://api.groq.com/openai/v1/audio/speech"
 _SPEAK_TTS_FORMATS = {"mp3": "audio/mpeg", "wav": "audio/wav", "flac": "audio/flac", "opus": "audio/ogg"}
+_ORPHEUS_ENGLISH_MODEL = "canopylabs/orpheus-v1-english"
+_ORPHEUS_ARABIC_MODEL = "canopylabs/orpheus-arabic-saudi"
+_DEPRECATED_TTS_MODEL_REPLACEMENTS = {
+    "playai-tts": _ORPHEUS_ENGLISH_MODEL,
+    "playai-tts-arabic": _ORPHEUS_ARABIC_MODEL,
+}
+_ORPHEUS_DEFAULT_VOICE = {
+    _ORPHEUS_ENGLISH_MODEL: "austin",
+    _ORPHEUS_ARABIC_MODEL: "fahad",
+}
+_ORPHEUS_INPUT_MAX = 200
+
+
+def _is_orpheus_model(model: str) -> bool:
+    m = (model or "").strip().lower()
+    return m in (_ORPHEUS_ENGLISH_MODEL, _ORPHEUS_ARABIC_MODEL)
+
+
+def _normalize_tts_model(model: str) -> str:
+    m = (model or "").strip().lower()
+    return _DEPRECATED_TTS_MODEL_REPLACEMENTS.get(m, m)
+
+
+def _speak_tts_model_candidates(requested_model: str | None = None) -> list[str]:
+    seen = set()
+    out = []
+
+    def _add(m):
+        n = _normalize_tts_model(m or "")
+        if n and n not in seen:
+            seen.add(n)
+            out.append(n)
+
+    _add(requested_model)
+    _add(os.environ.get("PYX_SPEAK_TTS_MODEL"))
+    _add(_ORPHEUS_ENGLISH_MODEL)
+    return out
+
+
+def _speak_direction_tag(instructions: str | None) -> str:
+    if not instructions:
+        return ""
+    t = re.sub(r"[^a-zA-Z0-9 \-]", " ", instructions).strip().lower()
+    t = re.sub(r"\s+", " ", t)
+    t = re.sub(r"^(speak|style)\s+", "", t)
+    if not t:
+        return ""
+    # Orpheus directions work best with concise 1-2 word descriptors.
+    words = t.split(" ")
+    return " ".join(words[:3])[:40].strip()
+
+
+def _prepare_orpheus_input(text: str, instructions: str | None) -> str:
+    body = (text or "").strip()
+    tag = _speak_direction_tag(instructions)
+    if tag:
+        return f"[{tag}] {body}".strip()
+    return body
 
 
 def _prepare_speak_tts(
@@ -571,6 +629,7 @@ def _prepare_speak_tts(
     fmt: str,
     speed: float,
     instructions: str | None = None,
+    model_override: str | None = None,
 ):
     key = (os.environ.get("PYX_SPEAK_TTS_KEY") or os.environ.get("PYX_TALK_LLM_KEY") or "").strip()
     url = (os.environ.get("PYX_SPEAK_TTS_URL") or _GROQ_SPEECH_URL).strip()
@@ -578,20 +637,25 @@ def _prepare_speak_tts(
         return None
     if url.rstrip("/").lower() == _GROQ_SPEECH_URL.rstrip("/").lower() and not key:
         return None
-    model = (os.environ.get("PYX_SPEAK_TTS_MODEL") or "playai-tts").strip()
+    model = _normalize_tts_model(model_override or os.environ.get("PYX_SPEAK_TTS_MODEL") or _ORPHEUS_ENGLISH_MODEL)
+    is_orpheus = _is_orpheus_model(model)
+    input_text = _prepare_orpheus_input(text, instructions) if is_orpheus else text
     use_fmt = (fmt or "mp3").strip().lower()
     if use_fmt not in _SPEAK_TTS_FORMATS:
         use_fmt = "mp3"
+    if is_orpheus:
+        use_fmt = "wav"
+    use_voice = (voice or "").strip()
+    if is_orpheus and not use_voice:
+        use_voice = _ORPHEUS_DEFAULT_VOICE.get(model, "austin")
     payload = {
         "model": model,
-        "input": text,
+        "input": input_text,
         "response_format": use_fmt,
         "speed": max(0.7, min(float(speed), 1.35)),
     }
-    if voice:
-        payload["voice"] = voice.strip()[:64]
-    if instructions:
-        payload["instructions"] = instructions.strip()[:180]
+    if use_voice:
+        payload["voice"] = use_voice[:64]
     headers = {
         "Content-Type": "application/json",
         "Accept": _SPEAK_TTS_FORMATS.get(use_fmt, "audio/mpeg"),
@@ -604,7 +668,14 @@ def _prepare_speak_tts(
         timeout_s = max(20, min(int(os.environ.get("PYX_SPEAK_TTS_TIMEOUT", str(timeout_s))), 240))
     except ValueError:
         pass
-    return {"url": url, "headers": headers, "payload": payload, "format": use_fmt, "timeout_s": timeout_s}
+    return {
+        "url": url,
+        "headers": headers,
+        "payload": payload,
+        "format": use_fmt,
+        "timeout_s": timeout_s,
+        "is_orpheus": is_orpheus,
+    }
 
 
 # --- Pyx AI Code (Groq GPT-OSS via OpenAI-compatible API) ---
@@ -1416,36 +1487,72 @@ def speak_tts():
     instructions = data.get("instructions")
     if instructions is not None and not isinstance(instructions, str):
         return jsonify({"error": '"instructions" must be a string'}), 400
+    model = data.get("model")
+    if model is not None and not isinstance(model, str):
+        return jsonify({"error": '"model" must be a string'}), 400
 
-    prep = _prepare_speak_tts(
-        text=text,
-        voice=voice,
-        fmt=fmt or "mp3",
-        speed=speed,
-        instructions=instructions,
-    )
+    prep = None
+    last_http = None
+    last_url = None
+    last_err = None
+    audio = None
+    content_type = "audio/wav"
+
+    for candidate in _speak_tts_model_candidates(model):
+        prep = _prepare_speak_tts(
+            text=text,
+            voice=voice,
+            fmt=fmt or "wav",
+            speed=speed,
+            instructions=instructions,
+            model_override=candidate,
+        )
+        if prep is None:
+            continue
+        if prep.get("is_orpheus") and len((prep["payload"].get("input") or "")) > _ORPHEUS_INPUT_MAX:
+            return jsonify({
+                "error": "text too long for current cloud TTS model",
+                "limit": _ORPHEUS_INPUT_MAX,
+                "hint": "Use shorter text/chunks for Groq Orpheus (200 chars max per request).",
+            }), 413
+        req = urllib.request.Request(
+            prep["url"],
+            data=json.dumps(prep["payload"]).encode("utf-8"),
+            headers=prep["headers"],
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=prep["timeout_s"]) as resp:
+                audio = resp.read()
+                content_type = (resp.headers.get("Content-Type") or _SPEAK_TTS_FORMATS.get(prep["format"], "audio/wav")).split(";")[0]
+            break
+        except urllib.error.HTTPError as e:
+            last_http = e
+            last_url = prep["url"]
+            last_err = e.read().decode("utf-8", errors="replace")[:800]
+            low = (last_err or "").lower()
+            # Retry next model when provider reports deprecation/decommission.
+            if any(k in low for k in ("decommission", "deprecated", "no longer supported")):
+                continue
+            return jsonify({"error": "TTS provider request failed", "status": e.code, "detail": last_err}), 502
+        except urllib.error.URLError as e:
+            return jsonify({"error": "TTS provider network error", "detail": str(e.reason)}), 502
+        except Exception as e:
+            return jsonify({"error": str(e)}), 502
+
     if prep is None:
         return jsonify({
             "error": "TTS backend not configured",
             "hint": "Set PYX_SPEAK_TTS_KEY or PYX_TALK_LLM_KEY for Groq.",
         }), 503
-    req = urllib.request.Request(
-        prep["url"],
-        data=json.dumps(prep["payload"]).encode("utf-8"),
-        headers=prep["headers"],
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=prep["timeout_s"]) as resp:
-            audio = resp.read()
-            content_type = (resp.headers.get("Content-Type") or _SPEAK_TTS_FORMATS.get(prep["format"], "audio/mpeg")).split(";")[0]
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", errors="replace")[:800]
-        return jsonify({"error": "TTS provider request failed", "status": e.code, "detail": detail}), 502
-    except urllib.error.URLError as e:
-        return jsonify({"error": "TTS provider network error", "detail": str(e.reason)}), 502
-    except Exception as e:
-        return jsonify({"error": str(e)}), 502
+    if audio is None:
+        status = getattr(last_http, "code", 502)
+        return jsonify({
+            "error": "TTS provider request failed",
+            "status": status,
+            "detail": last_err or "No response from TTS provider.",
+            "provider_url": last_url,
+        }), 502
 
     return Response(
         audio,
