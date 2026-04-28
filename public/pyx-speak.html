@@ -380,24 +380,6 @@
             <input id="localCloudToggle" type="checkbox" checked />
             <span>Use local Orpheus server (no server proxy)</span>
           </label>
-          <label for="localCloudUrlInput">Local Orpheus URL</label>
-          <input
-            id="localCloudUrlInput"
-            type="text"
-            maxlength="260"
-            placeholder="http://127.0.0.1:8000/v1/audio/speech"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <label for="localCloudModelInput">Local model ID</label>
-          <input
-            id="localCloudModelInput"
-            type="text"
-            maxlength="180"
-            placeholder="canopylabs/orpheus-v1-english"
-            autocomplete="off"
-            spellcheck="false"
-          />
           <button type="button" id="startLocalServerBtn" class="secondary" style="margin-top:8px;">
             Use Eco Mode
           </button>
@@ -457,8 +439,6 @@
       var cloudInstructionWrapEl = document.getElementById("cloudInstructionWrap");
       var styleInstructionInputEl = document.getElementById("styleInstructionInput");
       var localCloudToggleEl = document.getElementById("localCloudToggle");
-      var localCloudUrlInputEl = document.getElementById("localCloudUrlInput");
-      var localCloudModelInputEl = document.getElementById("localCloudModelInput");
       var startLocalServerBtnEl = document.getElementById("startLocalServerBtn");
       var styleHintRowEl = document.getElementById("styleHintRow");
       var speakBtn = document.getElementById("speakBtn");
@@ -1024,8 +1004,6 @@
               engine: engineSelectEl ? (engineSelectEl.value || "cloud") : "cloud",
               styleInstruction: styleInstructionInputEl ? (styleInstructionInputEl.value || "") : "",
               localCloudDirect: !!(localCloudToggleEl && localCloudToggleEl.checked),
-              localCloudUrl: localCloudUrlInputEl ? (localCloudUrlInputEl.value || "") : "",
-              localCloudModel: localCloudModelInputEl ? (localCloudModelInputEl.value || "") : "",
               rate: Number(rateRange.value),
               pitch: Number(pitchRange.value),
               volume: Number(volumeRange.value),
@@ -1050,12 +1028,6 @@
           }
           if (localCloudToggleEl && typeof j.localCloudDirect === "boolean") {
             localCloudToggleEl.checked = j.localCloudDirect;
-          }
-          if (localCloudUrlInputEl && typeof j.localCloudUrl === "string") {
-            localCloudUrlInputEl.value = j.localCloudUrl;
-          }
-          if (localCloudModelInputEl && typeof j.localCloudModel === "string") {
-            localCloudModelInputEl.value = j.localCloudModel;
           }
           if (typeof j.rate === "number") rateRange.value = String(j.rate);
           if (typeof j.pitch === "number") pitchRange.value = String(j.pitch);
@@ -1118,13 +1090,38 @@
       }
 
       function localOrpheusUrl() {
-        var v = normalizeText((localCloudUrlInputEl && localCloudUrlInputEl.value) || "");
-        return v || ORPHEUS_LOCAL_DEFAULT_URL;
+        return ORPHEUS_LOCAL_DEFAULT_URL;
       }
 
       function localOrpheusModel() {
-        var v = normalizeText((localCloudModelInputEl && localCloudModelInputEl.value) || "");
-        return v || ORPHEUS_LOCAL_DEFAULT_MODEL;
+        return ORPHEUS_LOCAL_DEFAULT_MODEL;
+      }
+
+      function isHttpsPage() {
+        try { return String(location.protocol || "").toLowerCase() === "https:"; } catch (e) { return false; }
+      }
+
+      function isLocalHttpUrl(url) {
+        var u = String(url || "").toLowerCase().trim();
+        if (!u) return false;
+        return (
+          (u.indexOf("http://127.0.0.1") === 0) ||
+          (u.indexOf("http://localhost") === 0) ||
+          (u.indexOf("http://0.0.0.0") === 0) ||
+          (u.indexOf("http://[::1]") === 0)
+        );
+      }
+
+      function localFailureMessage(url, errMsg) {
+        var base = "Local Orpheus request failed.";
+        var msg = String(errMsg || "").toLowerCase();
+        if (isHttpsPage() && isLocalHttpUrl(url)) {
+          return base + " HTTPS pages may block HTTP localhost access in some browsers.";
+        }
+        if (msg.indexOf("failed to fetch") >= 0 || msg.indexOf("load failed") >= 0) {
+          return base + " Local server is unavailable or blocked by CORS.";
+        }
+        return base + " " + String(errMsg || "Unknown error");
       }
 
       function localOrpheusHealthUrl() {
@@ -1162,6 +1159,16 @@
         }
         if (localBootPollTimer) clearInterval(localBootPollTimer);
         var healthUrl = localOrpheusHealthUrl();
+        var startCandidates = [
+          "http://127.0.0.1:8000/start",
+          "http://127.0.0.1:8000/orpheus/start",
+          "http://127.0.0.1:8000/api/start",
+        ];
+        for (var si = 0; si < startCandidates.length; si++) {
+          try {
+            fetch(startCandidates[si], { method: "POST", mode: "no-cors", cache: "no-store" }).catch(function () {});
+          } catch (e) {}
+        }
         var startAt = Date.now();
         setStatus("Starting local server...", "ok");
         localBootPollTimer = setInterval(function () {
@@ -1838,7 +1845,7 @@
           .catch(function (e) {
             if (e && e.name === "AbortError") return;
             if (doLocalDirect) {
-              setStatus("Local direct Orpheus failed: " + (e && e.message ? e.message.slice(0, 200) : "unknown error"), "bad");
+              setStatus(localFailureMessage(requestUrl, e && e.message ? e.message : "unknown error").slice(0, 240), "bad");
             } else {
               setStatus("Cloud TTS failed: " + (e && e.message ? e.message.slice(0, 220) : "unknown error"), "bad");
             }
@@ -1942,12 +1949,6 @@
         }
         if (localCloudToggleEl) {
           localCloudToggleEl.addEventListener("change", persistSettings);
-        }
-        if (localCloudUrlInputEl) {
-          localCloudUrlInputEl.addEventListener("input", persistSettings);
-        }
-        if (localCloudModelInputEl) {
-          localCloudModelInputEl.addEventListener("input", persistSettings);
         }
         if (startLocalServerBtnEl) {
           startLocalServerBtnEl.addEventListener("click", startLocalServerBoot);
