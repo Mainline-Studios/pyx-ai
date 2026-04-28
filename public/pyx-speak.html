@@ -271,6 +271,65 @@
       color: #fca5a5;
       background: rgba(127, 29, 29, 0.18);
     }
+    .terminal-box {
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.5);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .terminal-box label {
+      margin: 0;
+      font-size: 0.8rem;
+      color: #cbd5e1;
+    }
+    .terminal-cmd {
+      margin: 0;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(2, 6, 23, 0.85);
+      color: #dbeafe;
+      font-size: 0.74rem;
+      line-height: 1.35;
+      padding: 10px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .local-boot-track {
+      margin-top: 4px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      background: rgba(2, 6, 23, 0.5);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .local-boot-stage {
+      font-size: 0.77rem;
+      color: #cbd5e1;
+      font-weight: 700;
+    }
+    .local-boot-stage.ok { color: #86efac; }
+    .local-boot-stage.warn { color: #fde68a; }
+    .local-boot-stage.bad { color: #fca5a5; }
+    .local-boot-log {
+      font-size: 0.72rem;
+      color: #94a3b8;
+      max-height: 120px;
+      overflow: auto;
+      line-height: 1.3;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .local-boot-log .line {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
 
     .status {
       margin-top: 8px;
@@ -408,7 +467,7 @@
             <span>Use local Orpheus server (no server proxy)</span>
           </label>
           <button type="button" id="startLocalServerBtn" class="secondary" style="margin-top:8px;">
-            Use Eco Mode
+            Start Local API
           </button>
           <button type="button" id="retryWarmBtn" class="secondary" style="margin-top:8px;">
             Retry + Keep Warm
@@ -416,6 +475,17 @@
           <div class="api-status-row">
             <span>Local API:</span>
             <span id="localApiStatus" class="api-pill bad">Not running</span>
+          </div>
+          <div class="terminal-box">
+            <label for="localBootCommand">Terminal venv startup command</label>
+            <pre id="localBootCommand" class="terminal-cmd"></pre>
+            <div class="btn-row" style="margin-top:0;">
+              <button type="button" id="copyLocalBootCmdBtn" class="secondary">Copy Command</button>
+            </div>
+            <div class="local-boot-track">
+              <div id="localBootStage" class="local-boot-stage">Idle. Press Start Local API to begin.</div>
+              <div id="localBootLog" class="local-boot-log"></div>
+            </div>
           </div>
         </div>
         <div class="row">
@@ -476,6 +546,10 @@
       var startLocalServerBtnEl = document.getElementById("startLocalServerBtn");
       var retryWarmBtnEl = document.getElementById("retryWarmBtn");
       var localApiStatusEl = document.getElementById("localApiStatus");
+      var localBootCommandEl = document.getElementById("localBootCommand");
+      var copyLocalBootCmdBtnEl = document.getElementById("copyLocalBootCmdBtn");
+      var localBootStageEl = document.getElementById("localBootStage");
+      var localBootLogEl = document.getElementById("localBootLog");
       var styleHintRowEl = document.getElementById("styleHintRow");
       var speakBtn = document.getElementById("speakBtn");
       var pauseBtn = document.getElementById("pauseBtn");
@@ -514,6 +588,8 @@
       var ORPHEUS_LOCAL_DEFAULT_MODEL = "canopylabs/orpheus-v1-english";
       var localBootPollTimer = null;
       var keepWarmTimer = null;
+      var localBootAttempt = 0;
+      var localBootLastLogAt = 0;
 
       var PRESETS = {
         natural: { rate: 1.0, pitch: 1.0, volume: 0.9, chunk: 210 },
@@ -1166,6 +1242,8 @@
         persistSettings();
         setStatus(reason || "Eco mode unavailable. Switched to cloud TTS.", "warn");
         setLocalApiStatus(false);
+        setLocalBootStage("Local startup failed. Cloud fallback active.", "bad");
+        pushLocalBootLog("Boot timed out. Switched to cloud TTS.");
       }
 
       function localOrpheusHealthUrl() {
@@ -1177,6 +1255,62 @@
         if (!localApiStatusEl) return;
         localApiStatusEl.textContent = running ? "Running" : "Not running";
         localApiStatusEl.className = "api-pill " + (running ? "ok" : "bad");
+      }
+
+      function localTerminalCommand() {
+        return [
+          "# Uses your existing local Orpheus setup (no download step).",
+          "ORPHEUS_ROOT=\"${ORPHEUS_ROOT:-$HOME/Downloads/Orpheus-TTS-main}\"",
+          "if [ ! -d \"$ORPHEUS_ROOT\" ]; then ORPHEUS_ROOT=\"$(ls -d \"$HOME\"/Downloads/Orpheus* 2>/dev/null | sed -n '1p')\"; fi",
+          "if [ -z \"$ORPHEUS_ROOT\" ] || [ ! -d \"$ORPHEUS_ROOT\" ]; then",
+          "  echo \"Orpheus folder not found. Downloading zip to ~/Downloads...\"",
+          "  curl -L \"https://github.com/canopyai/Orpheus-TTS/archive/refs/heads/main.zip\" -o \"$HOME/Downloads/Orpheus-TTS-main.zip\"",
+          "  echo \"Downloaded: $HOME/Downloads/Orpheus-TTS-main.zip\"",
+          "  echo \"Unzip it, then run this command again.\"",
+          "  exit 1",
+          "fi",
+          "cd \"$ORPHEUS_ROOT\"",
+          "source .venv/bin/activate || (python3 -m venv .venv && source .venv/bin/activate)",
+          "python3 start.py || python3 server.py || python3 app.py || echo \"Set your exact Orpheus start file here.\"",
+        ].join("\n");
+      }
+
+      function setLocalBootStage(text, tone) {
+        if (!localBootStageEl) return;
+        localBootStageEl.textContent = text || "";
+        localBootStageEl.className = "local-boot-stage";
+        if (tone === "ok" || tone === "warn" || tone === "bad") {
+          localBootStageEl.className += " " + tone;
+        }
+      }
+
+      function pushLocalBootLog(text) {
+        if (!localBootLogEl || !text) return;
+        var line = document.createElement("div");
+        line.className = "line";
+        var stamp = new Date();
+        var hh = String(stamp.getHours()).padStart(2, "0");
+        var mm = String(stamp.getMinutes()).padStart(2, "0");
+        var ss = String(stamp.getSeconds()).padStart(2, "0");
+        line.textContent = "[" + hh + ":" + mm + ":" + ss + "] " + text;
+        localBootLogEl.appendChild(line);
+        while (localBootLogEl.children.length > 12) {
+          localBootLogEl.removeChild(localBootLogEl.firstChild);
+        }
+        localBootLogEl.scrollTop = localBootLogEl.scrollHeight;
+      }
+
+      function copyLocalTerminalCommand() {
+        var text = localTerminalCommand();
+        if (!navigator.clipboard || !navigator.clipboard.writeText) {
+          setStatus("Clipboard is unavailable. Copy the command manually.", "warn");
+          return;
+        }
+        navigator.clipboard.writeText(text).then(function () {
+          setStatus("Terminal command copied.", "ok");
+        }).catch(function () {
+          setStatus("Could not copy command. Copy it manually.", "warn");
+        });
       }
 
       function checkLocalApiOnce() {
@@ -1266,11 +1400,21 @@
         pokeLocalStartEndpoints();
         var startAt = Date.now();
         var lastPoke = startAt;
+        localBootAttempt = 1;
+        localBootLastLogAt = 0;
+        setLocalBootStage("Starting local API boot sequence...", "warn");
+        pushLocalBootLog("Startup requested. Launching endpoint probes.");
         setStatus("Starting local server...", "ok");
         localBootPollTimer = setInterval(function () {
           if (Date.now() - lastPoke > 900) {
             pokeLocalStartEndpoints();
             lastPoke = Date.now();
+            localBootAttempt += 1;
+          }
+          if (Date.now() - localBootLastLogAt > 2200) {
+            localBootLastLogAt = Date.now();
+            setLocalBootStage("Probing local endpoints (attempt " + localBootAttempt + ")...", "warn");
+            pushLocalBootLog("Health check pending. Attempt " + localBootAttempt + ".");
           }
           fetch(healthUrl, { method: "GET", mode: "no-cors", cache: "no-store" })
             .then(function () {
@@ -1282,6 +1426,8 @@
                 try { bootWin.close(); } catch (e) {}
               }
               setLocalApiStatus(true);
+              setLocalBootStage("Local API is running and healthy.", "ok");
+              pushLocalBootLog("Health endpoint responded. Local API ready.");
               setStatus("Local server is ready.", "ok");
             })
             .catch(function () {
@@ -1295,6 +1441,9 @@
                   bootWin.document.body.innerHTML =
                     "<div style='font-family:ui-sans-serif,system-ui;color:#e2e8f0;background:#0a1020;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center'>Eco mode unavailable.<br/>Switched to cloud TTS.</div>";
                 }
+              } else if (Date.now() - localBootLastLogAt > 3200) {
+                localBootLastLogAt = Date.now();
+                pushLocalBootLog("Still waiting for local API health endpoint...");
               }
             });
         }, 500);
@@ -1948,6 +2097,7 @@
             if (e && e.name === "AbortError") return;
             if (doLocalDirect) {
               if (tries < 12) {
+                setLocalBootStage("Audio request waiting for local API (retry " + (tries + 1) + "/12)...", "warn");
                 setStatus("Eco mode is starting... retrying.", "warn");
                 startLocalServerBoot(false);
                 setTimeout(function () {
@@ -2062,14 +2212,26 @@
           styleInstructionInputEl.addEventListener("input", persistSettings);
         }
         if (localCloudToggleEl) {
-          localCloudToggleEl.addEventListener("change", persistSettings);
+          localCloudToggleEl.addEventListener("change", function () {
+            persistSettings();
+            if (localCloudToggleEl.checked) {
+              setLocalBootStage("Local mode enabled. Press Start Local API.", "warn");
+            } else {
+              setLocalBootStage("Cloud mode enabled. Local API optional.", "ok");
+            }
+          });
         }
         if (startLocalServerBtnEl) {
           startLocalServerBtnEl.addEventListener("click", function () { startLocalServerBoot(true); });
         }
+        if (copyLocalBootCmdBtnEl) {
+          copyLocalBootCmdBtnEl.addEventListener("click", copyLocalTerminalCommand);
+        }
         if (retryWarmBtnEl) {
           retryWarmBtnEl.addEventListener("click", function () {
             setStatus("Retrying and warming local API...", "ok");
+            setLocalBootStage("Manual retry started.", "warn");
+            pushLocalBootLog("Retry + Keep Warm activated.");
             startLocalServerBoot(false);
             startKeepWarmLoop();
             setTimeout(checkLocalApiOnce, 1000);
@@ -2142,8 +2304,14 @@
         persistSettings();
         bindEvents();
         updateDiagnosticsPanel("");
+        if (localBootCommandEl) localBootCommandEl.textContent = localTerminalCommand();
         checkLocalApiOnce();
         startKeepWarmLoop();
+        if (cloudUseLocalDirect()) {
+          setLocalBootStage("Local mode enabled. Press Start Local API.", "warn");
+        } else {
+          setLocalBootStage("Cloud mode enabled. Local API optional.", "ok");
+        }
         setStatus("Ready. Cloud + native engines loaded.", "ok");
       }
 
