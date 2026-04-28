@@ -588,6 +588,7 @@
       var localBootLastLogAt = 0;
       var liveTerminalWin = null;
       var liveTerminalQueue = [];
+      var tacotronInstallAutoTried = false;
 
       var PRESETS = {
         natural: { rate: 1.0, pitch: 1.0, volume: 0.9, chunk: 210 },
@@ -1261,6 +1262,24 @@
         localApiStatusEl.className = "api-pill " + (running ? "ok" : "bad");
       }
 
+      function tacotronNeedsCoquiInstall(msg) {
+        var m = String(msg || "").toLowerCase();
+        return m.indexOf("coqui tts is not installed") >= 0 || m.indexOf("no module named 'tts'") >= 0;
+      }
+
+      function queueTacotronInstallInLiveTerminal() {
+        if (tacotronInstallAutoTried) return;
+        tacotronInstallAutoTried = true;
+        var installCmd = "python3 -m pip install TTS";
+        openLiveTerminalTab(true);
+        setLocalBootStage("Tacotron dependency missing. Running first-time install command...", "warn");
+        pushLocalBootLog("Tacotron first-try fix queued: " + installCmd);
+        sendLiveTerminal({ type: "status", text: "Tacotron fix: installing Coqui TTS...", tone: "warn" });
+        pushLiveTerminalLog("Auto-fix queued (first try): " + installCmd, "warn");
+        pushLiveTerminalLog("If your shell prompts for permissions, approve and wait for completion.", "info");
+        pushLiveTerminalLog("After install finishes, press Speak again in Native Pyx mode.", "info");
+      }
+
       function localTerminalCommand() {
         return [
           "# Uses your existing local Orpheus setup (no download step).",
@@ -1275,6 +1294,7 @@
           "fi",
           "cd \"$ORPHEUS_ROOT\"",
           "source .venv/bin/activate || (python3 -m venv .venv && source .venv/bin/activate)",
+          "python3 -m pip show TTS >/dev/null 2>&1 || python3 -m pip install TTS",
           "python3 start.py || python3 server.py || python3 app.py || echo \"Set your exact Orpheus start file here.\"",
         ].join("\n");
       }
@@ -2402,6 +2422,11 @@
             var msg = (e && e.message ? e.message.slice(0, 260) : "unknown error");
             speaking = false;
             paused = false;
+            if (tacotronNeedsCoquiInstall(msg)) {
+              queueTacotronInstallInLiveTerminal();
+              setStatus("Tacotron failed: " + msg + " Live Terminal queued `pip install TTS` (first try). Native Pyx stays Tacotron-only.", "bad");
+              return;
+            }
             setStatus("Tacotron failed: " + msg + " (Native Pyx stays Tacotron-only; no Cloud fallback).", "bad");
           });
       }
