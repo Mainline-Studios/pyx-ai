@@ -11,10 +11,14 @@ import json
 import math
 import os
 import re
+import shlex
+import subprocess
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from pathlib import Path
 
 from flask import Flask, request, jsonify, Response, stream_with_context
 
@@ -574,6 +578,165 @@ _ORPHEUS_DEFAULT_VOICE = {
     _ORPHEUS_ARABIC_MODEL: "fahad",
 }
 _ORPHEUS_INPUT_MAX = 200
+_TACOTRON_DEFAULT_REPO_CANDIDATES = (
+    os.path.expanduser("~/Downloads/tacotron2"),
+    os.path.expanduser("~/tacotron2"),
+)
+_TACOTRON_COQUI_MODEL_DEFAULT = "tts_models/en/ljspeech/tacotron2-DDC"
+_TACOTRON_COQUI = None
+_TACOTRON_COQUI_MODEL = None
+
+
+def _tacotron_setup_hint() -> str:
+    return (
+        "Tacotron 2 local setup required. "
+        "No NVIDIA/GPU is required: install Coqui TTS (`pip install TTS`) for CPU mode. "
+        "Optional legacy mode supports NVIDIA tacotron2 repo with PYX_TACOTRON_REPO, "
+        "PYX_TACOTRON2_CHECKPOINT, and PYX_WAVEGLOW_CHECKPOINT."
+    )
+
+
+def _detect_tacotron_repo() -> Path | None:
+    env_repo = (os.environ.get("PYX_TACOTRON_REPO") or "").strip()
+    candidates = [env_repo] if env_repo else []
+    candidates.extend(_TACOTRON_DEFAULT_REPO_CANDIDATES)
+    for c in candidates:
+        if not c:
+            continue
+        p = Path(c).expanduser()
+        if (p / "inference.py").exists():
+            return p
+    return None
+
+
+def _detect_tacotron_nvidia_ready() -> tuple[Path | None, Path | None, Path | None]:
+    repo = _detect_tacotron_repo()
+    tacotron_ckpt = Path((os.environ.get("PYX_TACOTRON2_CHECKPOINT") or "").strip()).expanduser()
+    waveglow_ckpt = Path((os.environ.get("PYX_WAVEGLOW_CHECKPOINT") or "").strip()).expanduser()
+    if repo is None:
+        return None, None, None
+    if not tacotron_ckpt.exists() or not waveglow_ckpt.exists():
+        return repo, None, None
+    return repo, tacotron_ckpt, waveglow_ckpt
+
+
+def _tacotron_run_nvidia_local(text: str, speed: float = 1.0) -> bytes:
+    repo, tacotron_ckpt, waveglow_ckpt = _detect_tacotron_nvidia_ready()
+    if repo is None:
+        raise RuntimeError("NVIDIA Tacotron repo not found. " + _tacotron_setup_hint())
+    if tacotron_ckpt is None or waveglow_ckpt is None:
+        raise RuntimeError("NVIDIA Tacotron checkpoints missing. " + _tacotron_setup_hint())
+
+    py_bin = (os.environ.get("PYX_TACOTRON_PYTHON") or "python3").strip()
+    timeout_s = 300
+    try:
+        timeout_s = max(60, min(int(os.environ.get("PYX_TACOTRON_TIMEOUT", "300")), 1200))
+    except ValueError:
+        pass
+
+    with tempfile.TemporaryDirectory(prefix="pyx_tacotron_") as td:
+        tmp = Path(td)
+        in_path = tmp / "input.txt"
+        out_dir = tmp / "out"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        in_path.write_text((text or "").strip() + "\n", encoding="utf-8")
+
+        custom_cmd = (os.environ.get("PYX_TACOTRON_CMD") or "").strip()
+        if custom_cmd:
+            cmd = shlex.split(
+                custom_cmd.format(
+                    input=str(in_path),
+                    outdir=str(out_dir),
+                    repo=str(repo),
+                    taco_ckpt=str(tacotron_ckpt),
+                    wave_ckpt=str(waveglow_ckpt),
+                    python=py_bin,
+                    speed=f"{max(0.7, min(speed, 1.35)):.2f}",
+                )
+            )
+        else:
+            # NVIDIA Tacotron2 default inference.py path.
+            cmd = [
+                py_bin,
+                "inference.py",
+                "--input",
+                str(in_path),
+                "--output",
+                str(out_dir),
+                "--tacotron2",
+                str(tacotron_ckpt),
+                "--waveglow",
+                str(waveglow_ckpt),
+            ]
+            if _as_bool(os.environ.get("PYX_TACOTRON_FP16", "1")):
+                cmd.append("--fp16")
+
+        try:
+            proc = subprocess.run(
+                cmd,
+                cwd=str(repo),
+                capture_output=True,
+                text=True,
+                timeout=timeout_s,
+                check=False,
+            )
+        except Exception as e:
+            raise RuntimeError(f"Tacotron process launch failed: {e}") from e
+
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "").strip()
+            detail = detail[:1200] if detail else "no stderr"
+            raise RuntimeError(f"Tacotron inference failed: {detail}")
+
+        wavs = sorted(out_dir.rglob("*.wav"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if not wavs:
+            raise RuntimeError("Tacotron produced no wav output. " + _tacotron_setup_hint())
+        return wavs[0].read_bytes()
+
+
+def _tacotron_run_coqui_local(text: str, speed: float = 1.0) -> bytes:
+    global _TACOTRON_COQUI, _TACOTRON_COQUI_MODEL
+    model_name = (os.environ.get("PYX_TACOTRON_MODEL") or _TACOTRON_COQUI_MODEL_DEFAULT).strip()
+    try:
+        from TTS.api import TTS  # type: ignore
+    except Exception as e:
+        raise RuntimeError(
+            "Coqui TTS is not installed. Run `pip install TTS` to use Tacotron without NVIDIA. "
+            + f"({e})"
+        ) from e
+
+    if _TACOTRON_COQUI is None or _TACOTRON_COQUI_MODEL != model_name:
+        try:
+            _TACOTRON_COQUI = TTS(model_name=model_name, progress_bar=False, gpu=False)
+            _TACOTRON_COQUI_MODEL = model_name
+        except Exception as e:
+            raise RuntimeError(f"Failed to load Tacotron model '{model_name}': {e}") from e
+
+    with tempfile.TemporaryDirectory(prefix="pyx_tacotron_coqui_") as td:
+        out_path = Path(td) / "out.wav"
+        try:
+            # Some models support speed; keep graceful fallback for broader compatibility.
+            _TACOTRON_COQUI.tts_to_file(text=text, file_path=str(out_path), speed=max(0.7, min(speed, 1.35)))
+        except TypeError:
+            _TACOTRON_COQUI.tts_to_file(text=text, file_path=str(out_path))
+        except Exception as e:
+            raise RuntimeError(f"Tacotron (Coqui) synthesis failed: {e}") from e
+        if not out_path.exists():
+            raise RuntimeError("Tacotron (Coqui) produced no wav output.")
+        return out_path.read_bytes()
+
+
+def _tacotron_run_local(text: str, speed: float = 1.0) -> bytes:
+    backend = (os.environ.get("PYX_TACOTRON_BACKEND") or "auto").strip().lower()
+    if backend == "nvidia":
+        return _tacotron_run_nvidia_local(text, speed)
+    if backend == "coqui":
+        return _tacotron_run_coqui_local(text, speed)
+    # auto: prefer NVIDIA only when fully configured, else use non-NVIDIA Coqui path.
+    repo, taco, wave = _detect_tacotron_nvidia_ready()
+    if repo is not None and taco is not None and wave is not None:
+        return _tacotron_run_nvidia_local(text, speed)
+    return _tacotron_run_coqui_local(text, speed)
 
 
 def _is_orpheus_model(model: str) -> bool:
@@ -1557,6 +1720,45 @@ def speak_tts():
     return Response(
         audio,
         mimetype=content_type,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@app.route("/speak/tacotron", methods=["POST", "OPTIONS"])
+@app.route("/api/speak/tacotron", methods=["POST", "OPTIONS"])
+def speak_tacotron():
+    """Local Tacotron2 + WaveGlow TTS (PyTorch). Requires local repo/checkpoints."""
+    if request.method == "OPTIONS":
+        return "", 204
+    if request.method != "POST":
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.get_json(silent=True) or {}
+    text = data.get("text", "")
+    if not isinstance(text, str):
+        return jsonify({"error": '"text" must be a string'}), 400
+    text = text.strip()
+    if not text:
+        return jsonify({"error": "empty text"}), 400
+    if len(text) > 1200:
+        return jsonify({"error": "text too long", "limit": 1200}), 413
+    try:
+        speed = float(data.get("speed", 1.0))
+    except (TypeError, ValueError):
+        return jsonify({"error": '"speed" must be a number'}), 400
+
+    try:
+        audio = _tacotron_run_local(text=text, speed=speed)
+    except RuntimeError as e:
+        return jsonify({"error": "Tacotron unavailable", "detail": str(e), "hint": _tacotron_setup_hint()}), 503
+    except Exception as e:
+        return jsonify({"error": "Tacotron synthesis failed", "detail": str(e)}), 502
+
+    return Response(
+        audio,
+        mimetype="audio/wav",
         headers={
             "Cache-Control": "no-store, no-cache, must-revalidate",
             "X-Content-Type-Options": "nosniff",

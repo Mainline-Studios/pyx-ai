@@ -438,9 +438,10 @@
         <div>
           <label for="engineSelect">Engine</label>
           <select id="engineSelect">
-            <option value="cloud">Cloud TTS (Pyx Speak 1)</option>
-            <option value="native">Native Synth (Pyx Speak 1)</option>
+            <option value="cloud">Cloud Pyx (Pyx Speak 1)</option>
+            <option value="native">Native Pyx (Tacotron 2 local)</option>
           </select>
+          <p class="small">Native Pyx uses local Tacotron 2 CPU mode. Cloud Pyx uses the hosted TTS path.</p>
         </div>
         <div>
           <label for="voiceSelect">Voice</label>
@@ -617,6 +618,9 @@
         { id: "autumn", name: "Willow" },
         { id: "diana", name: "Iris" },
         { id: "hannah", name: "Nova" },
+      ];
+      var TACOTRON_VOICES = [
+        { id: "ljspeech", name: "LJSpeech (Tacotron 2)" },
       ];
 
       var WORD_OVERRIDES = {
@@ -1176,7 +1180,9 @@
 
       function selectedEngine() {
         if (!engineSelectEl) return "cloud";
-        return engineSelectEl.value === "native" ? "native" : "cloud";
+        if (engineSelectEl.value === "native") return "native";
+        if (engineSelectEl.value === "tacotron") return "native";
+        return "cloud";
       }
 
       function updateInstructionUi() {
@@ -1323,6 +1329,8 @@
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;");
+        var winRepo = "/Users/brennankelly/Downloads/terminal-main";
+        var zshRepo = "/Users/brennankelly/Downloads/zsh-master";
         return (
           "<!doctype html><html><head><meta charset='utf-8'><title>Pyx Live Terminal</title><style>" +
           "body{margin:0;background:#020617;color:#dbeafe;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}" +
@@ -1336,6 +1344,10 @@
           ".status{font-size:12px;color:#93c5fd;font-weight:700}" +
           ".cmd{white-space:pre-wrap;border:1px solid #1e293b;background:#0b1220;border-radius:9px;padding:10px;font-size:12px;line-height:1.35}" +
           ".log{height:50vh;overflow:auto;border:1px solid #1e293b;background:#000;border-radius:9px;padding:8px;display:flex;flex-direction:column;gap:4px}" +
+          ".shell{display:flex;align-items:center;gap:8px;border:1px solid #1e293b;background:#020617;border-radius:9px;padding:8px}" +
+          ".prompt{color:#86efac;font-size:12px;font-weight:700;white-space:nowrap}" +
+          ".input{flex:1;min-width:0;background:#000;border:1px solid #334155;color:#e2e8f0;border-radius:6px;padding:7px 8px;font-family:inherit;font-size:12px}" +
+          ".meta{font-size:11px;color:#94a3b8}" +
           ".line{font-size:12px;line-height:1.35;color:#cbd5e1;white-space:pre-wrap;word-break:break-word}" +
           ".line.ok{color:#86efac}.line.warn{color:#fde68a}.line.bad{color:#fca5a5}.line.info{color:#93c5fd}" +
           "</style></head><body><div class='wrap'>" +
@@ -1346,17 +1358,43 @@
           "<button id='copyCmdBtn'>Copy Startup Command</button>" +
           "</div>" +
           "<div id='status' class='status'>Terminal ready.</div>" +
+          "<div id='meta' class='meta'></div>" +
           "<div class='cmd' id='cmd'>" + cmd + "</div>" +
           "<div id='log' class='log'></div>" +
+          "<div class='shell'><span id='prompt' class='prompt'></span><input id='termInput' class='input' type='text' spellcheck='false' autocomplete='off' placeholder='Type a command (help) and press Enter' /></div>" +
           "</div><script>" +
           "function emit(action){try{if(window.opener&&window.opener.__pyxSpeakTerminalAction){window.opener.__pyxSpeakTerminalAction(action);}}catch(e){}}" +
+          "var isApple=/Mac|iPhone|iPad|Darwin/i.test(navigator.platform||navigator.userAgent||'');" +
+          "var profile=isApple?'zsh':'windows';" +
+          "var repoPath=isApple?'" + zshRepo.replace(/\\/g, "\\\\") + "':'" + winRepo.replace(/\\/g, "\\\\") + "';" +
+          "var cwd=isApple?'~':'C:\\\\Users\\\\Pyx';" +
+          "function promptText(){return profile==='zsh'?'pyx@eco:'+cwd+' %':'PS '+cwd+'> ';}" +
           "function addLine(text,tone){var log=document.getElementById('log');if(!log)return;var d=document.createElement('div');d.className='line '+(tone||'');d.textContent=text;log.appendChild(d);while(log.children.length>200){log.removeChild(log.firstChild);}log.scrollTop=log.scrollHeight;}" +
+          "function updatePrompt(){var p=document.getElementById('prompt');if(p)p.textContent=promptText();}" +
+          "function showMeta(){var m=document.getElementById('meta');if(!m)return;m.textContent='Emulation profile: '+(profile==='zsh'?'zsh-master (Apple)':'terminal-main (Windows)')+' | Source: '+repoPath;}" +
+          "function printHelp(){addLine('Commands: help, repo, clear/cls, pwd, ls/dir, cd <path>, echo <text>, start-api, download, eco, copycmd, startup-cmd','info');}" +
+          "function runCommand(raw){var text=String(raw||'').trim();if(!text)return;addLine(promptText()+text,'ok');var low=text.toLowerCase();" +
+          "if(low==='help'){printHelp();return;}" +
+          "if(low==='repo'){addLine('Using '+(profile==='zsh'?'zsh-master':'terminal-main')+' emulation from '+repoPath,'info');return;}" +
+          "if(low==='clear'||low==='cls'){var log=document.getElementById('log');if(log)log.innerHTML='';return;}" +
+          "if(low==='pwd'){addLine(cwd,'info');return;}" +
+          "if(low==='ls'||low==='dir'){addLine(profile==='zsh'?'.venv\\nmodels\\nserver.py\\nREADME.md':' .venv\\r\\n models\\r\\n server.py\\r\\n README.md','info');return;}" +
+          "if(low.indexOf('cd ')===0){var arg=text.slice(3).trim();if(!arg){addLine('cd: missing path','warn');return;}if(arg==='~'||arg==='/'){cwd=profile==='zsh'?'~':'C:\\\\Users\\\\Pyx';}else if(arg==='..'){if(profile==='zsh'){cwd=cwd==='~'?'~':cwd.replace(/\\/[^/]+$/,'')||'~';}else{cwd=cwd.replace(/\\\\[^\\\\]+$/,'')||'C:\\\\';}}else{if(profile==='zsh'){cwd=(arg.charAt(0)==='/')?arg:(cwd==='~'?'~/'+arg:cwd+'/'+arg);}else{cwd=(arg.indexOf(':\\\\')===1)?arg:(cwd==='C:\\\\'?('C:\\\\'+arg):(cwd+'\\\\'+arg));}}updatePrompt();return;}" +
+          "if(low.indexOf('echo ')===0){addLine(text.slice(5),'info');return;}" +
+          "if(low==='start-api'){emit('start-api');addLine('Start API requested via Pyx bridge.','ok');return;}" +
+          "if(low==='download'){emit('download-orpheus');addLine('Download requested via Pyx bridge.','warn');return;}" +
+          "if(low==='eco'){emit('open-eco');addLine('Eco mode enable requested via Pyx bridge.','ok');return;}" +
+          "if(low==='copycmd'){emit('copy-command');addLine('Startup command copy requested.','info');return;}" +
+          "if(low==='startup-cmd'||low==='cat startup-cmd'||low==='type startup-cmd'){var c=document.getElementById('cmd');addLine(c?c.textContent:'(missing cmd)','info');return;}" +
+          "addLine((profile==='zsh'?'zsh: command not found: ':'Command not recognized: ')+text,'bad');}" +
           "window.__pyxTerminalWrite=function(payload){if(!payload)return;if(payload.type==='status'){var s=document.getElementById('status');if(s)s.textContent=payload.text||'';addLine('[status] '+(payload.text||''),payload.tone||'info');}" +
           "else if(payload.type==='log'){addLine(payload.text||'',payload.tone||'');}}" +
           "document.getElementById('startApiBtn').addEventListener('click',function(){emit('start-api');});" +
           "document.getElementById('downloadBtn').addEventListener('click',function(){emit('download-orpheus');});" +
           "document.getElementById('openEcoBtn').addEventListener('click',function(){emit('open-eco');});" +
           "document.getElementById('copyCmdBtn').addEventListener('click',function(){emit('copy-command');});" +
+          "var input=document.getElementById('termInput');if(input){input.addEventListener('keydown',function(ev){if(ev.key==='Enter'){ev.preventDefault();runCommand(input.value);input.value='';}});setTimeout(function(){try{input.focus();}catch(e){}},30);}" +
+          "showMeta();updatePrompt();printHelp();" +
           "addLine('[" + makeStamp() + "] Live terminal opened.','info');" +
           "<\/script></body></html>"
         );
@@ -1633,9 +1671,10 @@
       }
 
       function setupVoices() {
-        var isNative = selectedEngine() === "native";
-        var list = isNative ? VOICE_MODELS : CLOUD_VOICES;
-        var suffix = isNative ? " (Pyx-native)" : " (cloud)";
+        var engine = selectedEngine();
+        var isNative = engine === "native";
+        var list = isNative ? TACOTRON_VOICES : CLOUD_VOICES;
+        var suffix = isNative ? " (Native Pyx)" : " (Cloud Pyx)";
         var old = voiceSelectEl.value || "";
         voiceSelectEl.innerHTML = "";
         for (var i = 0; i < list.length; i++) {
@@ -2286,17 +2325,90 @@
           });
       }
 
-      function startSpeaking() {
-        var useNative = selectedEngine() === "native";
-        if (useNative && !supportsAudio) {
-          setStatus("WebAudio is not available in this browser.", "bad");
+      function playChunkTacotron(index, fromOffset) {
+        if (!cloudAudio) {
+          setStatus("HTML audio is unavailable in this browser.", "bad");
           return;
         }
-        if (!useNative && !cloudAudio) {
+        if (index >= chunks.length) {
+          speaking = false;
+          paused = false;
+          setStatus("Done speaking.", "ok");
+          return;
+        }
+        cloudUsing = true;
+        chunkIndex = index;
+        activeOffset = Math.max(0, Number(fromOffset) || 0);
+        activeDuration = 0;
+        updateDiagnosticsPanel(chunks[index]);
+        setStatus("Rendering Tacotron 2 voice " + (index + 1) + " / " + chunks.length + "...", "ok");
+        if (cloudAbort) {
+          try { cloudAbort.abort(); } catch (e) {}
+        }
+        cloudAbort = new AbortController();
+        var payload = {
+          text: normalizeBrandPronunciation(chunks[index]),
+          speed: Math.max(0.7, Math.min(1.35, Number(rateRange.value) || 1)),
+        };
+        fetch("/api/speak/tacotron", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: cloudAbort.signal,
+        })
+          .then(function (res) {
+            if (!res.ok) {
+              return res.text().then(function (t) {
+                throw new Error(t || ("Tacotron failed with HTTP " + res.status));
+              });
+            }
+            return res.blob();
+          })
+          .then(function (blob) {
+            if (!speaking || paused) return;
+            if (cloudAudioUrl) {
+              try { URL.revokeObjectURL(cloudAudioUrl); } catch (e) {}
+            }
+            cloudAudioUrl = URL.createObjectURL(blob);
+            cloudAudio.src = cloudAudioUrl;
+            cloudAudio.volume = Math.max(0.05, Math.min(1, Number(volumeRange.value) || 1));
+            cloudAudio.onloadedmetadata = function () {
+              activeDuration = Math.max(0, Number(cloudAudio.duration) || 0);
+              if (activeOffset > 0) {
+                try { cloudAudio.currentTime = Math.min(activeOffset, Math.max(0, activeDuration - 0.02)); } catch (e) {}
+              }
+              cloudAudio.play().then(function () {
+                setStatus("Speaking chunk " + (index + 1) + " / " + chunks.length + "...", "ok");
+              }).catch(function (e) {
+                setStatus("Playback blocked: " + (e && e.message ? e.message : "unknown"), "bad");
+              });
+            };
+            cloudAudio.ontimeupdate = function () {
+              if (!speaking || paused) return;
+              renderMonitor(chunks[index], Number(cloudAudio.currentTime) || 0, activeDuration || 0.01);
+            };
+            cloudAudio.onended = function () {
+              if (!speaking || paused) return;
+              activeOffset = 0;
+              playChunkTacotron(index + 1, 0);
+            };
+            cloudAudio.onerror = function () {
+              setStatus("Tacotron playback error. Check local Tacotron setup.", "bad");
+            };
+          })
+          .catch(function (e) {
+            if (e && e.name === "AbortError") return;
+            setStatus("Tacotron failed: " + (e && e.message ? e.message.slice(0, 260) : "unknown error"), "bad");
+          });
+      }
+
+      function startSpeaking() {
+        var engine = selectedEngine();
+        var useNative = engine === "native";
+        if (!cloudAudio) {
           setStatus("Cloud playback requires HTML audio support.", "bad");
           return;
         }
-        if (useNative && ctx.state === "suspended") ctx.resume();
         hardStop(false);
         var text = normalizeText(inputEl.value || "");
         if (!text) {
@@ -2304,7 +2416,7 @@
           return;
         }
         chunks = splitIntoChunks(text, Number(chunkSizeInput.value));
-        if (!useNative && Number(chunkSizeInput.value) > 180) {
+        if (engine === "cloud" && Number(chunkSizeInput.value) > 180) {
           // Cloud speech models support short inputs; keep chunks under the hard limit.
           chunks = splitIntoChunks(text, 180);
         }
@@ -2317,8 +2429,8 @@
         speaking = true;
         paused = false;
         if (useNative) {
-          playChunkNative(0, 0);
-          setStatus("Speaking with Pyx native synth...", "ok");
+          playChunkTacotron(0, 0);
+          setStatus("Rendering with Native Pyx (Tacotron 2 local)...", "ok");
         } else {
           playChunkCloud(0, 0, 0);
           if (cloudUseLocalDirect()) {
@@ -2506,7 +2618,7 @@
         } else {
           setLocalBootStage("Cloud mode enabled. Local API optional.", "ok");
         }
-        setStatus("Ready. Cloud + native engines loaded.", "ok");
+        setStatus("Ready. Cloud, Tacotron, and native engines loaded.", "ok");
       }
 
       window.addEventListener("beforeunload", function () {
