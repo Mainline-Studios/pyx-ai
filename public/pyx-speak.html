@@ -1689,6 +1689,15 @@
         return VOICE_MODELS[0];
       }
 
+      function pickCloudVoiceOrDefault(rawVoice) {
+        var v = String(rawVoice || "").trim();
+        if (!v) return (CLOUD_VOICES[0] && CLOUD_VOICES[0].id) || "austin";
+        for (var i = 0; i < CLOUD_VOICES.length; i++) {
+          if (CLOUD_VOICES[i].id === v) return v;
+        }
+        return (CLOUD_VOICES[0] && CLOUD_VOICES[0].id) || "austin";
+      }
+
       function normalizeText(raw) {
         return String(raw || "")
           .replace(/\r\n/g, "\n")
@@ -2225,6 +2234,7 @@
         var styleInstruction = normalizeText((styleInstructionInputEl && styleInstructionInputEl.value) || "");
         if (parsed.instruction) styleInstruction = parsed.instruction;
         var cloudText = normalizeBrandPronunciation(parsed.cleanText || chunks[index]);
+        var chosenCloudVoice = pickCloudVoiceOrDefault(voiceSelectEl && voiceSelectEl.value);
         var doLocalDirect = cloudUseLocalDirect();
         var requestUrl = "/api/speak/tts";
         var requestHeaders = { "Content-Type": "application/json" };
@@ -2234,7 +2244,7 @@
           payload = {
             model: localOrpheusModel(),
             input: buildOrpheusInputText(cloudText, styleInstruction),
-            voice: voiceSelectEl.value || "austin",
+            voice: chosenCloudVoice,
             response_format: "wav",
             speed: Math.max(0.7, Math.min(1.35, Number(rateRange.value) || 1)),
           };
@@ -2245,7 +2255,7 @@
             format: "wav",
           };
           if (styleInstruction) payload.instructions = styleInstruction.slice(0, 180);
-          if (voiceSelectEl.value) payload.voice = voiceSelectEl.value;
+          payload.voice = chosenCloudVoice;
         }
         fetch(requestUrl, {
           method: "POST",
