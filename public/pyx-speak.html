@@ -376,6 +376,31 @@
             <button type="button" class="hint-chip" data-style="serious and clear">Serious</button>
             <button type="button" class="hint-chip" data-style="warm and friendly narrator">Narrator</button>
           </div>
+          <label class="diag-toggle" style="margin-top:10px;">
+            <input id="localCloudToggle" type="checkbox" checked />
+            <span>Use local Orpheus server (no server proxy)</span>
+          </label>
+          <label for="localCloudUrlInput">Local Orpheus URL</label>
+          <input
+            id="localCloudUrlInput"
+            type="text"
+            maxlength="260"
+            placeholder="http://127.0.0.1:8000/v1/audio/speech"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <label for="localCloudModelInput">Local model ID</label>
+          <input
+            id="localCloudModelInput"
+            type="text"
+            maxlength="180"
+            placeholder="canopylabs/orpheus-v1-english"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button type="button" id="startLocalServerBtn" class="secondary" style="margin-top:8px;">
+            Use Eco Mode
+          </button>
         </div>
         <div class="row">
           <div>
@@ -431,6 +456,10 @@
       var voiceSelectEl = document.getElementById("voiceSelect");
       var cloudInstructionWrapEl = document.getElementById("cloudInstructionWrap");
       var styleInstructionInputEl = document.getElementById("styleInstructionInput");
+      var localCloudToggleEl = document.getElementById("localCloudToggle");
+      var localCloudUrlInputEl = document.getElementById("localCloudUrlInput");
+      var localCloudModelInputEl = document.getElementById("localCloudModelInput");
+      var startLocalServerBtnEl = document.getElementById("startLocalServerBtn");
       var styleHintRowEl = document.getElementById("styleHintRow");
       var speakBtn = document.getElementById("speakBtn");
       var pauseBtn = document.getElementById("pauseBtn");
@@ -465,6 +494,9 @@
       var cloudAudioUrl = "";
       var cloudAbort = null;
       var cloudUsing = false;
+      var ORPHEUS_LOCAL_DEFAULT_URL = "http://127.0.0.1:8000/v1/audio/speech";
+      var ORPHEUS_LOCAL_DEFAULT_MODEL = "canopylabs/orpheus-v1-english";
+      var localBootPollTimer = null;
 
       var PRESETS = {
         natural: { rate: 1.0, pitch: 1.0, volume: 0.9, chunk: 210 },
@@ -991,6 +1023,9 @@
             JSON.stringify({
               engine: engineSelectEl ? (engineSelectEl.value || "cloud") : "cloud",
               styleInstruction: styleInstructionInputEl ? (styleInstructionInputEl.value || "") : "",
+              localCloudDirect: !!(localCloudToggleEl && localCloudToggleEl.checked),
+              localCloudUrl: localCloudUrlInputEl ? (localCloudUrlInputEl.value || "") : "",
+              localCloudModel: localCloudModelInputEl ? (localCloudModelInputEl.value || "") : "",
               rate: Number(rateRange.value),
               pitch: Number(pitchRange.value),
               volume: Number(volumeRange.value),
@@ -1012,6 +1047,15 @@
           if (engineSelectEl && typeof j.engine === "string") engineSelectEl.value = j.engine;
           if (styleInstructionInputEl && typeof j.styleInstruction === "string") {
             styleInstructionInputEl.value = j.styleInstruction;
+          }
+          if (localCloudToggleEl && typeof j.localCloudDirect === "boolean") {
+            localCloudToggleEl.checked = j.localCloudDirect;
+          }
+          if (localCloudUrlInputEl && typeof j.localCloudUrl === "string") {
+            localCloudUrlInputEl.value = j.localCloudUrl;
+          }
+          if (localCloudModelInputEl && typeof j.localCloudModel === "string") {
+            localCloudModelInputEl.value = j.localCloudModel;
           }
           if (typeof j.rate === "number") rateRange.value = String(j.rate);
           if (typeof j.pitch === "number") pitchRange.value = String(j.pitch);
@@ -1067,6 +1111,98 @@
           };
         }
         return { cleanText: t, instruction: "" };
+      }
+
+      function cloudUseLocalDirect() {
+        return !!(localCloudToggleEl && localCloudToggleEl.checked);
+      }
+
+      function localOrpheusUrl() {
+        var v = normalizeText((localCloudUrlInputEl && localCloudUrlInputEl.value) || "");
+        return v || ORPHEUS_LOCAL_DEFAULT_URL;
+      }
+
+      function localOrpheusModel() {
+        var v = normalizeText((localCloudModelInputEl && localCloudModelInputEl.value) || "");
+        return v || ORPHEUS_LOCAL_DEFAULT_MODEL;
+      }
+
+      function localOrpheusHealthUrl() {
+        var u = localOrpheusUrl();
+        return u.replace(/\/v1\/audio\/speech\/?$/i, "/health");
+      }
+
+      function localBootHtml() {
+        return (
+          "<!doctype html><html><head><meta charset='utf-8'><title>Starting Local Server</title><style>" +
+          "body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a1020;color:#e2e8f0;font-family:ui-sans-serif,system-ui}" +
+          ".wrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px}" +
+          ".pyx-load-spinner{position:relative;width:36px;height:36px;border-radius:999px;opacity:.98}" +
+          ".pyx-load-spinner-ring,.pyx-load-spinner-arc{position:absolute;border-radius:999px;border-style:solid;border-color:transparent;box-sizing:border-box}" +
+          ".pyx-load-spinner-ring{inset:0;border-width:3px;border-top-color:rgba(59,130,246,.95);border-right-color:rgba(59,130,246,.95);border-bottom-color:rgba(59,130,246,.18);border-left-color:rgba(59,130,246,.18);animation:pyxSpin .85s linear infinite}" +
+          ".pyx-load-spinner-arc{inset:4px;border-width:3px;border-top-color:#60a5fa;border-right-color:#60a5fa;animation:pyxSpinFast .28s linear infinite;filter:drop-shadow(0 0 2px rgba(96,165,250,.35))}" +
+          "@keyframes pyxSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}" +
+          "@keyframes pyxSpinFast{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}" +
+          ".copy{font-size:14px;font-weight:600;color:#dbeafe;text-align:center}" +
+          ".sub{font-size:12px;color:#94a3b8;max-width:520px;text-align:center}" +
+          "</style></head><body><div class='wrap'>" +
+          "<div class='pyx-load-spinner'><span class='pyx-load-spinner-ring'></span><span class='pyx-load-spinner-arc'></span></div>" +
+          "<div class='copy'>Starting local Orpheus server...</div>" +
+          "<div class='sub'>Waiting for your local endpoint to become available.</div>" +
+          "</div></body></html>"
+        );
+      }
+
+      function startLocalServerBoot() {
+        var bootWin = window.open("about:blank", "_blank");
+        if (bootWin && bootWin.document) {
+          bootWin.document.open();
+          bootWin.document.write(localBootHtml());
+          bootWin.document.close();
+        }
+        if (localBootPollTimer) clearInterval(localBootPollTimer);
+        var healthUrl = localOrpheusHealthUrl();
+        var startAt = Date.now();
+        setStatus("Starting local server...", "ok");
+        localBootPollTimer = setInterval(function () {
+          fetch(healthUrl, { method: "GET", mode: "no-cors", cache: "no-store" })
+            .then(function () {
+              if (localBootPollTimer) {
+                clearInterval(localBootPollTimer);
+                localBootPollTimer = null;
+              }
+              if (bootWin && !bootWin.closed) {
+                try { bootWin.close(); } catch (e) {}
+              }
+              setStatus("Local server is ready.", "ok");
+            })
+            .catch(function () {
+              if (Date.now() - startAt > 22000) {
+                if (localBootPollTimer) {
+                  clearInterval(localBootPollTimer);
+                  localBootPollTimer = null;
+                }
+                if (bootWin && !bootWin.closed && bootWin.document) {
+                  bootWin.document.body.innerHTML =
+                    "<div style='font-family:ui-sans-serif,system-ui;color:#e2e8f0;background:#0a1020;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center'>Local server not reachable yet.<br/>Start your local Orpheus endpoint, then try again.</div>";
+                }
+                setStatus("Local server not reachable yet.", "warn");
+              }
+            });
+        }, 1200);
+      }
+
+      function buildOrpheusInputText(text, styleInstruction) {
+        var body = normalizeBrandPronunciation(normalizeText(text || ""));
+        var s = normalizeText(styleInstruction || "").toLowerCase();
+        s = s.replace(/[^a-z0-9 \-]/g, " ").replace(/\s+/g, " ").trim();
+        if (s.indexOf("speak ") === 0) s = s.slice(6).trim();
+        if (s.indexOf("style ") === 0) s = s.slice(6).trim();
+        if (s) {
+          var words = s.split(" ").filter(Boolean).slice(0, 3).join(" ");
+          if (words) body = "[" + words + "] " + body;
+        }
+        return body.slice(0, 200);
       }
 
       function setupVoices() {
@@ -1631,16 +1767,31 @@
         var styleInstruction = normalizeText((styleInstructionInputEl && styleInstructionInputEl.value) || "");
         if (parsed.instruction) styleInstruction = parsed.instruction;
         var cloudText = normalizeBrandPronunciation(parsed.cleanText || chunks[index]);
-        var payload = {
-          text: cloudText,
-          speed: Math.max(0.7, Math.min(1.35, Number(rateRange.value) || 1)),
-          format: "wav",
-        };
-        if (styleInstruction) payload.instructions = styleInstruction.slice(0, 180);
-        if (voiceSelectEl.value) payload.voice = voiceSelectEl.value;
-        fetch("/api/speak/tts", {
+        var doLocalDirect = cloudUseLocalDirect();
+        var requestUrl = "/api/speak/tts";
+        var requestHeaders = { "Content-Type": "application/json" };
+        var payload;
+        if (doLocalDirect) {
+          requestUrl = localOrpheusUrl();
+          payload = {
+            model: localOrpheusModel(),
+            input: buildOrpheusInputText(cloudText, styleInstruction),
+            voice: voiceSelectEl.value || "austin",
+            response_format: "wav",
+            speed: Math.max(0.7, Math.min(1.35, Number(rateRange.value) || 1)),
+          };
+        } else {
+          payload = {
+            text: cloudText,
+            speed: Math.max(0.7, Math.min(1.35, Number(rateRange.value) || 1)),
+            format: "wav",
+          };
+          if (styleInstruction) payload.instructions = styleInstruction.slice(0, 180);
+          if (voiceSelectEl.value) payload.voice = voiceSelectEl.value;
+        }
+        fetch(requestUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: requestHeaders,
           body: JSON.stringify(payload),
           signal: cloudAbort.signal,
         })
@@ -1686,7 +1837,11 @@
           })
           .catch(function (e) {
             if (e && e.name === "AbortError") return;
-            setStatus("Cloud TTS failed: " + (e && e.message ? e.message.slice(0, 220) : "unknown error"), "bad");
+            if (doLocalDirect) {
+              setStatus("Local direct Orpheus failed: " + (e && e.message ? e.message.slice(0, 200) : "unknown error"), "bad");
+            } else {
+              setStatus("Cloud TTS failed: " + (e && e.message ? e.message.slice(0, 220) : "unknown error"), "bad");
+            }
           });
       }
 
@@ -1709,7 +1864,7 @@
         }
         chunks = splitIntoChunks(text, Number(chunkSizeInput.value));
         if (!useNative && Number(chunkSizeInput.value) > 180) {
-          // Groq Orpheus currently supports short inputs; keep chunks under the hard limit.
+          // Cloud speech models support short inputs; keep chunks under the hard limit.
           chunks = splitIntoChunks(text, 180);
         }
         if (!chunks.length) {
@@ -1725,7 +1880,11 @@
           setStatus("Speaking with Pyx native synth...", "ok");
         } else {
           playChunkCloud(0, 0);
-          setStatus("Rendering with Groq cloud TTS...", "ok");
+          if (cloudUseLocalDirect()) {
+            setStatus("Rendering with local direct Orpheus...", "ok");
+          } else {
+            setStatus("Rendering with cloud TTS...", "ok");
+          }
         }
       }
 
@@ -1780,6 +1939,18 @@
         }
         if (styleInstructionInputEl) {
           styleInstructionInputEl.addEventListener("input", persistSettings);
+        }
+        if (localCloudToggleEl) {
+          localCloudToggleEl.addEventListener("change", persistSettings);
+        }
+        if (localCloudUrlInputEl) {
+          localCloudUrlInputEl.addEventListener("input", persistSettings);
+        }
+        if (localCloudModelInputEl) {
+          localCloudModelInputEl.addEventListener("input", persistSettings);
+        }
+        if (startLocalServerBtnEl) {
+          startLocalServerBtnEl.addEventListener("click", startLocalServerBoot);
         }
         if (styleHintRowEl) {
           styleHintRowEl.addEventListener("click", function (ev) {
