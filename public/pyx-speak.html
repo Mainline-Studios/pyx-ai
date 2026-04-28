@@ -2400,11 +2400,9 @@
           .catch(function (e) {
             if (e && e.name === "AbortError") return;
             var msg = (e && e.message ? e.message.slice(0, 260) : "unknown error");
-            setStatus("Tacotron failed: " + msg + " | Falling back to Cloud Pyx...", "warn");
-            setTimeout(function () {
-              if (!speaking || paused) return;
-              playChunkCloud(index, fromOffset, 0);
-            }, 30);
+            speaking = false;
+            paused = false;
+            setStatus("Tacotron failed: " + msg + " (Native Pyx stays Tacotron-only; no Cloud fallback).", "bad");
           });
       }
 
