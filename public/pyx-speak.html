@@ -244,6 +244,33 @@
     .hint-chip:hover {
       filter: brightness(1.06);
     }
+    .api-status-row {
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .api-pill {
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      padding: 3px 9px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      background: rgba(15, 23, 42, 0.56);
+      color: #cbd5e1;
+    }
+    .api-pill.ok {
+      border-color: rgba(34, 197, 94, 0.5);
+      color: #86efac;
+      background: rgba(22, 101, 52, 0.22);
+    }
+    .api-pill.bad {
+      border-color: rgba(239, 68, 68, 0.45);
+      color: #fca5a5;
+      background: rgba(127, 29, 29, 0.18);
+    }
 
     .status {
       margin-top: 8px;
@@ -383,6 +410,13 @@
           <button type="button" id="startLocalServerBtn" class="secondary" style="margin-top:8px;">
             Use Eco Mode
           </button>
+          <button type="button" id="retryWarmBtn" class="secondary" style="margin-top:8px;">
+            Retry + Keep Warm
+          </button>
+          <div class="api-status-row">
+            <span>Local API:</span>
+            <span id="localApiStatus" class="api-pill bad">Not running</span>
+          </div>
         </div>
         <div class="row">
           <div>
@@ -440,6 +474,8 @@
       var styleInstructionInputEl = document.getElementById("styleInstructionInput");
       var localCloudToggleEl = document.getElementById("localCloudToggle");
       var startLocalServerBtnEl = document.getElementById("startLocalServerBtn");
+      var retryWarmBtnEl = document.getElementById("retryWarmBtn");
+      var localApiStatusEl = document.getElementById("localApiStatus");
       var styleHintRowEl = document.getElementById("styleHintRow");
       var speakBtn = document.getElementById("speakBtn");
       var pauseBtn = document.getElementById("pauseBtn");
@@ -477,6 +513,7 @@
       var ORPHEUS_LOCAL_DEFAULT_URL = "http://127.0.0.1:8000/v1/audio/speech";
       var ORPHEUS_LOCAL_DEFAULT_MODEL = "canopylabs/orpheus-v1-english";
       var localBootPollTimer = null;
+      var keepWarmTimer = null;
 
       var PRESETS = {
         natural: { rate: 1.0, pitch: 1.0, volume: 0.9, chunk: 210 },
@@ -1124,9 +1161,44 @@
         return base + " " + String(errMsg || "Unknown error");
       }
 
+      function fallbackToCloud(reason) {
+        if (localCloudToggleEl) localCloudToggleEl.checked = false;
+        persistSettings();
+        setStatus(reason || "Eco mode unavailable. Switched to cloud TTS.", "warn");
+        setLocalApiStatus(false);
+      }
+
       function localOrpheusHealthUrl() {
         var u = localOrpheusUrl();
         return u.replace(/\/v1\/audio\/speech\/?$/i, "/health");
+      }
+
+      function setLocalApiStatus(running) {
+        if (!localApiStatusEl) return;
+        localApiStatusEl.textContent = running ? "Running" : "Not running";
+        localApiStatusEl.className = "api-pill " + (running ? "ok" : "bad");
+      }
+
+      function checkLocalApiOnce() {
+        return fetch(localOrpheusHealthUrl(), { method: "GET", mode: "no-cors", cache: "no-store" })
+          .then(function () {
+            setLocalApiStatus(true);
+            return true;
+          })
+          .catch(function () {
+            setLocalApiStatus(false);
+            return false;
+          });
+      }
+
+      function startKeepWarmLoop() {
+        if (keepWarmTimer) clearInterval(keepWarmTimer);
+        keepWarmTimer = setInterval(function () {
+          if (!cloudUseLocalDirect()) return;
+          checkLocalApiOnce().then(function (ok) {
+            if (!ok) pokeLocalStartEndpoints();
+          });
+        }, 12000);
       }
 
       function localBootHtml() {
@@ -1151,14 +1223,30 @@
       }
 
       function pokeLocalStartEndpoints() {
-        var startCandidates = [
-          "http://127.0.0.1:8000/start",
-          "http://127.0.0.1:8000/orpheus/start",
-          "http://127.0.0.1:8000/api/start",
+        var startCandidates = [];
+        var bases = [
+          "http://127.0.0.1:8000",
+          "http://127.0.0.1:8765",
+          "http://127.0.0.1:5000",
         ];
+        var paths = [
+          "/start",
+          "/orpheus/start",
+          "/api/start",
+          "/venv/start",
+          "/start_venv",
+          "/boot",
+          "/run",
+        ];
+        for (var bi = 0; bi < bases.length; bi++) {
+          for (var pi = 0; pi < paths.length; pi++) {
+            startCandidates.push(bases[bi] + paths[pi]);
+          }
+        }
         for (var si = 0; si < startCandidates.length; si++) {
           try {
             fetch(startCandidates[si], { method: "POST", mode: "no-cors", cache: "no-store" }).catch(function () {});
+            fetch(startCandidates[si], { method: "GET", mode: "no-cors", cache: "no-store" }).catch(function () {});
           } catch (e) {}
         }
       }
@@ -1180,7 +1268,7 @@
         var lastPoke = startAt;
         setStatus("Starting local server...", "ok");
         localBootPollTimer = setInterval(function () {
-          if (Date.now() - lastPoke > 2600) {
+          if (Date.now() - lastPoke > 900) {
             pokeLocalStartEndpoints();
             lastPoke = Date.now();
           }
@@ -1193,22 +1281,23 @@
               if (bootWin && !bootWin.closed) {
                 try { bootWin.close(); } catch (e) {}
               }
+              setLocalApiStatus(true);
               setStatus("Local server is ready.", "ok");
             })
             .catch(function () {
-              if (Date.now() - startAt > 22000) {
+              if (Date.now() - startAt > 90000) {
                 if (localBootPollTimer) {
                   clearInterval(localBootPollTimer);
                   localBootPollTimer = null;
                 }
+                fallbackToCloud("Eco mode unavailable after startup retries. Switched to cloud TTS.");
                 if (bootWin && !bootWin.closed && bootWin.document) {
                   bootWin.document.body.innerHTML =
-                    "<div style='font-family:ui-sans-serif,system-ui;color:#e2e8f0;background:#0a1020;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center'>Eco mode is still starting.<br/>Please wait a bit longer.</div>";
+                    "<div style='font-family:ui-sans-serif,system-ui;color:#e2e8f0;background:#0a1020;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center'>Eco mode unavailable.<br/>Switched to cloud TTS.</div>";
                 }
-                setStatus("Eco mode is still starting.", "warn");
               }
             });
-        }, 1200);
+        }, 500);
       }
 
       function buildOrpheusInputText(text, styleInstruction) {
@@ -1858,15 +1947,19 @@
           .catch(function (e) {
             if (e && e.name === "AbortError") return;
             if (doLocalDirect) {
-              if (tries < 2) {
+              if (tries < 12) {
                 setStatus("Eco mode is starting... retrying.", "warn");
                 startLocalServerBoot(false);
                 setTimeout(function () {
                   if (speaking && !paused) playChunkCloud(index, fromOffset, tries + 1);
-                }, 2600);
+                }, 900);
                 return;
               }
-              setStatus(localFailureMessage(requestUrl, e && e.message ? e.message : "unknown error").slice(0, 240), "bad");
+              fallbackToCloud(localFailureMessage(requestUrl, e && e.message ? e.message : "unknown error").slice(0, 240));
+              setTimeout(function () {
+                if (speaking && !paused) playChunkCloud(index, fromOffset, 0);
+              }, 10);
+              return;
             } else {
               setStatus("Cloud TTS failed: " + (e && e.message ? e.message.slice(0, 220) : "unknown error"), "bad");
             }
@@ -1974,6 +2067,14 @@
         if (startLocalServerBtnEl) {
           startLocalServerBtnEl.addEventListener("click", function () { startLocalServerBoot(true); });
         }
+        if (retryWarmBtnEl) {
+          retryWarmBtnEl.addEventListener("click", function () {
+            setStatus("Retrying and warming local API...", "ok");
+            startLocalServerBoot(false);
+            startKeepWarmLoop();
+            setTimeout(checkLocalApiOnce, 1000);
+          });
+        }
         if (styleHintRowEl) {
           styleHintRowEl.addEventListener("click", function (ev) {
             var t = ev.target;
@@ -2041,6 +2142,8 @@
         persistSettings();
         bindEvents();
         updateDiagnosticsPanel("");
+        checkLocalApiOnce();
+        startKeepWarmLoop();
         setStatus("Ready. Cloud + native engines loaded.", "ok");
       }
 
