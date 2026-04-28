@@ -1150,15 +1150,7 @@
         );
       }
 
-      function startLocalServerBoot() {
-        var bootWin = window.open("about:blank", "_blank");
-        if (bootWin && bootWin.document) {
-          bootWin.document.open();
-          bootWin.document.write(localBootHtml());
-          bootWin.document.close();
-        }
-        if (localBootPollTimer) clearInterval(localBootPollTimer);
-        var healthUrl = localOrpheusHealthUrl();
+      function pokeLocalStartEndpoints() {
         var startCandidates = [
           "http://127.0.0.1:8000/start",
           "http://127.0.0.1:8000/orpheus/start",
@@ -1169,9 +1161,29 @@
             fetch(startCandidates[si], { method: "POST", mode: "no-cors", cache: "no-store" }).catch(function () {});
           } catch (e) {}
         }
+      }
+
+      function startLocalServerBoot(showWindow) {
+        var bootWin = null;
+        if (showWindow) {
+          bootWin = window.open("about:blank", "_blank");
+          if (bootWin && bootWin.document) {
+            bootWin.document.open();
+            bootWin.document.write(localBootHtml());
+            bootWin.document.close();
+          }
+        }
+        if (localBootPollTimer) clearInterval(localBootPollTimer);
+        var healthUrl = localOrpheusHealthUrl();
+        pokeLocalStartEndpoints();
         var startAt = Date.now();
+        var lastPoke = startAt;
         setStatus("Starting local server...", "ok");
         localBootPollTimer = setInterval(function () {
+          if (Date.now() - lastPoke > 2600) {
+            pokeLocalStartEndpoints();
+            lastPoke = Date.now();
+          }
           fetch(healthUrl, { method: "GET", mode: "no-cors", cache: "no-store" })
             .then(function () {
               if (localBootPollTimer) {
@@ -1191,9 +1203,9 @@
                 }
                 if (bootWin && !bootWin.closed && bootWin.document) {
                   bootWin.document.body.innerHTML =
-                    "<div style='font-family:ui-sans-serif,system-ui;color:#e2e8f0;background:#0a1020;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center'>Local server not reachable yet.<br/>Start your local Orpheus endpoint, then try again.</div>";
+                    "<div style='font-family:ui-sans-serif,system-ui;color:#e2e8f0;background:#0a1020;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center'>Eco mode is still starting.<br/>Please wait a bit longer.</div>";
                 }
-                setStatus("Local server not reachable yet.", "warn");
+                setStatus("Eco mode is still starting.", "warn");
               }
             });
         }, 1200);
@@ -1749,11 +1761,12 @@
         updateDiagnosticsPanel(chunks[index]);
       }
 
-      function playChunkCloud(index, fromOffset) {
+      function playChunkCloud(index, fromOffset, retryCount) {
         if (!cloudAudio) {
           setStatus("HTML audio is unavailable in this browser.", "bad");
           return;
         }
+        var tries = Number(retryCount) || 0;
         if (index >= chunks.length) {
           speaking = false;
           paused = false;
@@ -1845,6 +1858,14 @@
           .catch(function (e) {
             if (e && e.name === "AbortError") return;
             if (doLocalDirect) {
+              if (tries < 2) {
+                setStatus("Eco mode is starting... retrying.", "warn");
+                startLocalServerBoot(false);
+                setTimeout(function () {
+                  if (speaking && !paused) playChunkCloud(index, fromOffset, tries + 1);
+                }, 2600);
+                return;
+              }
               setStatus(localFailureMessage(requestUrl, e && e.message ? e.message : "unknown error").slice(0, 240), "bad");
             } else {
               setStatus("Cloud TTS failed: " + (e && e.message ? e.message.slice(0, 220) : "unknown error"), "bad");
@@ -1886,7 +1907,7 @@
           playChunkNative(0, 0);
           setStatus("Speaking with Pyx native synth...", "ok");
         } else {
-          playChunkCloud(0, 0);
+          playChunkCloud(0, 0, 0);
           if (cloudUseLocalDirect()) {
             setStatus("Rendering with local direct Orpheus...", "ok");
           } else {
@@ -1951,7 +1972,7 @@
           localCloudToggleEl.addEventListener("change", persistSettings);
         }
         if (startLocalServerBtnEl) {
-          startLocalServerBtnEl.addEventListener("click", startLocalServerBoot);
+          startLocalServerBtnEl.addEventListener("click", function () { startLocalServerBoot(true); });
         }
         if (styleHintRowEl) {
           styleHintRowEl.addEventListener("click", function (ev) {
