@@ -1552,9 +1552,10 @@
       function startLocalServerBoot(showWindow, opts) {
         opts = opts || {};
         var autoEnableEco = !!opts.autoEnableEco;
+        var ecoModeBootUrl = "https://pyx-ai.web.app/pyx-speak.html/ecomode";
         var bootWin = null;
         if (showWindow) {
-          bootWin = window.open("about:blank", "_blank");
+          bootWin = window.open(ecoModeBootUrl, "_blank");
           if (bootWin && bootWin.document) {
             bootWin.document.open();
             bootWin.document.write(localBootHtml());
