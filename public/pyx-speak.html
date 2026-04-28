@@ -480,16 +480,9 @@
             <span>Local API:</span>
             <span id="localApiStatus" class="api-pill bad">Not running</span>
           </div>
-          <div class="terminal-box">
-            <label for="localBootCommand">Terminal venv startup command</label>
-            <pre id="localBootCommand" class="terminal-cmd"></pre>
-            <div class="btn-row" style="margin-top:0;">
-              <button type="button" id="copyLocalBootCmdBtn" class="secondary">Copy Command</button>
-            </div>
-            <div class="local-boot-track">
-              <div id="localBootStage" class="local-boot-stage">Idle. Press Start Local API to begin.</div>
-              <div id="localBootLog" class="local-boot-log"></div>
-            </div>
+          <div class="local-boot-track" style="margin-top:10px;">
+            <div id="localBootStage" class="local-boot-stage">Idle. Press Start Local API to begin.</div>
+            <div id="localBootLog" class="local-boot-log"></div>
           </div>
         </div>
         <div class="row">
@@ -551,8 +544,6 @@
       var retryWarmBtnEl = document.getElementById("retryWarmBtn");
       var openLiveTerminalBtnEl = document.getElementById("openLiveTerminalBtn");
       var localApiStatusEl = document.getElementById("localApiStatus");
-      var localBootCommandEl = document.getElementById("localBootCommand");
-      var copyLocalBootCmdBtnEl = document.getElementById("copyLocalBootCmdBtn");
       var localBootStageEl = document.getElementById("localBootStage");
       var localBootLogEl = document.getElementById("localBootLog");
       var styleHintRowEl = document.getElementById("styleHintRow");
@@ -2398,7 +2389,12 @@
           })
           .catch(function (e) {
             if (e && e.name === "AbortError") return;
-            setStatus("Tacotron failed: " + (e && e.message ? e.message.slice(0, 260) : "unknown error"), "bad");
+            var msg = (e && e.message ? e.message.slice(0, 260) : "unknown error");
+            setStatus("Tacotron failed: " + msg + " | Falling back to Cloud Pyx...", "warn");
+            setTimeout(function () {
+              if (!speaking || paused) return;
+              playChunkCloud(index, fromOffset, 0);
+            }, 30);
           });
       }
 
@@ -2513,9 +2509,6 @@
             setStatus("Live terminal opened in a new tab.", "ok");
           });
         }
-        if (copyLocalBootCmdBtnEl) {
-          copyLocalBootCmdBtnEl.addEventListener("click", copyLocalTerminalCommand);
-        }
         if (retryWarmBtnEl) {
           retryWarmBtnEl.addEventListener("click", function () {
             setStatus("Retrying and warming local API...", "ok");
@@ -2610,7 +2603,6 @@
           }
         };
         updateDiagnosticsPanel("");
-        if (localBootCommandEl) localBootCommandEl.textContent = localTerminalCommand();
         checkLocalApiOnce();
         startKeepWarmLoop();
         if (cloudUseLocalDirect()) {
