@@ -13,7 +13,7 @@
 # Commits must be saved first; then this pushes the current branch to origin
 # before Cloud Build / Firebase. Skip push: DEPLOY_SKIP_GIT_PUSH=1 npm run deploy
 #
-# API deploy defaults: min-instances=1, 1Gi RAM, 900s timeout, --no-cpu-throttling, --cpu-boost.
+# API deploy defaults: min-instances=1, 2Gi RAM, 900s timeout, --no-cpu-throttling, --cpu-boost.
 # CPU throttling OFF by default (warm instances still throttle CPU between requests unless disabled — a major 503 cause).
 # Opt in to idle CPU throttling (save $): CLOUD_RUN_CPU_THROTTLING=1 npm run deploy:api
 # Scale to zero: CLOUD_RUN_MIN_INSTANCES=0 npm run deploy:api
@@ -65,7 +65,7 @@ deploy_api() {
   echo "==> Cloud Build + Cloud Run (${SERVICE})"
   gcloud builds submit . --config=cloudbuild.yaml
   local min_inst="${CLOUD_RUN_MIN_INSTANCES:-1}"
-  local mem="${CLOUD_RUN_MEMORY:-1Gi}"
+  local mem="${CLOUD_RUN_MEMORY:-2Gi}"
   local tmo="${CLOUD_RUN_TIMEOUT:-900s}"
   local -a run_args=(
     --image="${IMAGE}"
