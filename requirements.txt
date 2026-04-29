@@ -6,3 +6,4 @@ firebase-admin>=6.0.0
 flask>=3.0.0
 gunicorn>=21.0.0
 numpy>=2.0.0
+TTS==0.22.0
