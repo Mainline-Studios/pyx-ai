@@ -1270,7 +1270,7 @@
       function queueTacotronInstallInLiveTerminal() {
         if (tacotronInstallAutoTried) return;
         tacotronInstallAutoTried = true;
-        var installCmd = "python3 -m pip install TTS";
+        var installCmd = "(python3.11 -m pip install TTS || python3 -m pip install --break-system-packages TTS)";
         openLiveTerminalTab(true);
         setLocalBootStage("Tacotron dependency missing. Running first-time install command...", "warn");
         pushLocalBootLog("Tacotron first-try fix queued: " + installCmd);
@@ -1294,7 +1294,9 @@
           "fi",
           "cd \"$ORPHEUS_ROOT\"",
           "source .venv/bin/activate || (python3 -m venv .venv && source .venv/bin/activate)",
-          "python3 -m pip show TTS >/dev/null 2>&1 || python3 -m pip install TTS",
+          "PYX_PY=\"$(command -v python3.11 || command -v python3)\"",
+          "if [ -z \"$PYX_PY\" ]; then echo \"Python 3.11+ not found.\"; exit 1; fi",
+          "$PYX_PY -m pip show TTS >/dev/null 2>&1 || $PYX_PY -m pip install TTS",
           "python3 start.py || python3 server.py || python3 app.py || echo \"Set your exact Orpheus start file here.\"",
         ].join("\n");
       }

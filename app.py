@@ -12,13 +12,16 @@ import math
 import os
 import re
 import shlex
+import shutil
 import subprocess
+import sys
 import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Lock
 
 from flask import Flask, request, jsonify, Response, stream_with_context
 
@@ -585,6 +588,8 @@ _TACOTRON_DEFAULT_REPO_CANDIDATES = (
 _TACOTRON_COQUI_MODEL_DEFAULT = "tts_models/en/ljspeech/tacotron2-DDC"
 _TACOTRON_COQUI = None
 _TACOTRON_COQUI_MODEL = None
+_TACOTRON_COQUI_INSTALL_ATTEMPTED = False
+_TACOTRON_COQUI_INSTALL_LOCK = Lock()
 
 
 def _tacotron_setup_hint() -> str:
@@ -594,6 +599,114 @@ def _tacotron_setup_hint() -> str:
         "Optional legacy mode supports NVIDIA tacotron2 repo with PYX_TACOTRON_REPO, "
         "PYX_TACOTRON2_CHECKPOINT, and PYX_WAVEGLOW_CHECKPOINT."
     )
+
+
+def _is_cloud_run_runtime() -> bool:
+    return bool((os.environ.get("K_SERVICE") or "").strip())
+
+
+def _tacotron_python_candidates() -> list[str]:
+    seen = set()
+    out: list[str] = []
+
+    def _add(cmd: str) -> None:
+        c = (cmd or "").strip()
+        if not c or c in seen:
+            return
+        if "/" in c:
+            if Path(c).expanduser().exists():
+                seen.add(c)
+                out.append(c)
+            return
+        if shutil.which(c):
+            seen.add(c)
+            out.append(c)
+
+    _add(os.environ.get("PYX_TACOTRON_PYTHON") or "")
+    _add(str((Path.cwd() / ".venv311" / "bin" / "python").resolve()))
+    _add(str((Path.cwd() / ".venv" / "bin" / "python").resolve()))
+    _add("python3.11")
+    _add("python3.10")
+    _add(sys.executable or "")
+    _add("python3")
+    return out
+
+
+def _tacotron_try_install_coqui_once() -> tuple[bool, str]:
+    """Best-effort local auto-install for Coqui TTS (single attempt per process)."""
+    global _TACOTRON_COQUI_INSTALL_ATTEMPTED
+    with _TACOTRON_COQUI_INSTALL_LOCK:
+        if _TACOTRON_COQUI_INSTALL_ATTEMPTED:
+            return False, "already attempted in this process"
+        _TACOTRON_COQUI_INSTALL_ATTEMPTED = True
+
+    # Never try package installs on Cloud Run runtime instances.
+    if _is_cloud_run_runtime():
+        return False, "auto-install disabled on Cloud Run"
+
+    try:
+        timeout_s = max(30, min(int(os.environ.get("PYX_TACOTRON_INSTALL_TIMEOUT", "480")), 1800))
+    except ValueError:
+        timeout_s = 480
+
+    errors = []
+    for py_bin in _tacotron_python_candidates():
+        try:
+            proc = subprocess.run(
+                [py_bin, "-m", "pip", "install", "TTS"],
+                capture_output=True,
+                text=True,
+                timeout=timeout_s,
+                check=False,
+            )
+        except Exception as e:
+            errors.append(f"{py_bin}: launch failed: {e}")
+            continue
+        if proc.returncode == 0:
+            return True, f"pip install TTS succeeded via {py_bin}"
+        detail = (proc.stderr or proc.stdout or "").strip()
+        detail = detail[:240] if detail else "unknown pip failure"
+        errors.append(f"{py_bin}: {detail}")
+    return False, " ; ".join(errors[:3]) if errors else "no python candidate available for pip install"
+
+
+def _tacotron_run_coqui_subprocess(text: str, speed: float, model_name: str) -> bytes:
+    script = (
+        "import sys\n"
+        "from TTS.api import TTS\n"
+        "text_path, out_path, model_name, speed = sys.argv[1:5]\n"
+        "with open(text_path, 'r', encoding='utf-8') as f:\n"
+        "    txt = f.read()\n"
+        "tts = TTS(model_name=model_name, progress_bar=False, gpu=False)\n"
+        "try:\n"
+        "    tts.tts_to_file(text=txt, file_path=out_path, speed=float(speed))\n"
+        "except TypeError:\n"
+        "    tts.tts_to_file(text=txt, file_path=out_path)\n"
+    )
+    errors = []
+    with tempfile.TemporaryDirectory(prefix="pyx_tacotron_coqui_subproc_") as td:
+        tmp = Path(td)
+        in_path = tmp / "in.txt"
+        out_path = tmp / "out.wav"
+        in_path.write_text((text or "").strip(), encoding="utf-8")
+        for py_bin in _tacotron_python_candidates():
+            try:
+                proc = subprocess.run(
+                    [py_bin, "-c", script, str(in_path), str(out_path), model_name, f"{max(0.7, min(speed, 1.35)):.2f}"],
+                    capture_output=True,
+                    text=True,
+                    timeout=max(90, min(int(os.environ.get("PYX_TACOTRON_TIMEOUT", "300")), 1200)),
+                    check=False,
+                )
+            except Exception as e:
+                errors.append(f"{py_bin}: launch failed: {e}")
+                continue
+            if proc.returncode == 0 and out_path.exists():
+                return out_path.read_bytes()
+            detail = (proc.stderr or proc.stdout or "").strip()
+            detail = detail[:280] if detail else "no stderr"
+            errors.append(f"{py_bin}: {detail}")
+    raise RuntimeError("Tacotron (Coqui) subprocess failed. " + " | ".join(errors[:3]))
 
 
 def _detect_tacotron_repo() -> Path | None:
@@ -700,10 +813,23 @@ def _tacotron_run_coqui_local(text: str, speed: float = 1.0) -> bytes:
     try:
         from TTS.api import TTS  # type: ignore
     except Exception as e:
-        raise RuntimeError(
-            "Coqui TTS is not installed. Run `pip install TTS` to use Tacotron without NVIDIA. "
-            + f"({e})"
-        ) from e
+        installed, detail = _tacotron_try_install_coqui_once()
+        if installed:
+            try:
+                from TTS.api import TTS  # type: ignore
+            except Exception as reimport_err:
+                # If this runtime Python is incompatible (e.g. 3.14), try a subprocess
+                # with a compatible interpreter such as python3.11 / .venv311.
+                return _tacotron_run_coqui_subprocess(text=text, speed=speed, model_name=model_name)
+        else:
+            # If local install fails in this interpreter, attempt subprocess fallback anyway.
+            try:
+                return _tacotron_run_coqui_subprocess(text=text, speed=speed, model_name=model_name)
+            except Exception as sub_err:
+                raise RuntimeError(
+                    "Coqui TTS is not installed. Run `pip install TTS` to use Tacotron without NVIDIA. "
+                    + f"({e}). Auto-install status: {detail}. Subprocess fallback failed: {sub_err}"
+                ) from e
 
     if _TACOTRON_COQUI is None or _TACOTRON_COQUI_MODEL != model_name:
         try:
