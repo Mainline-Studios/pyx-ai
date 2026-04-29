@@ -5,5 +5,5 @@ firebase-admin>=6.0.0
 # Web API (app.py / gunicorn for pyxaiapi):
 flask>=3.0.0
 gunicorn>=21.0.0
-numpy>=2.0.0
+numpy>=1.24.3,<2.0.0
 TTS==0.22.0
