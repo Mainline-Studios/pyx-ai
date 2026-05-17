@@ -13,11 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && pip install -r /app/requirements.txt
-RUN python - <<'PY'
-from TTS.api import TTS
-TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC", progress_bar=False, gpu=False)
-print("Tacotron model cache primed.")
-PY
+RUN python -c 'from TTS.api import TTS; TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC", progress_bar=False, gpu=False); print("Tacotron model cache primed.")'
 
 COPY . /app
 

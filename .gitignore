@@ -8,6 +8,7 @@ data/
 *.json
 .env
 .venv/
+.venv311/
 venv/
 firebase-key.json
 
