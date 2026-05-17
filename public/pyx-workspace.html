@@ -34,7 +34,12 @@
     .ws-tab.is-active { color: #e0e7ff; background: rgba(99, 102, 241, 0.28); border-color: rgba(129, 140, 248, 0.45); }
     .ws-browser-bar { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
     .ws-browser-bar input { flex: 1; min-width: 160px; }
-    .ws-browser-frame { width: 100%; min-height: 440px; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
+    .ws-browser-placeholder {
+      min-height: 320px; padding: 24px 20px; border-radius: 12px; border: 1px dashed rgba(129, 140, 248, 0.45);
+      background: rgba(15, 23, 42, 0.5); text-align: center;
+    }
+    .ws-browser-placeholder p { margin: 0 0 14px; max-width: 42ch; margin-left: auto; margin-right: auto; line-height: 1.55; }
+    .ws-browser-placeholder .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
     .ws-reader { max-height: 440px; overflow: auto; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); font-size: 0.9rem; line-height: 1.55; white-space: pre-wrap; }
     .ws-result, .ws-pin, .ws-blank {
       padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); margin-bottom: 8px;
@@ -124,7 +129,7 @@
         <button type="button" class="btn" id="wsStartPyx" style="width:100%;margin-bottom:8px;">
           Start with Pyx
         </button>
-        <button type="button" class="btn secondary" id="wsSearchBtn">Search &amp; open browser</button>
+        <button type="button" class="btn secondary" id="wsSearchBtn">Search the web</button>
         <p class="ws-status" id="wsStatus" aria-live="polite"></p>
         <button type="button" class="btn" id="wsReadAndFill" style="width:100%;margin-top:8px;">
           Read my links &amp; help fill in
@@ -149,7 +154,7 @@
         </article>
         <div class="ws-tabs" role="tablist">
           <button type="button" class="ws-tab is-active" data-ws-tab="results">Search results</button>
-          <button type="button" class="ws-tab" data-ws-tab="browser">Web browser</button>
+          <button type="button" class="ws-tab" data-ws-tab="browser">Open on web</button>
           <button type="button" class="ws-tab" data-ws-tab="reader">Read a page</button>
           <button type="button" class="ws-tab" data-ws-tab="blanks">Fill in the blanks</button>
           <button type="button" class="ws-tab" data-ws-tab="export">Your plan</button>
@@ -158,13 +163,19 @@
         <div data-ws-panel="results" id="wsSearchResults"></div>
 
         <div data-ws-panel="browser" hidden>
-          <p class="ws-muted">Pyx opens a real web search here. When you find a good page, go back to results and <strong>Save link</strong>.</p>
+          <p class="ws-muted">Most sites (including DuckDuckGo) block an inside-Pyx window. Use <strong>Search results</strong> in Pyx, or open the web in a new tab.</p>
           <div class="ws-browser-bar">
-            <input type="url" id="wsBrowserUrl" placeholder="https://…" />
-            <button type="button" class="btn secondary" id="wsBrowserGo">Go</button>
-            <button type="button" class="btn secondary" id="wsBrowserSearch">Search topic</button>
+            <input type="url" id="wsBrowserUrl" placeholder="Paste a link or search words…" />
+            <button type="button" class="btn secondary" id="wsBrowserGo">Open link</button>
+            <button type="button" class="btn secondary" id="wsBrowserSearch">Open search</button>
           </div>
-          <iframe id="wsBrowserFrame" class="ws-browser-frame" title="Pyx research browser" sandbox="allow-forms allow-scripts allow-same-origin allow-popups"></iframe>
+          <div class="ws-browser-placeholder" id="wsBrowserPlaceholder">
+            <p><strong>Search results are in the first tab.</strong> Tap <strong>Save link</strong> on a result, or open the full search in a new browser tab.</p>
+            <div class="actions">
+              <button type="button" class="btn" id="wsOpenSearchExt">Open search in new tab</button>
+              <button type="button" class="btn secondary" id="wsBackToResults">Back to search results</button>
+            </div>
+          </div>
         </div>
 
         <div data-ws-panel="reader" hidden>

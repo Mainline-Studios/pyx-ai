@@ -321,8 +321,9 @@
     var resultsEl = document.getElementById("wsSearchResults");
     var readerEl = document.getElementById("wsReaderText");
     var readerTitle = document.getElementById("wsReaderTitle");
-    var browserFrame = document.getElementById("wsBrowserFrame");
     var browserUrl = document.getElementById("wsBrowserUrl");
+    var browserPlaceholder = document.getElementById("wsBrowserPlaceholder");
+    var lastExternalSearchUrl = "";
     var pinnedEl = document.getElementById("wsPinned");
     var buildBtn = document.getElementById("wsBuildEssay");
     var jsonOut = document.getElementById("wsJsonOut");
@@ -408,7 +409,7 @@
           if (searchInput) searchInput.value = first.query;
           return runSearch(first.query).then(function () {
             coachStepDone[1] = true;
-            setStatus("Pyx opened the browser for search 1 — pin a source, then click the next search Pyx suggests.", "info");
+            setStatus("Search 1 done — check Search results and Save link, or use Open on web for a new tab.", "info");
           });
         }
       });
@@ -515,16 +516,55 @@
       markStep("search", true);
     }
 
-    function loadBrowserUrl(url) {
-      if (!browserFrame) return;
-      browserFrame.src = url;
-      if (browserUrl) browserUrl.value = url;
+    function ddgSearchUrl(query) {
+      return "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(query);
+    }
+
+    function rememberSearchUrl(url) {
+      lastExternalSearchUrl = url || "";
+      if (browserUrl && url) browserUrl.value = url;
+    }
+
+    function openExternal(url) {
+      if (!url) return;
+      rememberSearchUrl(url);
+      global.open(url, "_blank", "noopener,noreferrer");
+      setStatus("Opened in a new tab — come back here to Save link on Search results.", "ok");
+    }
+
+    function showBrowserPanel(topicHint) {
       switchTab("browser");
+      if (browserPlaceholder) {
+        var msg = browserPlaceholder.querySelector("p");
+        if (msg) {
+          var hint = topicHint
+            ? " (" + escapeHtml(topicHint) + ")"
+            : "";
+          msg.innerHTML =
+            "<strong>Search results are in the first tab.</strong>" +
+            hint +
+            " Tap <strong>Save link</strong> there, or open the full search in a new tab.";
+        }
+      }
     }
 
     function loadBrowserSearch(query) {
-      var q = encodeURIComponent(query);
-      loadBrowserUrl("https://html.duckduckgo.com/html/?q=" + q);
+      rememberSearchUrl(ddgSearchUrl(query));
+      showBrowserPanel(query);
+    }
+
+    if (document.getElementById("wsOpenSearchExt")) {
+      document.getElementById("wsOpenSearchExt").addEventListener("click", function () {
+        var q = (searchInput && searchInput.value) || (topicEl && topicEl.value) || "";
+        var url = lastExternalSearchUrl || (q.trim() ? ddgSearchUrl(q.trim()) : "");
+        if (url) openExternal(url);
+        else setStatus("Run a search first.", "info");
+      });
+    }
+    if (document.getElementById("wsBackToResults")) {
+      document.getElementById("wsBackToResults").addEventListener("click", function () {
+        switchTab("results");
+      });
     }
 
     if (document.getElementById("wsBrowserGo")) {
@@ -533,13 +573,15 @@
         u = u.trim();
         if (!u) return;
         if (!/^https?:\/\//i.test(u)) u = "https://" + u;
-        loadBrowserUrl(u);
+        openExternal(u);
       });
     }
     if (document.getElementById("wsBrowserSearch")) {
       document.getElementById("wsBrowserSearch").addEventListener("click", function () {
         var q = (topicEl && topicEl.value) || (searchInput && searchInput.value) || "";
-        if (q.trim()) loadBrowserSearch(q.trim());
+        if (!q.trim()) return;
+        var url = ddgSearchUrl(q.trim());
+        openExternal(url);
       });
     }
 
@@ -653,15 +695,16 @@
       return api("/api/studio/search", { query: q })
         .then(function (j) {
           renderResults(j.results || []);
-          if (j.browser_url) loadBrowserUrl(j.browser_url);
-          else loadBrowserSearch(j.search_query || q);
+          switchTab("results");
+          var extUrl = j.browser_url || ddgSearchUrl(j.search_query || q);
+          rememberSearchUrl(extUrl);
           if (j.error && !(j.results && j.results.length))
             setStatus("Search: " + j.error, "err");
           else {
             setStatus(
               "Found " +
                 (j.results || []).length +
-                " results — open Web browser, then Save link.",
+                " results — tap Save link, or Open on web for a new tab.",
               "ok"
             );
             markStep("search", true);

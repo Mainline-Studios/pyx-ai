@@ -2645,7 +2645,7 @@ def _studio_research_guide(topic: str) -> dict:
             {
                 "step": 1,
                 "query": f"{topic} overview explained",
-                "instruction": "Open the web browser tab, pick a good page, tap Save link.",
+                "instruction": "Use Search results in Pyx, or Open on web for a new tab — then Save link.",
             },
             {
                 "step": 2,
