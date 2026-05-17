@@ -6,54 +6,36 @@
   <title>Pyx AI Talk</title>
   <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/brand/pyx-brand.css" />
   <style>
     :root {
-      --bg: #eef0f4;
-      --bg-mesh: radial-gradient(1200px 600px at 10% -10%, rgba(99, 102, 241, 0.12), transparent 50%),
-        radial-gradient(900px 500px at 100% 0%, rgba(14, 165, 233, 0.1), transparent 45%),
+      --bg: #030712;
+      --bg-mesh:
+        radial-gradient(ellipse 140% 90% at 50% 115%, rgba(14, 165, 233, 0.22), transparent 58%),
+        radial-gradient(1100px 600px at 8% -8%, rgba(99, 102, 241, 0.28), transparent 52%),
+        radial-gradient(900px 520px at 96% 8%, rgba(168, 85, 247, 0.14), transparent 48%),
         var(--bg);
-      --surface: #ffffff;
-      --surface-2: #f8fafc;
-      --border: rgba(15, 23, 42, 0.08);
-      --text: #0f172a;
-      --muted: #64748b;
-      --primary: #4f46e5;
-      --primary-hover: #4338ca;
-      --accent: #0ea5e9;
-      --user-bg: linear-gradient(135deg, #4f46e5 0%, #6366f1 48%, #0ea5e9 100%);
+      --surface: rgba(15, 23, 42, 0.5);
+      --surface-2: rgba(15, 23, 42, 0.38);
+      --border: rgba(148, 163, 184, 0.16);
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --primary: #38bdf8;
+      --primary-hover: #7dd3fc;
+      --accent: #a78bfa;
+      --user-bg: linear-gradient(135deg, #6366f1 0%, #8b5cf6 45%, #0ea5e9 100%);
       --user-fg: #fff;
-      --bot-bg: #f1f5f9;
-      --bot-border: rgba(15, 23, 42, 0.06);
-      --bad-bg: #fef2f2;
-      --bad-border: rgba(220, 38, 38, 0.2);
-      --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 40px -12px rgba(15, 23, 42, 0.12);
-      --radius: 14px;
-      --radius-sm: 10px;
-      --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #0b0f17;
-        --bg-mesh: radial-gradient(1200px 600px at 10% -10%, rgba(99, 102, 241, 0.18), transparent 50%),
-          radial-gradient(900px 500px at 100% 0%, rgba(14, 165, 233, 0.12), transparent 45%),
-          var(--bg);
-        --surface: #121826;
-        --surface-2: #1a2234;
-        --border: rgba(148, 163, 184, 0.12);
-        --text: #f1f5f9;
-        --muted: #94a3b8;
-        --primary: #818cf8;
-        --primary-hover: #a5b4fc;
-        --accent: #38bdf8;
-        --user-bg: linear-gradient(135deg, #4f46e5 0%, #6366f1 45%, #0891b2 100%);
-        --bot-bg: #1a2234;
-        --bot-border: rgba(148, 163, 184, 0.12);
-        --bad-bg: rgba(127, 29, 29, 0.25);
-        --bad-border: rgba(248, 113, 113, 0.35);
-        --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 20px 50px -15px rgba(0, 0, 0, 0.45);
-      }
+      --bot-bg: rgba(30, 41, 59, 0.72);
+      --bot-border: rgba(148, 163, 184, 0.14);
+      --bad-bg: rgba(127, 29, 29, 0.38);
+      --bad-border: rgba(248, 113, 113, 0.38);
+      --shadow: 0 24px 80px -24px rgba(0, 0, 0, 0.75);
+      --radius: 16px;
+      --radius-sm: 12px;
+      --font: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     }
 
     *, *::before, *::after { box-sizing: border-box; }
@@ -67,12 +49,1126 @@
       color: var(--text);
       background: var(--bg-mesh);
       -webkit-font-smoothing: antialiased;
+      transition: background 0.35s ease;
+    }
+    body.talk-cosmos--plain {
+      --bg-mesh:
+        radial-gradient(900px 500px at 50% -10%, rgba(99, 102, 241, 0.08), transparent 45%),
+        var(--bg);
     }
 
-    .page {
-      max-width: 560px;
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .talk-shell {
+      display: grid;
+      grid-template-columns: 268px minmax(0, 1fr) 312px;
+      gap: 0;
+      min-height: 100vh;
+      max-width: 1680px;
       margin: 0 auto;
-      padding: 24px 18px 48px;
+    }
+    .talk-sidebar {
+      padding: 26px 16px 22px;
+      border-right: 1px solid rgba(148, 163, 184, 0.08);
+      background: linear-gradient(180deg, rgba(2, 8, 26, 0.72) 0%, rgba(2, 6, 23, 0.42) 100%);
+      backdrop-filter: blur(20px) saturate(140%);
+      -webkit-backdrop-filter: blur(20px) saturate(140%);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.03);
+    }
+    .talk-sidebar--rail {
+      border-right: none;
+      border-left: 1px solid rgba(148, 163, 184, 0.08);
+    }
+    .talk-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 700;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+    .talk-logo-star {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, rgba(56, 189, 248, 0.45), rgba(167, 139, 250, 0.38));
+      border: 1px solid rgba(186, 230, 253, 0.45);
+      box-shadow:
+        0 0 28px rgba(56, 189, 248, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      font-size: 1.15rem;
+      color: #f0f9ff;
+    }
+    .talk-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .talk-nav__glyph {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      opacity: 0.88;
+      display: grid;
+      place-items: center;
+    }
+    .talk-nav__glyph svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.75;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .talk-nav__link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 13px;
+      border-radius: 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-decoration: none;
+      border: 1px solid transparent;
+      transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .talk-nav__link:hover {
+      color: #e2e8f0;
+      background: rgba(148, 163, 184, 0.08);
+    }
+    .talk-nav__link.is-active {
+      color: #e0f2fe;
+      background: rgba(56, 189, 248, 0.12);
+      border-color: rgba(56, 189, 248, 0.35);
+      box-shadow: 0 0 28px rgba(56, 189, 248, 0.12);
+    }
+    .talk-nav__link--muted {
+      cursor: default;
+      opacity: 0.55;
+    }
+    .talk-threads {
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      background: rgba(15, 23, 42, 0.35);
+      padding: 10px 10px 8px;
+      max-height: 220px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }
+    .talk-threads-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
+    .talk-threads-head button {
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      background: rgba(56, 189, 248, 0.12);
+      color: #e0f2fe;
+      border-radius: 10px;
+      width: 28px;
+      height: 28px;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+    }
+    .talk-threads-head button:hover {
+      background: rgba(56, 189, 248, 0.22);
+    }
+    .talk-threads-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .talk-thread-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: #cbd5e1;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+    }
+    .talk-thread-item:hover {
+      background: rgba(148, 163, 184, 0.08);
+      color: #f1f5f9;
+    }
+    .talk-thread-item.is-active {
+      border-color: rgba(56, 189, 248, 0.35);
+      background: rgba(56, 189, 248, 0.1);
+      color: #f0f9ff;
+    }
+    .talk-thread-item span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+    .talk-route-panel {
+      position: absolute;
+      inset: 0;
+      z-index: 50;
+      background: rgba(2, 6, 23, 0.94);
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
+      padding: 22px 24px 28px;
+      overflow-y: auto;
+      border-radius: 0;
+    }
+    .talk-route-panel[hidden] {
+      display: none !important;
+    }
+    .talk-route-inner {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .talk-route-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .talk-route-title {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .talk-route-close {
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(30, 41, 59, 0.65);
+      color: #e2e8f0;
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+    }
+    .talk-route-close:hover {
+      border-color: rgba(56, 189, 248, 0.45);
+      color: #f0f9ff;
+    }
+    .talk-route-section {
+      padding: 16px 17px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      background: rgba(15, 23, 42, 0.55);
+      margin-bottom: 14px;
+    }
+    .talk-route-section h4 {
+      margin: 0 0 10px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #a78bfa;
+    }
+    .talk-route-section ul {
+      margin: 0;
+      padding-left: 1.1rem;
+      color: #e2e8f0;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .talk-route-section .talk-chip-row {
+      margin-top: 0;
+    }
+    .talk-memory-form {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .talk-memory-form input {
+      flex: 1;
+      min-width: 160px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(2, 6, 23, 0.55);
+      color: #f1f5f9;
+      padding: 10px 12px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .talk-memory-form button {
+      border-radius: 12px;
+      border: 1px solid rgba(167, 139, 250, 0.45);
+      background: rgba(76, 29, 149, 0.35);
+      color: #ede9fe;
+      font-weight: 700;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .talk-custom-memory-list {
+      list-style: none;
+      margin: 12px 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .talk-custom-memory-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 11px;
+      border-radius: 12px;
+      background: rgba(30, 41, 59, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      font-size: 13px;
+      color: #e2e8f0;
+    }
+    .talk-custom-memory-list button {
+      border: none;
+      background: transparent;
+      color: #f87171;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    .talk-card-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .talk-card-toolbar .talk-card-title {
+      margin-bottom: 0;
+    }
+    .talk-mini-btn {
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      background: rgba(30, 41, 59, 0.55);
+      color: #cbd5e1;
+      border-radius: 10px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: inherit;
+      flex-shrink: 0;
+    }
+    .talk-mini-btn:hover {
+      border-color: rgba(56, 189, 248, 0.45);
+      color: #f0f9ff;
+    }
+    .talk-memory-strip .talk-memory-thumb {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 6px;
+      font-size: 9px;
+      font-weight: 800;
+      line-height: 1.15;
+      text-align: center;
+      color: rgba(15, 23, 42, 0.92);
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+      overflow: hidden;
+    }
+    .talk-section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #94a3b8;
+      margin: 0 0 6px;
+    }
+    .talk-sidebar-footer {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .talk-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .talk-profile-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #6366f1, #0ea5e9);
+      border: 2px solid rgba(125, 211, 252, 0.35);
+      flex-shrink: 0;
+    }
+    .talk-profile-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .talk-profile-name {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #f8fafc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .talk-profile-sub {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    .talk-profile-email-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 2px;
+    }
+    .talk-profile-email {
+      font-size: 0.68rem;
+      color: #64748b;
+      word-break: break-all;
+    }
+    .talk-pro-badge {
+      font-size: 0.58rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #fde68a;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(251, 191, 36, 0.45);
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.35), rgba(217, 119, 6, 0.22));
+      box-shadow: 0 0 14px rgba(251, 191, 36, 0.18);
+    }
+    .talk-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      color: #86efac;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(22, 101, 52, 0.28);
+      border: 1px solid rgba(74, 222, 128, 0.35);
+      width: fit-content;
+    }
+    .talk-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #4ade80;
+      box-shadow: 0 0 10px #4ade80;
+    }
+    .talk-clock {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .talk-center {
+      position: relative;
+      padding: 18px 22px 28px;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .talk-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .talk-topbar-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+      flex: 1;
+    }
+    .talk-pill-link {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 12px;
+      border-radius: 999px;
+      text-decoration: none;
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(15, 23, 42, 0.45);
+      transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
+    }
+    .talk-pill-link:hover {
+      color: #e0f2fe;
+      border-color: rgba(56, 189, 248, 0.45);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.12);
+    }
+    .talk-pill-link--accent {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.55), rgba(14, 165, 233, 0.45));
+      border-color: rgba(165, 243, 252, 0.35);
+      color: #fff;
+    }
+    .talk-badge-orbit {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #c4b5fd;
+      border: 1px solid rgba(167, 139, 250, 0.35);
+      background: rgba(76, 29, 149, 0.35);
+      padding: 6px 11px;
+      border-radius: 999px;
+    }
+
+    .talk-stage {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      border-radius: 24px;
+      padding: 0;
+      border: 1px solid rgba(125, 211, 252, 0.14);
+      box-shadow:
+        var(--shadow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        0 0 80px rgba(56, 189, 248, 0.06);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      min-height: min(78vh, 720px);
+      display: flex;
+      flex-direction: column;
+      background: rgba(4, 10, 28, 0.55);
+    }
+    .talk-stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 130% 65% at 50% 118%,
+          rgba(12, 74, 130, 0.95) 0%,
+          rgba(25, 110, 165, 0.55) 28%,
+          rgba(56, 189, 248, 0.15) 52%,
+          transparent 58%),
+        radial-gradient(ellipse 95% 42% at 50% 112%,
+          rgba(125, 211, 252, 0.65) 0%,
+          rgba(14, 165, 233, 0.2) 38%,
+          transparent 52%),
+        radial-gradient(ellipse 80% 50% at 20% 25%, rgba(99, 102, 241, 0.18), transparent 55%),
+        radial-gradient(ellipse 70% 45% at 85% 15%, rgba(168, 85, 247, 0.14), transparent 50%),
+        linear-gradient(165deg, rgba(8, 18, 42, 0.55) 0%, rgba(2, 6, 18, 0.92) 100%);
+    }
+    body.talk-cosmos--plain .talk-stage::before {
+      opacity: 0.22;
+      filter: saturate(0.65) blur(1px);
+    }
+    .talk-stage-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      padding: 22px 22px 18px;
+    }
+    .talk-stage-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .talk-model-slot {
+      flex: 1;
+      min-width: min(100%, 220px);
+    }
+    .talk-model-slot label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+      display: block;
+    }
+    .talk-pyxref-word {
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: #e0f2fe;
+      text-transform: none;
+      font-size: 1rem;
+    }
+    .talk-live-badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(239, 68, 68, 0.18);
+      border: 1px solid rgba(248, 113, 113, 0.45);
+      color: #fecaca;
+      box-shadow: 0 0 20px rgba(248, 113, 113, 0.2);
+    }
+    .talk-header-spinner.pyx-load-spinner {
+      margin-left: auto;
+    }
+
+    .talk-hero {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .talk-hero .talk-greeting,
+    .talk-hero .talk-subgreeting {
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .talk-greeting {
+      margin: 8px 0 10px;
+      font-size: clamp(1.65rem, 3.6vw, 2.45rem);
+      font-weight: 800;
+      letter-spacing: -0.035em;
+      line-height: 1.12;
+      font-style: normal;
+      background: linear-gradient(100deg, #ffffff 8%, #bae6fd 42%, #ddd6fe 72%, #fde68a 95%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      filter: drop-shadow(0 2px 28px rgba(56, 189, 248, 0.25));
+    }
+    .talk-subgreeting {
+      margin: 0 0 18px;
+      font-size: 1rem;
+      font-weight: 500;
+      color: rgba(186, 230, 253, 0.82);
+      max-width: 46rem;
+      line-height: 1.55;
+      text-wrap: balance;
+    }
+
+    .talk-action-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin: 4px 0 18px;
+    }
+    @media (max-width: 900px) {
+      .talk-action-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 520px) {
+      .talk-action-strip {
+        grid-template-columns: 1fr;
+      }
+    }
+    .talk-action-card {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 14px 14px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      background: linear-gradient(155deg, rgba(255, 255, 255, 0.07), rgba(15, 23, 42, 0.38));
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      cursor: pointer;
+      text-align: left;
+      font-family: inherit;
+      color: inherit;
+      transition: transform 0.18s ease, border-color 0.18s, box-shadow 0.18s;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+    .talk-action-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(56, 189, 248, 0.45);
+      box-shadow:
+        0 12px 40px -12px rgba(0, 0, 0, 0.55),
+        0 0 28px rgba(56, 189, 248, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+    .talk-action-card:active {
+      transform: translateY(0);
+    }
+    .talk-action-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 1.25rem;
+      margin-bottom: 2px;
+    }
+    .talk-action-icon--brief {
+      background: linear-gradient(145deg, rgba(96, 165, 250, 0.35), rgba(59, 130, 246, 0.2));
+      border: 1px solid rgba(147, 197, 253, 0.35);
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.25);
+    }
+    .talk-action-icon--projects {
+      background: linear-gradient(145deg, rgba(167, 139, 250, 0.4), rgba(124, 58, 237, 0.22));
+      border: 1px solid rgba(196, 181, 253, 0.35);
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.28);
+    }
+    .talk-action-icon--learn {
+      background: linear-gradient(145deg, rgba(52, 211, 153, 0.38), rgba(16, 185, 129, 0.18));
+      border: 1px solid rgba(110, 231, 183, 0.38);
+      box-shadow: 0 0 20px rgba(52, 211, 153, 0.22);
+    }
+    .talk-action-icon--create {
+      background: linear-gradient(145deg, rgba(192, 132, 252, 0.42), rgba(147, 51, 234, 0.2));
+      border: 1px solid rgba(216, 180, 254, 0.35);
+      box-shadow: 0 0 22px rgba(168, 85, 247, 0.28);
+    }
+    .talk-action-icon--plan {
+      background: linear-gradient(145deg, rgba(251, 191, 36, 0.45), rgba(245, 158, 11, 0.22));
+      border: 1px solid rgba(253, 224, 71, 0.4);
+      box-shadow: 0 0 20px rgba(251, 191, 36, 0.22);
+    }
+    .talk-action-title {
+      font-size: 0.92rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #f8fafc;
+    }
+    .talk-action-desc {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: rgba(148, 163, 184, 0.95);
+      line-height: 1.35;
+    }
+
+    .talk-controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-end;
+      margin-bottom: 10px;
+    }
+    .talk-controls-row .talk-line-row {
+      margin-bottom: 0;
+      flex: 1;
+      min-width: 200px;
+      max-width: 340px;
+    }
+    .talk-line-row select {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: var(--font);
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    .talk-chat-panel.panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      margin-top: 8px;
+      padding: 16px 14px 14px;
+      background: rgba(2, 6, 23, 0.35);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: var(--radius);
+    }
+
+    .talk-orbit-bar {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 12px;
+      margin-top: 14px;
+      padding-top: 8px;
+      max-width: 720px;
+      margin-left: auto;
+      margin-right: auto;
+      width: 100%;
+    }
+    .talk-orbit-bar > .talk-dock-icons {
+      justify-self: start;
+    }
+    .talk-orbit-bar > .talk-orb {
+      justify-self: center;
+      grid-column: 2;
+    }
+    .talk-orbit-bar > .talk-space-toggle {
+      justify-self: end;
+      grid-column: 3;
+    }
+    .talk-dock-icons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .talk-dock-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(2, 8, 26, 0.45);
+      color: #bae6fd;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+    }
+    .talk-dock-icon:hover {
+      border-color: rgba(56, 189, 248, 0.45);
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.18);
+      color: #f0f9ff;
+    }
+    .talk-dock-icon:active {
+      transform: scale(0.96);
+    }
+    .talk-dock-icon svg {
+      width: 22px;
+      height: 22px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.85;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .talk-space-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .talk-space-toggle span {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
+    .talk-space-toggle input {
+      accent-color: #38bdf8;
+      width: 16px;
+      height: 16px;
+    }
+    .talk-orbit-spacer {
+      width: 120px;
+      flex-shrink: 0;
+    }
+    .talk-orb {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      padding: 8px 16px;
+      font-family: inherit;
+      color: #e0f2fe;
+    }
+    .talk-orb-star {
+      width: 72px;
+      height: 72px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      font-size: 1.35rem;
+      background: linear-gradient(145deg, rgba(56, 189, 248, 0.35), rgba(139, 92, 246, 0.45));
+      border: 2px solid rgba(125, 211, 252, 0.55);
+      box-shadow:
+        0 0 40px rgba(56, 189, 248, 0.35),
+        0 0 80px rgba(139, 92, 246, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+      transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+    }
+    .talk-orb:hover .talk-orb-star {
+      transform: scale(1.04);
+      filter: brightness(1.06);
+    }
+    .talk-orb:active .talk-orb-star {
+      transform: scale(0.98);
+    }
+    .talk-orb-label {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .talk-orb:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .talk-orb:disabled .talk-orb-star {
+      transform: none;
+      filter: none;
+    }
+
+    body.talk-stt-active .talk-orb-star {
+      animation: talkOrbPulse 1.2s ease-in-out infinite;
+      box-shadow:
+        0 0 48px rgba(56, 189, 248, 0.55),
+        0 0 100px rgba(139, 92, 246, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    }
+    @keyframes talkOrbPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .talk-glass-card {
+      padding: 16px 15px 17px;
+      border-radius: 16px;
+      background: linear-gradient(155deg, rgba(255, 255, 255, 0.06), rgba(15, 23, 42, 0.52));
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      margin-bottom: 14px;
+      backdrop-filter: blur(16px) saturate(140%);
+      -webkit-backdrop-filter: blur(16px) saturate(140%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 36px -18px rgba(0, 0, 0, 0.65);
+    }
+    .talk-card-title {
+      margin: 0 0 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #c4b5fd;
+    }
+    .talk-card-body {
+      margin: 0;
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.45;
+    }
+    .talk-memory-strip {
+      display: flex;
+      gap: 8px;
+      margin: 10px 0 12px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .talk-memory-thumb {
+      flex-shrink: 0;
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    }
+    .talk-memory-thumb:nth-child(1) {
+      background: linear-gradient(145deg, rgba(56, 189, 248, 0.55), rgba(99, 102, 241, 0.35));
+    }
+    .talk-memory-thumb:nth-child(2) {
+      background: linear-gradient(145deg, rgba(167, 139, 250, 0.55), rgba(236, 72, 153, 0.28));
+    }
+    .talk-memory-thumb:nth-child(3) {
+      background: linear-gradient(145deg, rgba(52, 211, 153, 0.5), rgba(14, 165, 233, 0.3));
+    }
+    .talk-memory-thumb:nth-child(4) {
+      background: linear-gradient(145deg, rgba(251, 191, 36, 0.55), rgba(249, 115, 22, 0.3));
+    }
+    .talk-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .talk-chip {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(129, 140, 248, 0.35);
+      background: rgba(76, 29, 149, 0.22);
+      color: #ddd6fe;
+    }
+    .talk-events {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .talk-event {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 12px;
+      color: #e2e8f0;
+      font-weight: 600;
+    }
+    .talk-event time {
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+      color: #67e8f9;
+      font-weight: 800;
+      min-width: 3.4rem;
+    }
+    .talk-event-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 99px;
+      margin-top: 4px;
+      flex-shrink: 0;
+      box-shadow: 0 0 12px currentColor;
+    }
+    .talk-insights-lines {
+      list-style: none;
+      margin: 0 0 12px;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .talk-insights-lines li {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.35;
+      color: rgba(226, 232, 240, 0.92);
+      padding: 6px 0 6px 11px;
+      border-left: 2px solid rgba(56, 189, 248, 0.5);
+    .talk-insights-chart {
+      margin-top: 12px;
+      height: 72px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 10px 8px 8px;
+      border-radius: 12px;
+      background: rgba(2, 6, 23, 0.45);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+    .talk-insights-chart i {
+      flex: 1;
+      border-radius: 6px 6px 2px 2px;
+      background: linear-gradient(180deg, rgba(56, 189, 248, 0.85), rgba(139, 92, 246, 0.35));
+      min-height: 12%;
+      animation: talkInsightBars 4s ease-in-out infinite;
+    }
+    .talk-insights-chart i:nth-child(1) { animation-delay: 0s; }
+    .talk-insights-chart i:nth-child(2) { animation-delay: 0.15s; }
+    .talk-insights-chart i:nth-child(3) { animation-delay: 0.3s; }
+    .talk-insights-chart i:nth-child(4) { animation-delay: 0.45s; }
+    .talk-insights-chart i:nth-child(5) { animation-delay: 0.6s; }
+    .talk-insights-chart i:nth-child(6) { animation-delay: 0.75s; }
+    .talk-insights-chart i:nth-child(7) { animation-delay: 0.9s; }
+    @keyframes talkInsightBars {
+      0%, 100% { opacity: 0.85; filter: brightness(1); }
+      50% { opacity: 1; filter: brightness(1.15); }
+    }
+    .talk-tip-list {
+      margin: 0;
+      padding-left: 1.1em;
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.55;
+    }
+    @media (max-width: 640px) {
+      .talk-orbit-bar {
+        grid-template-columns: 1fr;
+        justify-items: center;
+      }
+      .talk-orbit-bar > .talk-dock-icons {
+        justify-self: center;
+        grid-column: 1;
+      }
+      .talk-orbit-bar > .talk-orb {
+        grid-column: 1;
+      }
+      .talk-orbit-bar > .talk-space-toggle {
+        justify-self: center;
+        grid-column: 1;
+      }
+    }
+
+    .talk-tip-list kbd {
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(2, 6, 23, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    .talk-status-line {
+      margin: 12px 4px 0;
+      min-height: 1.25em;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .small {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 1100px) {
+      .talk-shell {
+        grid-template-columns: 1fr;
+      }
+      .talk-sidebar--nav {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        border-right: none;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+      }
+      .talk-sidebar-footer {
+        margin-top: 0;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        border-top: none;
+        padding-top: 0;
+      }
+      .talk-sidebar--rail {
+        display: none;
+      }
     }
 
     .top {
@@ -104,14 +1200,13 @@
       color: var(--muted);
       text-decoration: none;
       border-radius: 999px;
-      background: var(--surface);
+      background: rgba(15, 23, 42, 0.45);
       border: 1px solid var(--border);
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
       transition: color 0.15s, border-color 0.15s, background 0.15s;
     }
     .home:hover {
       color: var(--primary);
-      border-color: rgba(79, 70, 229, 0.25);
+      border-color: rgba(56, 189, 248, 0.35);
     }
     .home.download {
       color: #fff;
@@ -138,37 +1233,28 @@
       letter-spacing: 0.04em;
       text-transform: uppercase;
       color: var(--primary);
-      background: rgba(79, 70, 229, 0.1);
+      background: rgba(56, 189, 248, 0.12);
       padding: 5px 10px;
       border-radius: 999px;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .badge { background: rgba(129, 140, 248, 0.15); }
+      border: 1px solid rgba(56, 189, 248, 0.22);
     }
 
     .pyx15-banner {
       display: none;
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(14, 165, 233, 0.10));
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(14, 165, 233, 0.14));
       border: 1px solid rgba(129, 140, 248, 0.35);
-      border-radius: 10px;
-      padding: 10px 14px;
-      margin: 0 0 18px;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin: 0 0 14px;
       font-size: 13px;
-      line-height: 1.4;
-      color: #1f2244;
+      line-height: 1.45;
+      color: #d9dcff;
     }
     .pyx15-banner.is-shown { display: block; }
-    .pyx15-banner strong { color: #4c3bd8; }
-    .pyx15-banner a { color: #4338ca; text-decoration: none; font-weight: 600; }
+    .pyx15-banner strong { color: #c7d2fe; }
+    .pyx15-banner a { color: #a5b4fc; text-decoration: none; font-weight: 600; }
     .pyx15-banner a:hover { text-decoration: underline; }
-    .pyx15-banner .pills { font-size: 11px; color: #4c3bd8; margin-left: 4px; }
-    @media (prefers-color-scheme: dark) {
-      .pyx15-banner { color: #d9dcff; }
-      .pyx15-banner strong { color: #c7d2fe; }
-      .pyx15-banner a { color: #a5b4fc; }
-      .pyx15-banner .pills { color: #a5b4fc; }
-    }
+    .pyx15-banner .pills { font-size: 11px; color: #a5b4fc; margin-left: 4px; }
 
     #pyxLineBannerPreview:not([hidden]) {
       display: block;
@@ -217,36 +1303,35 @@
       max-width: 100%;
       padding: 11px 14px;
       font-size: 14px;
-      font-weight: 500;
+      font-weight: 700;
+      letter-spacing: 0.01em;
       font-family: var(--font);
       color: var(--text);
       background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
+      border: 1px solid rgba(139, 92, 246, 0.28);
+      border-radius: 14px;
       cursor: pointer;
       appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      box-shadow: 0 0 24px rgba(139, 92, 246, 0.08);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 12px center;
       padding-right: 40px;
     }
     #talkMode:focus {
       outline: none;
-      border-color: rgba(79, 70, 229, 0.45);
-      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
-    }
-    @media (prefers-color-scheme: dark) {
-      #talkMode {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-      }
+      border-color: rgba(56, 189, 248, 0.55);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
     }
 
     #chat {
-      min-height: 280px;
-      max-height: min(52vh, 440px);
+      flex: 1;
+      min-height: 200px;
+      max-height: min(46vh, 420px);
       overflow-y: auto;
       padding: 14px 12px;
-      margin: 0 0 16px;
+      margin: 0 0 14px;
+      scroll-margin-top: 20px;
       border-radius: var(--radius-sm);
       background: var(--surface-2);
       border: 1px solid var(--border);
@@ -470,56 +1555,231 @@
     }
 
     #composer {
-      display: flex;
-      gap: 10px;
-      align-items: flex-end;
       position: relative;
+      width: 100%;
+      min-width: 0;
+      scroll-margin-bottom: 24px;
+    }
+    .composer-main-row {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: flex-end;
+      gap: 10px;
+      width: 100%;
+      min-width: 0;
+    }
+    .composer-inner {
+      flex: 1;
+      position: relative;
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 8px;
+      min-width: 0;
+      padding: 6px 8px 6px 10px;
+      border-radius: 16px;
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      background: rgba(15, 23, 42, 0.55);
+      box-shadow:
+        0 0 0 1px rgba(56, 189, 248, 0.08),
+        0 0 28px rgba(56, 189, 248, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
     #composer textarea {
-      flex: 1;
-      min-height: 52px;
-      max-height: 160px;
-      resize: vertical;
+      flex: 1 1 auto;
+      align-self: stretch;
+      min-width: 0;
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 48px;
+      max-height: 140px;
+      resize: none;
       font-family: inherit;
       font-size: 14px;
       line-height: 1.45;
-      padding: 12px 14px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: var(--surface-2);
+      padding: 10px 8px 10px 6px;
+      border-radius: 10px;
+      border: none;
+      background: rgba(2, 6, 23, 0.35);
       color: var(--text);
-      transition: border-color 0.15s, box-shadow 0.15s;
+      transition: box-shadow 0.15s;
+      -webkit-appearance: none;
+      appearance: none;
     }
     #composer textarea::placeholder { color: var(--muted); opacity: 0.85; }
-    #composer textarea:hover { border-color: rgba(79, 70, 229, 0.2); }
     #composer textarea:focus {
       outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
+    }
+    .composer-inner:focus-within {
+      border-color: rgba(56, 189, 248, 0.55);
+      box-shadow:
+        0 0 0 1px rgba(56, 189, 248, 0.25),
+        0 0 32px rgba(56, 189, 248, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+    .composer-stack {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .talk-attach-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding: 4px 2px 0;
+    }
+    .talk-attach-row[hidden] {
+      display: none !important;
+    }
+    .talk-attach-chip {
+      position: relative;
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+      flex-shrink: 0;
+    }
+    .talk-attach-chip img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .talk-attach-chip button {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 20px;
+      height: 20px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.82);
+      color: #fecaca;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      padding: 0;
+    }
+    .talk-user-attachments {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .talk-user-attachments img {
+      max-width: min(220px, 100%);
+      max-height: 200px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      object-fit: contain;
+      background: rgba(2, 6, 23, 0.45);
+    }
+    .talk-user-text {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .composer-mic,
+    .composer-wave {
+      flex-shrink: 0;
+      align-self: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(2, 6, 23, 0.45);
+      color: #bae6fd;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.1s;
+    }
+    .composer-mic:hover,
+    .composer-wave:hover {
+      border-color: rgba(56, 189, 248, 0.45);
+      color: #e0f2fe;
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.2);
+    }
+    .composer-mic:active,
+    .composer-wave:active {
+      transform: scale(0.96);
+    }
+    .composer-mic[aria-pressed="true"],
+    .composer-wave.is-active {
+      border-color: rgba(56, 189, 248, 0.65);
+      background: rgba(56, 189, 248, 0.18);
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.35);
+      color: #f0f9ff;
+    }
+    .composer-mic:disabled,
+    .composer-wave:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .composer-wave-bars {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 20px;
+    }
+    .composer-wave-bars i {
+      display: block;
+      width: 3px;
+      border-radius: 99px;
+      background: linear-gradient(180deg, #38bdf8, #a78bfa);
+      animation: talkWave 0.9s ease-in-out infinite;
+    }
+    .composer-wave-bars i:nth-child(1) { height: 40%; animation-delay: 0ms; }
+    .composer-wave-bars i:nth-child(2) { height: 70%; animation-delay: 120ms; }
+    .composer-wave-bars i:nth-child(3) { height: 100%; animation-delay: 240ms; }
+    .composer-wave-bars i:nth-child(4) { height: 65%; animation-delay: 180ms; }
+    .composer-wave-bars i:nth-child(5) { height: 45%; animation-delay: 60ms; }
+    body.talk-stt-active .composer-wave-bars i {
+      animation-duration: 0.55s;
+    }
+    .composer-wave:not(.is-active) .composer-wave-bars i {
+      animation: none;
+      height: 35%;
+      opacity: 0.45;
+    }
+    @keyframes talkWave {
+      0%, 100% { transform: scaleY(0.45); }
+      50% { transform: scaleY(1); }
     }
 
     #send {
-      flex-shrink: 0;
-      padding: 12px 20px;
+      flex: 0 0 auto;
+      padding: 12px 18px;
       font-family: inherit;
       font-size: 14px;
-      font-weight: 600;
-      color: #fff;
-      background: var(--primary);
+      font-weight: 700;
+      color: #0f172a;
+      background: linear-gradient(135deg, #7dd3fc, #a78bfa);
       border: none;
-      border-radius: 12px;
+      border-radius: 14px;
       cursor: pointer;
-      transition: background 0.15s, transform 0.1s, opacity 0.15s;
-      box-shadow: 0 4px 14px -3px rgba(79, 70, 229, 0.55);
+      transition: filter 0.15s, transform 0.1s, opacity 0.15s;
+      box-shadow: 0 4px 22px -4px rgba(56, 189, 248, 0.55);
+      align-self: flex-end;
+      min-height: 52px;
     }
     #send:hover:not(:disabled) {
-      background: var(--primary-hover);
+      filter: brightness(1.06);
     }
     #send:active:not(:disabled) {
       transform: scale(0.98);
     }
     #send:disabled {
-      opacity: 0.55;
+      opacity: 0.45;
       cursor: not-allowed;
       box-shadow: none;
     }
@@ -869,93 +2129,302 @@
     }
     .web-opt span strong { font-weight: 600; }
 
-    #status {
-      margin: 14px 2px 0;
-      min-height: 1.25em;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    #status:empty { margin-top: 8px; }
   </style>
 </head>
-<body>
-  <div class="page">
-    <div class="top">
-      <a class="pyx-brand" href="/" title="PYX. — home">
-        <img class="pyx-brand__icon" src="/brand/pyx-app-icon.png" alt="" width="36" height="36" />
-        <img class="pyx-brand__wordmark" src="/brand/pyx-wordmark.png" alt="PYX." />
+<body class="talk-cosmos">
+  <div class="talk-shell">
+    <aside class="talk-sidebar talk-sidebar--nav" aria-label="Navigation">
+      <a class="talk-logo" href="/" title="Pyx home">
+        <span class="talk-logo-star" aria-hidden="true">✦</span>
+        <span class="talk-logo-text">Pyx</span>
       </a>
-      <div class="top-right">
-        <a class="home home--small" href="/pyx-code.html">Pyx AI Code</a>
-        <a class="home home--small" href="/pyxel-image.html">Pyxel Image</a>
-        <a class="home home--small download" id="getPyx15"
-           href="/pyx-download.html"
-           title="Open the Pyx 1.3 app">
-          Pyx 1.3
+      <nav class="talk-nav">
+        <a class="talk-nav__link" href="#chat" data-talk-route="chat">
+          <span class="talk-nav__glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></span>
+          Home
         </a>
-        <span class="badge" id="headerLineBadge">Pyx 1.0</span>
+        <a class="talk-nav__link" href="#chat" data-talk-route="chat">
+          <span class="talk-nav__glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-6 4V7a4 4 0 0 1 4-4h11a4 4 0 0 1 4 4z"/></svg></span>
+          Conversations
+        </a>
+        <a class="talk-nav__link" href="#projects" data-talk-route="projects">
+          <span class="talk-nav__glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+          Projects
+        </a>
+        <a class="talk-nav__link" href="#memory" data-talk-route="memory">
+          <span class="talk-nav__glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg></span>
+          Memory
+        </a>
+        <a class="talk-nav__link" href="#world" data-talk-route="world">
+          <span class="talk-nav__glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span>
+          World Info
+        </a>
+        <a class="talk-nav__link" href="#people" data-talk-route="people">
+          <span class="talk-nav__glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+          People
+        </a>
+        <a class="talk-nav__link" href="#composer" data-talk-route="composer">
+          <span class="talk-nav__glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
+          Apps &amp; Tools
+        </a>
+      </nav>
+      <div class="talk-threads" aria-label="Snippets — saved chats Pyx can lean on">
+        <div class="talk-threads-head">
+          <span>Snippets</span>
+          <button type="button" id="talkNewThreadBtn" title="New snippet (fresh chat)">+</button>
+        </div>
+        <ul class="talk-threads-list" id="talkThreadsList"></ul>
+      </div>
+      <div class="talk-sidebar-footer">
+        <div class="talk-profile">
+          <div class="talk-profile-avatar" aria-hidden="true"></div>
+          <div class="talk-profile-meta">
+            <span class="talk-profile-name" id="talkProfileName">You</span>
+            <div class="talk-profile-email-row">
+              <span class="talk-profile-email" id="talkProfileEmail">you@pyx.ai</span>
+              <span class="talk-pro-badge">Pro</span>
+            </div>
+          </div>
+        </div>
+        <div class="talk-status-pill" id="talkSysStatus">
+          <span class="talk-status-dot"></span>
+          <span>All systems operational</span>
+        </div>
+        <div class="talk-clock" id="talkClock">—</div>
+      </div>
+    </aside>
+
+    <div class="talk-center">
+      <div class="talk-route-panel" id="talkRoutePanel" hidden>
+        <div class="talk-route-inner">
+          <div class="talk-route-top">
+            <h2 class="talk-route-title" id="talkRouteHeading">Projects</h2>
+            <button type="button" class="talk-route-close" id="talkRouteClose">Back to chat</button>
+          </div>
+          <div class="talk-route-body" id="talkRoute-projects" hidden>
+            <p class="talk-card-body" style="margin-bottom:12px;">Mission-style titles inferred from your chats — short snippets Pyx can reference later (refreshed with Memory snapshot).</p>
+            <div class="talk-route-section">
+              <h4>Active missions</h4>
+              <ul id="talkRouteProjectsList"></ul>
+            </div>
+          </div>
+          <div class="talk-route-body" id="talkRoute-memory" hidden>
+            <p class="talk-card-body" style="margin-bottom:12px;">Pinned lines Pyx should weigh in every chat. Stored only in this browser.</p>
+            <div class="talk-route-section">
+              <h4>Add memory</h4>
+              <div class="talk-memory-form">
+                <input type="text" id="talkCustomMemoryInput" maxlength="240" placeholder="e.g. I prefer concise bullets" autocomplete="off" />
+                <button type="button" id="talkCustomMemoryAdd">Save</button>
+              </div>
+              <ul class="talk-custom-memory-list" id="talkCustomMemoryList"></ul>
+            </div>
+            <div class="talk-route-section">
+              <h4>You researched <span style="font-weight:600;text-transform:none;color:#94a3b8;">(Pyx-generated)</span></h4>
+              <div class="talk-chip-row" id="talkRouteMemoryChips"></div>
+            </div>
+          </div>
+          <div class="talk-route-body" id="talkRoute-world" hidden>
+            <div class="talk-route-section">
+              <h4>World info</h4>
+              <ul id="talkRouteWorldList"></ul>
+            </div>
+          </div>
+          <div class="talk-route-body" id="talkRoute-people" hidden>
+            <div class="talk-route-section">
+              <h4>People &amp; roles</h4>
+              <ul id="talkRoutePeopleList"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <header class="talk-topbar">
+        <a class="pyx-brand" href="/" title="PYX. — home">
+          <img class="pyx-brand__icon pyx-brand__icon--sm" src="/brand/pyx-app-icon.png" alt="" width="32" height="32" />
+          <img class="pyx-brand__wordmark pyx-brand__wordmark--pill" src="/brand/pyx-wordmark.png" alt="PYX." />
+        </a>
+        <div class="talk-topbar-links">
+          <a class="talk-pill-link" href="/pyx-code.html">Pyx AI Code</a>
+          <a class="talk-pill-link" href="/pyxel-image.html">Pyxel</a>
+          <a class="talk-pill-link talk-pill-link--accent" id="getPyx15"
+             href="/pyx-download.html"
+             title="Open the Pyx 1.3 app">Pyx 1.3</a>
+        </div>
+        <span class="talk-badge-orbit" id="headerLineBadge">Pyx 1.0</span>
+      </header>
+
+      <div class="talk-stage">
+        <div class="talk-stage-inner">
+        <div class="talk-stage-header">
+          <div class="talk-model-slot">
+            <label for="talkMode"><span class="talk-pyxref-word">Pyx</span> · mode</label>
+            <div id="cloudModelWrap">
+              <select id="talkMode" name="talkMode" aria-label="Pyx Talk model">
+                <option value="fast">Pyx Mini 1.0</option>
+                <option value="smart">Pyx 1.0</option>
+                <option value="thinking">Pyx Reasoning 1.0</option>
+              </select>
+            </div>
+          </div>
+          <div class="talk-live-badge">Live</div>
+          <div id="pyxLoadSpinner" class="pyx-load-spinner talk-header-spinner" hidden aria-hidden="true">
+            <span class="pyx-load-spinner-ring"></span>
+            <span class="pyx-load-spinner-arc"></span>
+          </div>
+        </div>
+
+        <div class="pyx15-banner" id="pyxLineBannerCloud" role="note">
+          <strong>Pyx 1.0 cloud</strong> is active on this line.
+          Fast hosted responses, plus in-chat app support on the same screen.
+          <a href="/pyx-download.html">Explore Pyx 1.3 →</a>
+          <span class="pills">Switch lines anytime</span>
+        </div>
+        <div class="pyx15-banner" id="pyxLineBannerPreview" role="note" hidden>
+          <strong>Pyx 1.3 website preview</strong> is active.
+          Same Talk UI as desktop, running a lightweight preview engine (no GGUF).
+          For local kit files, <a href="/pyx-download.html">open downloads</a>.
+        </div>
+
+        <div class="talk-hero">
+          <h1 class="talk-greeting" id="talkGreeting">Good morning.</h1>
+          <p class="talk-subgreeting" id="talkSubgreeting">
+            Pyx scanned your vibe and the cosmos agrees — let’s make today unfairly productive (with snacks).
+          </p>
+        </div>
+
+        <div class="talk-action-strip">
+          <button type="button" class="talk-action-card" data-pyx-prompt="Give me a hype morning briefing in Pyx style: 3 bullets (energy, focus, one playful prediction). Keep it short.">
+            <span class="talk-action-icon talk-action-icon--brief" aria-hidden="true">📋</span>
+            <span class="talk-action-title">Briefing</span>
+            <span class="talk-action-desc">Morning update</span>
+          </button>
+          <button type="button" class="talk-action-card" data-pyx-prompt="Summarize my imaginary active projects as if you’re Pyx mission control — funny status lights included.">
+            <span class="talk-action-icon talk-action-icon--projects" aria-hidden="true">🧊</span>
+            <span class="talk-action-title">Projects</span>
+            <span class="talk-action-desc">Mission stack</span>
+          </button>
+          <button type="button" class="talk-action-card" data-pyx-prompt="Teach me something surprising about quantum computing in very plain language — end with a tiny quiz.">
+            <span class="talk-action-icon talk-action-icon--learn" aria-hidden="true">🌀</span>
+            <span class="talk-action-title">Learn</span>
+            <span class="talk-action-desc">Quantum vibes</span>
+          </button>
+          <button type="button" class="talk-action-card" data-pyx-prompt="Brainstorm 5 ultra-creative prompts I could give Pyxel for tiny pixel art scenes (cosmic cafe, neon frog DJ, etc.).">
+            <span class="talk-action-icon talk-action-icon--create" aria-hidden="true">✨</span>
+            <span class="talk-action-title">Create</span>
+            <span class="talk-action-desc">Dream &amp; remix</span>
+          </button>
+          <button type="button" class="talk-action-card" data-pyx-prompt="Turn today into a playful mission schedule: 4 time blocks with heroic names and 10-minute dopamine breaks.">
+            <span class="talk-action-icon talk-action-icon--plan" aria-hidden="true">✓</span>
+            <span class="talk-action-title">Plan</span>
+            <span class="talk-action-desc">Time-block missions</span>
+          </button>
+        </div>
+
+        <div class="talk-controls-row">
+          <div class="talk-line-row">
+            <label class="visually-hidden" for="talkLine">Pyx line</label>
+            <select id="talkLine" name="talkLine" aria-label="Pyx product line">
+              <option value="cloud">Pyx 1.0 (cloud)</option>
+              <option value="preview">Pyx 1.3 (website preview)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="web-row" id="webRow">
+          <label class="web-opt">
+            <input type="checkbox" id="useWeb" />
+            <span><strong>Search the web</strong> — Pyx fetches result snippets locally, then answers from them.</span>
+          </label>
+          <label class="web-opt">
+            <input type="checkbox" id="useWebAuto" />
+            <span><strong>Auto</strong> — search when the question looks time-sensitive (news, dates, “latest”, etc.).</span>
+          </label>
+        </div>
+
+        <div class="talk-chat-panel panel">
+          <div id="chat" aria-live="polite"></div>
+
+          <div id="composer">
+            <input type="file" id="talkAttachmentInput" class="visually-hidden" accept="image/png,image/jpeg,image/webp" multiple aria-hidden="true" />
+            <div id="mentionMenu" class="mention-menu" role="listbox" aria-label="@ commands"></div>
+            <div class="composer-main-row">
+              <div class="composer-stack">
+                <div id="talkAttachmentRow" class="talk-attach-row" hidden></div>
+                <div class="composer-inner">
+                  <textarea id="input" placeholder="Ask Pyx anything… (@ for apps) — attach images via 📎" rows="2" aria-label="Message"></textarea>
+                  <button type="button" class="composer-mic" id="micBtn" aria-pressed="false"
+                    aria-label="Voice input"
+                    title="Voice to text (browser Web Speech API — Chrome / Edge)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/><path d="M8 21h8"/></svg>
+                  </button>
+                  <button type="button" class="composer-wave" id="waveBtn" aria-pressed="false"
+                    aria-label="Voice input with waveform"
+                    title="Voice to text">
+                    <span class="composer-wave-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+                  </button>
+                </div>
+              </div>
+              <button type="button" id="send">Send</button>
+            </div>
+          </div>
+          <div id="appDock" class="app-dock" aria-live="polite"></div>
+        </div>
+
+        <div class="talk-orbit-bar">
+          <div class="talk-dock-icons">
+            <button type="button" class="talk-dock-icon" id="dockCameraBtn" title="Camera (coming soon)">
+              <svg viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+            </button>
+            <button type="button" class="talk-dock-icon" id="dockGalleryBtn" title="Gallery — stash your favorites here soon">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            </button>
+            <button type="button" class="talk-dock-icon" id="dockFileBtn" title="Attach images — Llama vision (Pyx 1.0 cloud)">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
+            </button>
+          </div>
+          <button type="button" class="talk-orb" id="talkOrbBtn" aria-pressed="false" aria-label="Talk to Pyx — voice input">
+            <span class="talk-orb-star" aria-hidden="true">✦</span>
+            <span class="talk-orb-label">Talk to Pyx</span>
+          </button>
+          <label class="talk-space-toggle">
+            <input type="checkbox" id="spaceToggle" checked aria-label="Space Window backdrop" />
+            <span>Space Window</span>
+          </label>
+        </div>
+
+        <p class="talk-status-line small" id="status"></p>
+        </div>
       </div>
     </div>
 
-    <div class="pyx15-banner" id="pyxLineBannerCloud" role="note">
-      <strong>Pyx 1.0 cloud</strong> is active on this line.
-      Fast hosted responses, plus in-chat app support on the same screen.
-      <a href="/pyx-download.html">Explore Pyx 1.3 →</a>
-      <span class="pills">Switch lines anytime</span>
-    </div>
-    <div class="pyx15-banner" id="pyxLineBannerPreview" role="note" hidden>
-      <strong>Pyx 1.3 website preview</strong> is active.
-      Same Talk UI as desktop, running a lightweight preview engine (no GGUF).
-      For local kit files, <a href="/pyx-download.html">open downloads</a>.
-    </div>
-
-    <h1>Pyx AI Talk</h1>
-    <p class="lede">Chat with Pyx, switch lines instantly, and launch in-chat apps from <strong>@</strong> commands.</p>
-
-    <div class="panel">
-      <div class="model-row">
-        <label for="talkLine">Pyx line</label>
-        <select id="talkLine" name="talkLine" aria-label="Pyx product line">
-          <option value="cloud">Pyx 1.0 (cloud)</option>
-          <option value="preview">Pyx 1.3 (website preview)</option>
-        </select>
+    <aside class="talk-sidebar talk-sidebar--rail" aria-label="Learned snippets and context">
+      <div class="talk-glass-card">
+        <div class="talk-card-toolbar">
+          <h3 class="talk-card-title">Memory snapshot</h3>
+          <button type="button" class="talk-mini-btn" id="orbitRefreshBtn" title="Regenerate learnings from this snippet">Refresh</button>
+        </div>
+        <p class="talk-card-body" style="margin-bottom:0;">Little snippets of what Pyx has picked up about you from this chat — safe to reference in replies.</p>
+        <div class="talk-memory-strip" id="talkMemoryStrip" role="list" aria-label="Learned snippets about you"></div>
+        <p class="talk-section-label">Pinned</p>
+        <div class="talk-chip-row" id="talkPinnedChipRow"></div>
+        <p class="talk-section-label">You researched</p>
+        <div class="talk-chip-row" id="talkResearchedChips"></div>
       </div>
-
-      <div class="web-row" id="webRow">
-        <label class="web-opt">
-          <input type="checkbox" id="useWeb" />
-          <span><strong>Search the web</strong> — Pyx fetches result snippets locally, then answers from them.</span>
-        </label>
-        <label class="web-opt">
-          <input type="checkbox" id="useWebAuto" />
-          <span><strong>Auto</strong> — search when the question looks time-sensitive (news, dates, “latest”, etc.).</span>
-        </label>
+      <div class="talk-glass-card">
+        <div class="talk-card-toolbar">
+          <h3 class="talk-card-title">Upcoming</h3>
+          <button type="button" class="talk-mini-btn" id="orbitRefreshBtnB" title="Regenerate learnings from this snippet">Refresh</button>
+        </div>
+        <ul class="talk-events" id="talkUpcomingList"></ul>
       </div>
-
-      <div class="model-row" id="cloudModelWrap">
-        <label for="talkMode">Model</label>
-        <select id="talkMode" name="talkMode" aria-label="Pyx Talk model">
-          <option value="fast">Pyx Mini 1.0</option>
-          <option value="smart">Pyx 1.0</option>
-          <option value="thinking">Pyx Reasoning 1.0</option>
-        </select>
+      <div class="talk-glass-card">
+        <h3 class="talk-card-title">Pyx insights</h3>
+        <ul class="talk-insights-lines" id="talkInsightsLines" aria-live="polite"></ul>
+        <div class="talk-insights-chart" aria-hidden="true">
+          <i style="height:32%"></i><i style="height:48%"></i><i style="height:100%"></i><i style="height:72%"></i><i style="height:55%"></i><i style="height:40%"></i><i style="height:28%"></i>
+        </div>
       </div>
-      <div id="pyxLoadSpinner" class="pyx-load-spinner" hidden aria-hidden="true">
-        <span class="pyx-load-spinner-ring"></span>
-        <span class="pyx-load-spinner-arc"></span>
-      </div>
-
-      <div id="chat" aria-live="polite"></div>
-
-      <div id="composer">
-        <div id="mentionMenu" class="mention-menu" role="listbox" aria-label="@ commands"></div>
-        <textarea id="input" placeholder="Message Pyx… (type @ for apps)" rows="3" aria-label="Message"></textarea>
-        <button type="button" id="send">Send</button>
-      </div>
-      <div id="appDock" class="app-dock" aria-live="polite"></div>
-    </div>
-
-    <p class="small" id="status"></p>
+    </aside>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js" crossorigin="anonymous"></script>
@@ -1136,6 +2605,108 @@
       var appDiceBtn = document.getElementById("appDice");
       var appCoinBtn = document.getElementById("appCoin");
       var mentionMenuEl = document.getElementById("mentionMenu");
+      var talkAttachmentInput = document.getElementById("talkAttachmentInput");
+      var talkAttachmentRow = document.getElementById("talkAttachmentRow");
+      var attachmentQueue = [];
+      var MAX_ATTACHMENTS = 5;
+
+      function renderAttachmentRow() {
+        if (!talkAttachmentRow) return;
+        talkAttachmentRow.innerHTML = "";
+        if (!attachmentQueue.length) {
+          talkAttachmentRow.hidden = true;
+          return;
+        }
+        talkAttachmentRow.hidden = false;
+        for (var i = 0; i < attachmentQueue.length; i++) {
+          (function (idx, url) {
+            var chip = document.createElement("div");
+            chip.className = "talk-attach-chip";
+            var img = document.createElement("img");
+            img.src = url;
+            img.alt = "";
+            chip.appendChild(img);
+            var rm = document.createElement("button");
+            rm.type = "button";
+            rm.setAttribute("aria-label", "Remove attachment");
+            rm.textContent = "\u00d7";
+            rm.addEventListener("click", function () {
+              attachmentQueue.splice(idx, 1);
+              renderAttachmentRow();
+            });
+            chip.appendChild(rm);
+            talkAttachmentRow.appendChild(chip);
+          })(i, attachmentQueue[i]);
+        }
+      }
+
+      function talkDownscaleToDataUrl(file, maxSide, quality, cb) {
+        var reader = new FileReader();
+        reader.onload = function () {
+          var url = reader.result;
+          var image = new Image();
+          image.onload = function () {
+            var w = image.width;
+            var h = image.height;
+            var scale = Math.min(1, maxSide / Math.max(w, h, 1));
+            var cw = Math.max(1, Math.round(w * scale));
+            var ch = Math.max(1, Math.round(h * scale));
+            var canvas = document.createElement("canvas");
+            canvas.width = cw;
+            canvas.height = ch;
+            var ctx = canvas.getContext("2d");
+            ctx.drawImage(image, 0, 0, cw, ch);
+            try {
+              cb(canvas.toDataURL("image/jpeg", quality));
+            } catch (e) {
+              cb(null);
+            }
+          };
+          image.onerror = function () {
+            cb(null);
+          };
+          image.src = url;
+        };
+        reader.onerror = function () {
+          cb(null);
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function enqueueAttachmentDataUrl(dataUrl) {
+        if (!dataUrl || attachmentQueue.length >= MAX_ATTACHMENTS) return;
+        attachmentQueue.push(dataUrl);
+        renderAttachmentRow();
+        if (statusEl) statusEl.textContent = "Image attached — sent with Llama vision on Pyx 1.0 (cloud).";
+      }
+
+      if (talkAttachmentInput) {
+        talkAttachmentInput.addEventListener("change", function () {
+          var files = talkAttachmentInput.files;
+          if (!files || !files.length) return;
+          var remain = MAX_ATTACHMENTS - attachmentQueue.length;
+          var n = Math.min(files.length, remain);
+          var ix = 0;
+          function processNext() {
+            if (ix >= n) {
+              talkAttachmentInput.value = "";
+              return;
+            }
+            var f = files[ix];
+            ix++;
+            if (!f.type || f.type.indexOf("image/") !== 0) {
+              processNext();
+              return;
+            }
+            talkDownscaleToDataUrl(f, 1600, 0.82, function (url) {
+              if (url) enqueueAttachmentDataUrl(url);
+              processNext();
+            });
+          }
+          processNext();
+        });
+      }
+
       var APP_EVENT_PREFIX = "__PYX_APP_EVENT__";
 
       var appState = {
@@ -1153,6 +2724,307 @@
       var spinnerTimer = null;
       var calcAudioCtx = null;
       var calcClickBuffer = null;
+
+      var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      var micBtn = document.getElementById("micBtn");
+      var waveBtn = document.getElementById("waveBtn");
+      var talkOrbBtn = document.getElementById("talkOrbBtn");
+      var spaceToggleEl = document.getElementById("spaceToggle");
+      var talkGreetingEl = document.getElementById("talkGreeting");
+      var talkSubgreetingEl = document.getElementById("talkSubgreeting");
+      var talkProfileNameEl = document.getElementById("talkProfileName");
+      var talkProfileEmailEl = document.getElementById("talkProfileEmail");
+      var talkClockEl = document.getElementById("talkClock");
+      var lastInsightMinute = -1;
+      var sttRec = null;
+      var sttWantListen = false;
+      var sttPrefix = "";
+      var sttAccumFinal = "";
+
+      function talkDisplayName() {
+        var raw = (localStorage.getItem("pyx.talk.displayName") || "").trim();
+        if (!raw) return "";
+        return raw.charAt(0).toUpperCase() + raw.slice(1);
+      }
+
+      function talkEmailSlug(nm) {
+        var raw = (nm || "you").toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.+|\.+$/g, "");
+        return (raw || "you") + "@pyx.ai";
+      }
+
+      var PYX_SUBGREETINGS = [
+        "Pyx scanned your vibe and the cosmos agrees — let’s ship something stellar today.",
+        "Vibe check: curiosity high, chaos optional — ask Pyx anything or whisper it with voice.",
+        "I’ve got neon gradients, hot takes, and helpful diagrams — pick your adventure.",
+        "Fun mode: on. Serious answers: also on. Try a wildcard prompt and see what sparks.",
+      ];
+
+      function refreshTalkChrome() {
+        var nm = talkDisplayName();
+        if (talkProfileNameEl) talkProfileNameEl.textContent = nm || "You";
+        if (talkProfileEmailEl) talkProfileEmailEl.textContent = talkEmailSlug(nm || "you");
+        var h = new Date().getHours();
+        var label;
+        /* Late night (10pm–4:59am): playful line instead of “Good evening.” */
+        if ((h >= 22 && h <= 23) || (h >= 0 && h < 5)) {
+          label = nm
+            ? "Ready for some midnight adventures, " + nm + "?"
+            : "Ready for some midnight adventures?";
+        } else {
+          var sal = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+          label = nm ? sal + ", " + nm + "." : sal + ".";
+        }
+        if (talkGreetingEl) talkGreetingEl.textContent = label;
+        if (talkSubgreetingEl) {
+          var ix = Math.abs(Math.floor(Date.now() / 7200000)) % PYX_SUBGREETINGS.length;
+          talkSubgreetingEl.textContent = PYX_SUBGREETINGS[ix];
+        }
+      }
+
+      function tickTalkClock() {
+        if (!talkClockEl) return;
+        var d = new Date();
+        talkClockEl.textContent =
+          d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) +
+          " · " +
+          d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+        var slot = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+        if (slot !== lastInsightMinute) {
+          lastInsightMinute = slot;
+          refreshPyxInsights();
+        }
+      }
+
+      function computePyxInsightLines() {
+        var d = new Date();
+        var h = d.getHours();
+        var line1 =
+          d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" }) +
+          " · " +
+          d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+        var band;
+        var tip;
+        if (h >= 0 && h < 5) {
+          band = "Late night · tiny asks beat long essays.";
+          tip = "Try: “answer in 3 bullets.”";
+        } else if (h >= 5 && h < 9) {
+          band = "Early · boot slow; ease in with concrete tasks.";
+          tip = "Try: one goal + one constraint + tone.";
+        } else if (h >= 9 && h < 12) {
+          band = "Morning · peak clarity for bold prompts.";
+          tip = "Try: context first, one sharp question last.";
+        } else if (h >= 12 && h < 14) {
+          band = "Midday · pivot before the slump.";
+          tip = "Try: “compare A vs B in a tight table.”";
+        } else if (h >= 14 && h < 17) {
+          band = "Afternoon · strong for depth + debugging.";
+          tip = "Try: paste error + what you already tried.";
+        } else if (h >= 17 && h < 21) {
+          band = "Evening · creative; less appetite for grind.";
+          tip = "Try: brainstorm now; polish proofs later.";
+        } else {
+          band = "Late night · playful prompts shine.";
+          tip = "Try: “surprise me — still practical.”";
+        }
+        return [line1, band, tip];
+      }
+
+      function refreshPyxInsights() {
+        var el = document.getElementById("talkInsightsLines");
+        if (!el) return;
+        var lines = computePyxInsightLines();
+        el.textContent = "";
+        for (var i = 0; i < lines.length; i++) {
+          var li = document.createElement("li");
+          li.textContent = lines[i];
+          el.appendChild(li);
+        }
+      }
+
+      function setSttUi(active) {
+        document.body.classList.toggle("talk-stt-active", !!active);
+        if (micBtn) micBtn.setAttribute("aria-pressed", active ? "true" : "false");
+        if (waveBtn) {
+          waveBtn.setAttribute("aria-pressed", active ? "true" : "false");
+          waveBtn.classList.toggle("is-active", !!active);
+        }
+        if (talkOrbBtn) talkOrbBtn.setAttribute("aria-pressed", active ? "true" : "false");
+        var pill = document.getElementById("talkSysStatus");
+        if (pill) {
+          if (active) {
+            pill.innerHTML =
+              '<span class="talk-status-dot" style="background:#38bdf8;box-shadow:0 0 12px rgba(56,189,248,0.9)"></span>' +
+              "<span>Listening…</span>";
+            pill.style.color = "#7dd3fc";
+            pill.style.borderColor = "rgba(56, 189, 248, 0.45)";
+            pill.style.background = "rgba(14, 116, 144, 0.28)";
+          } else {
+            pill.innerHTML =
+              '<span class="talk-status-dot"></span><span>All systems operational</span>';
+            pill.style.color = "";
+            pill.style.borderColor = "";
+            pill.style.background = "";
+          }
+        }
+      }
+
+      function stopStt(reason) {
+        sttWantListen = false;
+        if (sttRec) {
+          try {
+            sttRec.stop();
+          } catch (e) {
+            /* ignore */
+          }
+          sttRec = null;
+        }
+        setSttUi(false);
+        if (reason === "unsupported" && statusEl) {
+          statusEl.textContent = "Voice input needs Chrome or Edge (Web Speech API).";
+        }
+      }
+
+      function startStt() {
+        if (!SpeechRecognition) {
+          stopStt("unsupported");
+          return;
+        }
+        if (busyFlag) return;
+        stopStt();
+        sttWantListen = true;
+        sttPrefix = inputEl.value || "";
+        sttAccumFinal = "";
+        setSttUi(true);
+        try {
+          sttRec = new SpeechRecognition();
+        } catch (e) {
+          stopStt("unsupported");
+          return;
+        }
+        sttRec.lang = (navigator.language || "en-US").replace("_", "-");
+        sttRec.continuous = true;
+        sttRec.interimResults = true;
+        sttRec.onresult = function (e) {
+          var interim = "";
+          var finChunk = "";
+          for (var i = e.resultIndex; i < e.results.length; i++) {
+            var r = e.results[i];
+            if (r.isFinal) finChunk += r[0].transcript;
+            else interim += r[0].transcript;
+          }
+          sttAccumFinal += finChunk;
+          inputEl.value = sttPrefix + sttAccumFinal + interim;
+        };
+        sttRec.onerror = function (e) {
+          var err = e && e.error;
+          if (err === "aborted" || err === "no-speech") return;
+          if (statusEl && err) statusEl.textContent = "Voice: " + err;
+          stopStt();
+        };
+        sttRec.onend = function () {
+          if (sttWantListen && SpeechRecognition && !busyFlag) {
+            try {
+              sttRec.start();
+            } catch (err) {
+              stopStt();
+            }
+          } else {
+            setSttUi(false);
+          }
+        };
+        try {
+          sttRec.start();
+        } catch (err) {
+          if (statusEl) statusEl.textContent = "Microphone unavailable.";
+          stopStt();
+        }
+      }
+
+      function toggleStt() {
+        if (!SpeechRecognition) {
+          stopStt("unsupported");
+          return;
+        }
+        if (sttWantListen) {
+          stopStt();
+          return;
+        }
+        startStt();
+      }
+
+      if (!SpeechRecognition) {
+        if (micBtn) micBtn.disabled = true;
+        if (waveBtn) waveBtn.disabled = true;
+        if (talkOrbBtn) talkOrbBtn.disabled = true;
+      }
+
+      refreshTalkChrome();
+      tickTalkClock();
+      setInterval(tickTalkClock, 1000);
+
+      if (spaceToggleEl) {
+        if (localStorage.getItem("pyx.talk.spaceView") === "0") spaceToggleEl.checked = false;
+        document.body.classList.toggle("talk-cosmos--plain", !spaceToggleEl.checked);
+        spaceToggleEl.addEventListener("change", function () {
+          localStorage.setItem("pyx.talk.spaceView", spaceToggleEl.checked ? "1" : "0");
+          document.body.classList.toggle("talk-cosmos--plain", !spaceToggleEl.checked);
+        });
+      }
+
+      if (micBtn) micBtn.addEventListener("click", toggleStt);
+      if (waveBtn) waveBtn.addEventListener("click", toggleStt);
+      if (talkOrbBtn) talkOrbBtn.addEventListener("click", toggleStt);
+      Array.prototype.forEach.call(document.querySelectorAll("[data-pyx-prompt]"), function (btn) {
+        btn.addEventListener("click", function () {
+          var p = btn.getAttribute("data-pyx-prompt") || "";
+          if (!p || !inputEl) return;
+          inputEl.focus();
+          inputEl.value = p;
+          try {
+            chatEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          } catch (e) {
+            /* ignore */
+          }
+        });
+      });
+      function dockNudge(msg) {
+        if (!statusEl || !msg) return;
+        statusEl.textContent = msg;
+        window.setTimeout(function () {
+          if (statusEl && statusEl.textContent === msg) statusEl.textContent = "";
+        }, 2600);
+      }
+      function openTalkAttachmentPicker() {
+        if (getTalkLine() === "preview") {
+          dockNudge("Attach images on Pyx 1.0 (cloud) — Llama vision isn’t on Preview.");
+          return;
+        }
+        if (talkAttachmentInput) talkAttachmentInput.click();
+      }
+      var dockCameraBtn = document.getElementById("dockCameraBtn");
+      if (dockCameraBtn)
+        dockCameraBtn.addEventListener("click", function () {
+          if (inputEl) inputEl.focus();
+        });
+      ["dockGalleryBtn", "dockFileBtn"].forEach(function (id) {
+        var b = document.getElementById(id);
+        if (b)
+          b.addEventListener("click", function () {
+            if (inputEl) inputEl.focus();
+            openTalkAttachmentPicker();
+          });
+      });
+      if (talkProfileNameEl) {
+        talkProfileNameEl.style.cursor = "pointer";
+        talkProfileNameEl.title = "Double-click to set your display name";
+        talkProfileNameEl.addEventListener("dblclick", function () {
+          var cur = localStorage.getItem("pyx.talk.displayName") || "";
+          var v = window.prompt("Display name for greetings?", cur);
+          if (v === null) return;
+          localStorage.setItem("pyx.talk.displayName", v.trim());
+          refreshTalkChrome();
+        });
+      }
 
       var MENTION_APPS = [
         { cmd: "calculator", desc: "Interactive calculator with assistant" },
@@ -1176,9 +3048,616 @@
       function getTalkLine() {
         return talkLineEl && talkLineEl.value === "preview" ? "preview" : "cloud";
       }
-      function getStorageKey() {
-        return getTalkLine() === "preview" ? "pyx.talk.messages.13preview" : "pyx.talk.messages";
+
+      var THREAD_INDEX_KEY = "pyx.talk.threadIndex.v1";
+      var CUSTOM_MEMORIES_KEY = "pyx.talk.customMemories.v1";
+      var LEGACY_MSG_KEYS = { cloud: "pyx.talk.messages", preview: "pyx.talk.messages.13preview" };
+      var orbitRefreshTimer = null;
+      var orbitLoadingWatchdogTimer = null;
+      var orbitSnapshotSuccess = false;
+      var orbitLoadGiveUp = false;
+      var ORBIT_UI_LOADING_MS = 150000;
+      var ORBIT_UI_LOADING_LABEL = "Loading…";
+      var lastOrbitData = null;
+
+      function pyxRandomId() {
+        return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 9);
       }
+
+      function getThreadIndex() {
+        try {
+          var raw = localStorage.getItem(THREAD_INDEX_KEY);
+          if (raw) {
+            var j = JSON.parse(raw);
+            if (j && Array.isArray(j.threads)) return j;
+          }
+        } catch (e) {}
+        return { threads: [], activeByLine: { cloud: "", preview: "" } };
+      }
+
+      function saveThreadIndex(idx) {
+        try {
+          localStorage.setItem(THREAD_INDEX_KEY, JSON.stringify(idx));
+        } catch (e) {}
+      }
+
+      function messageStoreKey(line, threadId) {
+        var ln = line === "preview" ? "preview" : "cloud";
+        return "pyx.talk.threadMsgs." + ln + "." + threadId;
+      }
+
+      function migrateLegacyThreadsIfNeeded() {
+        var idx = getThreadIndex();
+        if (idx.threads && idx.threads.length) return;
+        var now = Date.now();
+        idx.threads = [];
+        idx.activeByLine = idx.activeByLine || {};
+        ["cloud", "preview"].forEach(function (line) {
+          var id = line + "-snippet-" + pyxRandomId();
+          var leg = LEGACY_MSG_KEYS[line];
+          var raw = localStorage.getItem(leg);
+          if (raw && raw.length > 2) {
+            try {
+              localStorage.setItem(messageStoreKey(line, id), raw);
+            } catch (e) {}
+          }
+          idx.threads.push({
+            id: id,
+            title: line === "cloud" ? "Cloud snippet" : "Preview snippet",
+            line: line,
+            updated: now,
+          });
+          idx.activeByLine[line] = id;
+        });
+        saveThreadIndex(idx);
+      }
+
+      function currentLineKey() {
+        return getTalkLine() === "preview" ? "preview" : "cloud";
+      }
+
+      function getActiveThreadId(line) {
+        var lk = line === "preview" ? "preview" : "cloud";
+        var idx = getThreadIndex();
+        var tid = idx.activeByLine && idx.activeByLine[lk];
+        if (tid) return tid;
+        var list = idx.threads.filter(function (t) {
+          return t.line === lk;
+        });
+        if (list.length) {
+          tid = list[0].id;
+          idx.activeByLine = idx.activeByLine || {};
+          idx.activeByLine[lk] = tid;
+          saveThreadIndex(idx);
+          return tid;
+        }
+        return "";
+      }
+
+      function setActiveThreadId(line, threadId) {
+        var idx = getThreadIndex();
+        var lk = line === "preview" ? "preview" : "cloud";
+        idx.activeByLine = idx.activeByLine || {};
+        idx.activeByLine[lk] = threadId;
+        saveThreadIndex(idx);
+      }
+
+      function getStorageKey() {
+        migrateLegacyThreadsIfNeeded();
+        var lk = currentLineKey();
+        var tid = getActiveThreadId(lk === "preview" ? "preview" : "cloud");
+        return messageStoreKey(lk === "preview" ? "preview" : "cloud", tid);
+      }
+
+      function renderThreadList() {
+        var ul = document.getElementById("talkThreadsList");
+        if (!ul) return;
+        var lk = currentLineKey();
+        var active = getActiveThreadId(lk === "preview" ? "preview" : "cloud");
+        ul.textContent = "";
+        var idx = getThreadIndex();
+        var list = idx.threads.filter(function (t) {
+          return t.line === lk;
+        });
+        list.sort(function (a, b) {
+          return (b.updated || 0) - (a.updated || 0);
+        });
+        for (var i = 0; i < list.length; i++) {
+          (function (th) {
+            var li = document.createElement("li");
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "talk-thread-item" + (th.id === active ? " is-active" : "");
+            var span = document.createElement("span");
+            span.textContent = th.title || "Snippet";
+            btn.appendChild(span);
+            btn.addEventListener("click", function () {
+              activateThread(th.id);
+            });
+            li.appendChild(btn);
+            ul.appendChild(li);
+          })(list[i]);
+        }
+      }
+
+      function activateThread(threadId) {
+        persistChat();
+        var lk = currentLineKey();
+        setActiveThreadId(lk === "preview" ? "preview" : "cloud", threadId);
+        messages = loadChatFromStorage();
+        chatEl.innerHTML = "";
+        attachmentQueue.length = 0;
+        renderAttachmentRow();
+        for (var i = 0; i < messages.length; i++) {
+          if (messages[i].role === "user") {
+            userBubbleFromStoredMessage(messages[i]);
+          } else {
+            addAssistantBubbleContent(messages[i].content);
+          }
+        }
+        chatEl.scrollTop = chatEl.scrollHeight;
+        renderThreadList();
+        scheduleOrbitRefresh(true);
+      }
+
+      function newConversationThread() {
+        persistChat();
+        var lk = currentLineKey();
+        var id = lk + "-" + pyxRandomId();
+        var idx = getThreadIndex();
+        idx.threads.push({
+          id: id,
+          title: "New snippet",
+          line: lk,
+          updated: Date.now(),
+        });
+        setActiveThreadId(lk === "preview" ? "preview" : "cloud", id);
+        saveThreadIndex(idx);
+        messages = [];
+        chatEl.innerHTML = "";
+        attachmentQueue.length = 0;
+        renderAttachmentRow();
+        persistChat();
+        renderThreadList();
+        scheduleOrbitRefresh(true);
+      }
+
+      function touchActiveThread() {
+        var lk = currentLineKey();
+        var tid = getActiveThreadId(lk === "preview" ? "preview" : "cloud");
+        if (!tid) return;
+        var idx = getThreadIndex();
+        for (var i = 0; i < idx.threads.length; i++) {
+          if (idx.threads[i].id === tid) {
+            idx.threads[i].updated = Date.now();
+            saveThreadIndex(idx);
+            return;
+          }
+        }
+      }
+
+      function maybeAutoTitleThread() {
+        var lk = currentLineKey();
+        var tid = getActiveThreadId(lk === "preview" ? "preview" : "cloud");
+        if (!tid) return;
+        var idx = getThreadIndex();
+        var th = null;
+        for (var i = 0; i < idx.threads.length; i++) {
+          if (idx.threads[i].id === tid) {
+            th = idx.threads[i];
+            break;
+          }
+        }
+        if (!th) return;
+        if (
+          th.title !== "New snippet" &&
+          th.title !== "New orbit" &&
+          th.title !== "Cloud snippet" &&
+          th.title !== "Cloud orbit" &&
+          th.title !== "Preview snippet" &&
+          th.title !== "Preview orbit"
+        )
+          return;
+        var firstUser = firstUserPlainFromMessages();
+        if (!firstUser) return;
+        th.title = firstUser.length > 40 ? firstUser.slice(0, 37) + "…" : firstUser;
+        th.updated = Date.now();
+        saveThreadIndex(idx);
+        renderThreadList();
+      }
+
+      function loadCustomMemories() {
+        try {
+          var raw = localStorage.getItem(CUSTOM_MEMORIES_KEY);
+          if (!raw) return [];
+          var a = JSON.parse(raw);
+          return Array.isArray(a)
+            ? a.filter(function (x) {
+                return typeof x === "string" && x.trim();
+              })
+            : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function saveCustomMemories(arr) {
+        try {
+          localStorage.setItem(CUSTOM_MEMORIES_KEY, JSON.stringify(arr.slice(0, 80)));
+        } catch (e) {}
+      }
+
+      function renderPinnedRail() {
+        var row = document.getElementById("talkPinnedChipRow");
+        if (!row) return;
+        row.textContent = "";
+        var arr = loadCustomMemories();
+        if (!arr.length) {
+          var sp = document.createElement("span");
+          sp.className = "talk-chip";
+          sp.textContent =
+            !orbitSnapshotSuccess && !orbitLoadGiveUp ? ORBIT_UI_LOADING_LABEL : "fail";
+          row.appendChild(sp);
+          return;
+        }
+        for (var i = 0; i < Math.min(arr.length, 12); i++) {
+          var c = document.createElement("span");
+          c.className = "talk-chip";
+          c.textContent = arr[i];
+          row.appendChild(c);
+        }
+      }
+
+      function renderCustomMemoryEditor() {
+        var ul = document.getElementById("talkCustomMemoryList");
+        if (!ul) return;
+        ul.textContent = "";
+        var arr = loadCustomMemories();
+        for (var i = 0; i < arr.length; i++) {
+          (function (text, idx) {
+            var li = document.createElement("li");
+            li.textContent = text;
+            var rm = document.createElement("button");
+            rm.type = "button";
+            rm.textContent = "Remove";
+            rm.addEventListener("click", function () {
+              var next = loadCustomMemories();
+              next.splice(idx, 1);
+              saveCustomMemories(next);
+              renderCustomMemoryEditor();
+              renderPinnedRail();
+              scheduleOrbitRefresh(true);
+            });
+            li.appendChild(rm);
+            ul.appendChild(li);
+          })(arr[i], i);
+        }
+      }
+
+      function failOrbitSnapshot() {
+        return {
+          memoryStrip: ["fail", "fail", "fail", "fail"],
+          researched: ["fail", "fail", "fail"],
+          upcoming: [
+            { time: "fail", label: "fail" },
+            { time: "fail", label: "fail" },
+            { time: "fail", label: "fail" },
+          ],
+          projects: ["fail", "fail", "fail", "fail"],
+          worldInfo: ["fail", "fail", "fail"],
+          people: ["fail", "fail", "fail"],
+        };
+      }
+
+      function loadingOrbitSnapshot() {
+        var L = ORBIT_UI_LOADING_LABEL;
+        return {
+          memoryStrip: [L, L, L, L],
+          researched: [L, L, L],
+          upcoming: [
+            { time: "—", label: L },
+            { time: "—", label: L },
+            { time: "—", label: L },
+          ],
+          projects: [L, L, L, L],
+          worldInfo: [L, L, L],
+          people: [L, L, L],
+        };
+      }
+
+      function cancelOrbitLoadingWatchdog() {
+        if (orbitLoadingWatchdogTimer) {
+          clearTimeout(orbitLoadingWatchdogTimer);
+          orbitLoadingWatchdogTimer = null;
+        }
+      }
+
+      function startOrbitLoadingWatchdog() {
+        cancelOrbitLoadingWatchdog();
+        orbitLoadingWatchdogTimer = setTimeout(function () {
+          orbitLoadingWatchdogTimer = null;
+          if (orbitSnapshotSuccess) return;
+          orbitLoadGiveUp = true;
+          applyOrbitToUi(normalizeOrbitPayload(failOrbitSnapshot()));
+        }, ORBIT_UI_LOADING_MS);
+      }
+
+      function normalizeOrbitPayload(raw) {
+        var d = raw && typeof raw === "object" ? raw : {};
+        function fillStr(n, key, dflt) {
+          var a = Array.isArray(d[key]) ? d[key] : [];
+          var out = [];
+          for (var i = 0; i < n; i++) {
+            var v = a[i];
+            out.push(typeof v === "string" && v.trim() ? v.trim().slice(0, 120) : dflt);
+          }
+          return out;
+        }
+        var up = Array.isArray(d.upcoming) ? d.upcoming : [];
+        var upcoming = [];
+        for (var u = 0; u < 3; u++) {
+          var item = up[u];
+          if (item && typeof item === "object") {
+            var tm =
+              typeof item.time === "string" && item.time.trim()
+                ? item.time.trim().slice(0, 12)
+                : "fail";
+            var lb =
+              typeof item.label === "string" && item.label.trim()
+                ? item.label.trim().slice(0, 140)
+                : "fail";
+            upcoming.push({ time: tm, label: lb });
+          } else {
+            upcoming.push({ time: "fail", label: "fail" });
+          }
+        }
+        return {
+          memoryStrip: fillStr(4, "memoryStrip", "fail"),
+          researched: fillStr(3, "researched", "fail"),
+          upcoming: upcoming,
+          projects: fillStr(4, "projects", "fail"),
+          worldInfo: fillStr(3, "worldInfo", "fail"),
+          people: fillStr(3, "people", "fail"),
+        };
+      }
+
+      function parseOrbitJsonReply(reply) {
+        var t = (reply || "").trim();
+        var fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+        if (fence) t = fence[1].trim();
+        try {
+          return JSON.parse(t);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function buildOrbitTranscript(msgs) {
+        function userLineFromContent(content) {
+          if (typeof content === "string") return content;
+          if (!Array.isArray(content)) return String(content);
+          var tx = [];
+          var nImg = 0;
+          for (var i = 0; i < content.length; i++) {
+            var p = content[i];
+            if (!p || typeof p !== "object") continue;
+            if (p.type === "text" && typeof p.text === "string") tx.push(p.text);
+            if (p.type === "image_url") nImg++;
+          }
+          var s = tx.join("\n").trim();
+          if (nImg) s += (s ? "\n" : "") + "[" + nImg + " image(s)]";
+          return s || "(image only)";
+        }
+        var lines = [];
+        var start = Math.max(0, msgs.length - 40);
+        for (var i = start; i < msgs.length; i++) {
+          var m = msgs[i];
+          if (!m) continue;
+          if (m.role === "assistant") {
+            if (typeof m.content !== "string") continue;
+            if (m.content.indexOf(APP_EVENT_PREFIX) === 0) continue;
+          }
+          var role = m.role === "user" ? "User" : "Pyx";
+          var body =
+            m.role === "user"
+              ? userLineFromContent(m.content)
+              : typeof m.content === "string"
+                ? m.content
+                : "";
+          if (!body) continue;
+          lines.push(role + ": " + body.slice(0, 1600));
+        }
+        var body = lines.join("\n");
+        return body.length > 12000 ? body.slice(-12000) : body;
+      }
+
+      function applyOrbitToUi(data) {
+        lastOrbitData = data;
+        function fillChips(id, arr) {
+          var row = document.getElementById(id);
+          if (!row) return;
+          row.textContent = "";
+          for (var c = 0; c < arr.length; c++) {
+            var chip = document.createElement("span");
+            chip.className = "talk-chip";
+            chip.textContent = arr[c];
+            row.appendChild(chip);
+          }
+        }
+        var memEl = document.getElementById("talkMemoryStrip");
+        if (memEl) {
+          memEl.textContent = "";
+          memEl.removeAttribute("aria-hidden");
+          var grads = [
+            "linear-gradient(145deg, rgba(56, 189, 248, 0.55), rgba(99, 102, 241, 0.35))",
+            "linear-gradient(145deg, rgba(167, 139, 250, 0.55), rgba(236, 72, 153, 0.28))",
+            "linear-gradient(145deg, rgba(52, 211, 153, 0.5), rgba(14, 165, 233, 0.3))",
+            "linear-gradient(145deg, rgba(251, 191, 36, 0.55), rgba(249, 115, 22, 0.3))",
+          ];
+          for (var mi = 0; mi < 4; mi++) {
+            var th = document.createElement("div");
+            th.className = "talk-memory-thumb";
+            th.style.background = grads[mi];
+            th.title = data.memoryStrip[mi];
+            th.textContent = data.memoryStrip[mi];
+            memEl.appendChild(th);
+          }
+        }
+        fillChips("talkResearchedChips", data.researched);
+        fillChips("talkRouteMemoryChips", data.researched);
+
+        var ulUp = document.getElementById("talkUpcomingList");
+        if (ulUp) {
+          ulUp.textContent = "";
+          var cols = ["#38bdf8", "#a78bfa", "#fbbf24"];
+          for (var e = 0; e < data.upcoming.length; e++) {
+            var ev = data.upcoming[e];
+            var li = document.createElement("li");
+            li.className = "talk-event";
+            var dot = document.createElement("span");
+            dot.className = "talk-event-dot";
+            dot.style.color = cols[e % cols.length];
+            dot.style.background = cols[e % cols.length];
+            var tm = document.createElement("time");
+            tm.textContent = ev.time;
+            var sp = document.createElement("span");
+            sp.textContent = ev.label;
+            li.appendChild(dot);
+            li.appendChild(tm);
+            li.appendChild(sp);
+            ulUp.appendChild(li);
+          }
+        }
+
+        function fillUl(id, arr) {
+          var u = document.getElementById(id);
+          if (!u) return;
+          u.textContent = "";
+          for (var i = 0; i < arr.length; i++) {
+            var li = document.createElement("li");
+            li.textContent = arr[i];
+            u.appendChild(li);
+          }
+        }
+        fillUl("talkRouteProjectsList", data.projects);
+        fillUl("talkRouteWorldList", data.worldInfo);
+        fillUl("talkRoutePeopleList", data.people);
+        renderPinnedRail();
+      }
+
+      function scheduleOrbitRefresh(force) {
+        if (orbitRefreshTimer) clearTimeout(orbitRefreshTimer);
+        orbitRefreshTimer = setTimeout(function () {
+          orbitRefreshTimer = null;
+          refreshOrbitSnapshotFromPyx();
+        }, force ? 80 : 1400);
+      }
+
+      function refreshOrbitSnapshotFromPyx() {
+        var transcript = buildOrbitTranscript(messages);
+        var pinned = loadCustomMemories();
+        var prompt =
+          "Return ONLY compact JSON (no markdown fences). The output is learnings about the USER from the transcript — short, specific snippets Pyx should treat as durable context and may reference naturally in future replies (preferences, goals, names, tone, recurring topics). Stay factual and safe; no invented secrets. Keys: memoryStrip (array of 4 short strings max 52 chars: quirky captions summarizing what Pyx learned), researched (3 strings: topics the user explored), upcoming (3 objects with keys time as HH:MM and label as string), projects (4 strings: mission codenames), worldInfo (3 strings: fictional-but-grounded world facts), people (3 strings: names or roles). Replace any missing fact with the literal string fail (for upcoming objects use time fail and label fail). Custom pinned memories to respect: " +
+          JSON.stringify(pinned.slice(0, 12)) +
+          "\n\nChat transcript:\n" +
+          (transcript || "(empty)");
+
+        fetchPyxPost(
+          "talk",
+          JSON.stringify({
+            messages: [{ role: "user", content: prompt }],
+            mode: "fast",
+            stream: false,
+            use_web: false,
+            use_web_auto: false,
+          })
+        )
+          .then(function (res) {
+            return res.text().then(function (raw) {
+              return { res: res, raw: raw };
+            });
+          })
+          .then(function (x) {
+            if (!x.res.ok) {
+              if (orbitSnapshotSuccess) {
+                applyOrbitToUi(normalizeOrbitPayload(failOrbitSnapshot()));
+              }
+              return;
+            }
+            var j;
+            try {
+              j = JSON.parse(x.raw);
+            } catch (e) {
+              if (orbitSnapshotSuccess) {
+                applyOrbitToUi(normalizeOrbitPayload(failOrbitSnapshot()));
+              }
+              return;
+            }
+            var reply = typeof j.reply === "string" ? j.reply : "";
+            var parsed = parseOrbitJsonReply(reply);
+            if (!parsed) {
+              if (orbitSnapshotSuccess) {
+                applyOrbitToUi(normalizeOrbitPayload(failOrbitSnapshot()));
+              }
+              return;
+            }
+            orbitSnapshotSuccess = true;
+            orbitLoadGiveUp = false;
+            cancelOrbitLoadingWatchdog();
+            applyOrbitToUi(normalizeOrbitPayload(parsed));
+          })
+          .catch(function () {
+            if (orbitSnapshotSuccess) {
+              applyOrbitToUi(normalizeOrbitPayload(failOrbitSnapshot()));
+            }
+          });
+      }
+
+      function talkRouteApply() {
+        var raw = (typeof location !== "undefined" && location.hash ? location.hash : "").replace(/^#/, "");
+        var hash = raw || "chat";
+        var panel = document.getElementById("talkRoutePanel");
+        var titles = { projects: "Projects", memory: "Memory", world: "World Info", people: "People" };
+        var sectionMap = {
+          projects: "talkRoute-projects",
+          memory: "talkRoute-memory",
+          world: "talkRoute-world",
+          people: "talkRoute-people",
+        };
+        var keys = Object.keys(sectionMap);
+        var open = keys.indexOf(hash) >= 0;
+        document.querySelectorAll("a[data-talk-route]").forEach(function (a) {
+          var r = a.getAttribute("data-talk-route") || "chat";
+          var active;
+          if (open) active = r === hash;
+          else if (hash === "composer") active = r === "composer";
+          else active = r === "chat";
+          a.classList.toggle("is-active", !!active);
+        });
+        if (panel) {
+          if (!open) {
+            panel.hidden = true;
+          } else {
+            panel.hidden = false;
+            var head = document.getElementById("talkRouteHeading");
+            if (head) head.textContent = titles[hash] || "Pyx";
+            keys.forEach(function (k) {
+              var sec = document.getElementById(sectionMap[k]);
+              if (sec) sec.hidden = k !== hash;
+            });
+            if (hash === "memory") renderCustomMemoryEditor();
+          }
+        }
+        if (hash === "composer" && inputEl) {
+          window.setTimeout(function () {
+            try {
+              inputEl.scrollIntoView({ behavior: "smooth", block: "center" });
+              inputEl.focus();
+            } catch (e) {}
+          }, 80);
+        }
+      }
+
       function saveTalkLine() {
         localStorage.setItem("pyx.talk.line", getTalkLine());
       }
@@ -1326,6 +3805,82 @@
         }
         chatEl.appendChild(d);
         chatEl.scrollTop = chatEl.scrollHeight;
+      }
+
+      function addUserBubble(text, imageDataUrls) {
+        var imgs = imageDataUrls || [];
+        var d = document.createElement("div");
+        d.className = "msg msg--user";
+        if (imgs.length) {
+          var wrap = document.createElement("div");
+          wrap.className = "talk-user-attachments";
+          for (var i = 0; i < imgs.length; i++) {
+            var im = document.createElement("img");
+            im.src = imgs[i];
+            im.alt = "Attached image";
+            im.loading = "lazy";
+            wrap.appendChild(im);
+          }
+          d.appendChild(wrap);
+        }
+        var tx = (text || "").trim();
+        if (tx) {
+          var p = document.createElement("div");
+          p.className = "talk-user-text";
+          p.textContent = tx;
+          d.appendChild(p);
+        }
+        if (!imgs.length && !tx) {
+          d.textContent = "(empty message)";
+        }
+        chatEl.appendChild(d);
+        chatEl.scrollTop = chatEl.scrollHeight;
+      }
+
+      function userBubbleFromStoredMessage(m) {
+        if (!m || m.role !== "user") return;
+        var c = m.content;
+        if (typeof c === "string") {
+          addBubble(c, "user");
+          return;
+        }
+        if (Array.isArray(c)) {
+          var texts = [];
+          var imgs = [];
+          for (var i = 0; i < c.length; i++) {
+            var p = c[i];
+            if (!p || typeof p !== "object") continue;
+            if (p.type === "text" && typeof p.text === "string") texts.push(p.text);
+            if (p.type === "image_url" && p.image_url && typeof p.image_url.url === "string") {
+              imgs.push(p.image_url.url);
+            }
+          }
+          addUserBubble(texts.join("\n"), imgs);
+          return;
+        }
+        addBubble(String(c), "user");
+      }
+
+      function firstUserPlainFromMessages() {
+        for (var j = 0; j < messages.length; j++) {
+          if (messages[j].role !== "user") continue;
+          var c = messages[j].content;
+          if (typeof c === "string") return c.trim();
+          if (Array.isArray(c)) {
+            var tx = [];
+            var nImg = 0;
+            for (var k = 0; k < c.length; k++) {
+              var p = c[k];
+              if (p && p.type === "text" && typeof p.text === "string") tx.push(p.text);
+              if (p && p.type === "image_url") nImg++;
+            }
+            var plain = tx.join("\n").trim();
+            if (plain) return plain;
+            if (nImg === 1) return "Image";
+            if (nImg > 1) return nImg + " images";
+          }
+        }
+        return "";
       }
 
       function wireAssistantLinks(container) {
@@ -2530,12 +5085,21 @@
           var out = [];
           for (var i = 0; i < arr.length; i++) {
             var m = arr[i];
-            if (
-              m &&
-              (m.role === "user" || m.role === "assistant") &&
-              typeof m.content === "string"
-            ) {
-              out.push({ role: m.role, content: m.content });
+            if (!m || (m.role !== "user" && m.role !== "assistant")) continue;
+            var row = { role: m.role };
+            if (typeof m.sentAt === "string") row.sentAt = m.sentAt;
+            if (m.role === "assistant") {
+              if (typeof m.content !== "string") continue;
+              row.content = m.content;
+              out.push(row);
+              continue;
+            }
+            if (typeof m.content === "string") {
+              row.content = m.content;
+              out.push(row);
+            } else if (Array.isArray(m.content) && m.content.length) {
+              row.content = m.content;
+              out.push(row);
             }
           }
           return out;
@@ -2562,6 +5126,88 @@
             /* ignore quota */
           }
         }
+        touchActiveThread();
+        maybeAutoTitleThread();
+        scheduleOrbitRefresh(false);
+      }
+
+      function pyxFormatSentStamp(iso) {
+        try {
+          var ds = new Date(iso);
+          if (isNaN(ds.getTime())) return "";
+          return ds.toLocaleString(undefined, {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          });
+        } catch (e) {
+          return "";
+        }
+      }
+
+      function flattenUserContentForPreview(content) {
+        if (typeof content === "string") return content;
+        if (!Array.isArray(content)) return String(content);
+        var lines = [];
+        var nImg = 0;
+        for (var i = 0; i < content.length; i++) {
+          var p = content[i];
+          if (!p || typeof p !== "object") continue;
+          if (p.type === "text" && typeof p.text === "string") lines.push(p.text);
+          if (p.type === "image_url") nImg++;
+        }
+        var head = nImg ? "[" + nImg + " image(s) attached — preview text-only; use Pyx 1.0 cloud for vision]\n" : "";
+        return head + lines.join("\n");
+      }
+
+      function messagesForTalkApi(msgs, opts) {
+        var preview = opts && opts.preview;
+        return msgs.map(function (m) {
+          if (m.role !== "user") return { role: m.role, content: m.content };
+          var stamp = typeof m.sentAt === "string" ? pyxFormatSentStamp(m.sentAt) : "";
+          var prefix = stamp ? "[Sent " + stamp + "]\n" : "";
+          if (preview) {
+            return { role: "user", content: prefix + flattenUserContentForPreview(m.content) };
+          }
+          if (typeof m.content === "string") {
+            return { role: "user", content: prefix + m.content };
+          }
+          if (Array.isArray(m.content)) {
+            var out = [];
+            var firstText = true;
+            for (var i = 0; i < m.content.length; i++) {
+              var p = m.content[i];
+              if (!p || typeof p !== "object") continue;
+              if (p.type === "text") {
+                var t = typeof p.text === "string" ? p.text : "";
+                out.push({ type: "text", text: firstText ? prefix + t : t });
+                firstText = false;
+              } else if (p.type === "image_url" && p.image_url && typeof p.image_url.url === "string") {
+                out.push({ type: "image_url", image_url: { url: p.image_url.url } });
+              }
+            }
+            return { role: "user", content: out };
+          }
+          return { role: "user", content: prefix + String(m.content) };
+        });
+      }
+
+      function buildUserMultimodalContent(text, imageDataUrls) {
+        var urls = imageDataUrls || [];
+        if (!urls.length) return text;
+        var parts = [];
+        parts.push({ type: "text", text: (text || "").trim() || "Describe this image." });
+        for (var i = 0; i < urls.length; i++) {
+          parts.push({ type: "image_url", image_url: { url: urls[i] } });
+        }
+        return parts;
+      }
+
+      function pushUserMessage(text, imageDataUrls) {
+        var content = buildUserMultimodalContent(text, imageDataUrls);
+        messages.push({ role: "user", content: content, sentAt: new Date().toISOString() });
       }
 
       function drainSseBuffer(buf, onDataObj) {
@@ -2622,6 +5268,12 @@
         busyFlag = !!b;
         sendBtn.disabled = b;
         inputEl.disabled = b;
+        if (talkAttachmentInput) talkAttachmentInput.disabled = b;
+        var noVoice = !SpeechRecognition;
+        if (micBtn) micBtn.disabled = b || noVoice;
+        if (waveBtn) waveBtn.disabled = b || noVoice;
+        if (talkOrbBtn) talkOrbBtn.disabled = b || noVoice;
+        if (b) stopStt();
         if (!loadSpinnerEl) return;
         if (!b) {
           var remain = spinnerDeadline - Date.now();
@@ -2696,7 +5348,7 @@
         saveTalkLine();
         saveMode();
         inputEl.value = "";
-        messages.push({ role: "user", content: fullUserLine });
+        pushUserMessage(fullUserLine);
         addBubble(fullUserLine, "user");
         setBusy(true);
         statusEl.textContent = "In-chat App · Pyxel — drawing 10×10 (100 pixels)…";
@@ -2751,26 +5403,32 @@
 
       function send() {
         var text = (inputEl.value || "").trim();
-        if (!text) return;
+        var pendingImages = attachmentQueue.length;
+        if (!text && !pendingImages) return;
+        if (getTalkLine() === "preview" && pendingImages) {
+          statusEl.textContent =
+            "Image attachments use Llama vision on Pyx 1.0 (cloud). Switch lines or remove attachments.";
+          return;
+        }
         if (getTalkLine() === "preview" && isAppCommandLike(text)) {
           inputEl.value = "";
-          messages.push({ role: "user", content: text });
+          pushUserMessage(text);
           addBubble(text, "user");
           appReply("**In-chat Apps are not available on Pyx 1.3 Preview yet.**\n\nSwitch to **Pyx 1.0 (cloud)** to use `@` apps and games.");
           statusEl.textContent = "Apps unavailable on Pyx 1.3 Preview";
           persistChat();
           return;
         }
-        // In-chat apps/games intercept before API chat.
-        if (handleLocalAppCommand(text)) {
+        // In-chat apps/games intercept before API chat (not when images are queued — vision wins).
+        if (!pendingImages && handleLocalAppCommand(text)) {
           inputEl.value = "";
-          messages.push({ role: "user", content: text });
+          pushUserMessage(text);
           addBubble(text, "user");
           chatEl.scrollTop = chatEl.scrollHeight;
           persistChat();
           return;
         }
-        var pixelSubject = matchPixelArtIntent(text);
+        var pixelSubject = !pendingImages ? matchPixelArtIntent(text) : null;
         if (pixelSubject && getTalkLine() !== "preview") {
           sendPixelArt(text, pixelSubject);
           return;
@@ -2781,7 +5439,7 @@
           var useWebAutoP = useWebAutoEl.checked;
           var previewChainsPixel = false;
           inputEl.value = "";
-          messages.push({ role: "user", content: text });
+          pushUserMessage(text);
           addBubble(text, "user");
           setBusy(true);
           statusEl.textContent =
@@ -2789,7 +5447,7 @@
           fetchPyxPost(
             "pyx13-preview/chat",
             JSON.stringify({
-              messages: messages,
+              messages: messagesForTalkApi(messages, { preview: true }),
               use_web: useWebP,
               use_web_auto: useWebAutoP,
             })
@@ -2868,9 +5526,13 @@
         var mode = getMode();
         var useWeb = useWebEl.checked;
         var useWebAuto = useWebAutoEl.checked;
+        var imgs = attachmentQueue.slice();
+        attachmentQueue.length = 0;
+        renderAttachmentRow();
         inputEl.value = "";
-        messages.push({ role: "user", content: text });
-        addBubble(text, "user");
+        pushUserMessage(text, imgs);
+        addUserBubble(text, imgs);
+        chatEl.scrollTop = chatEl.scrollHeight;
         setBusy(true);
         if (useWeb || useWebAuto) {
           statusEl.textContent = "Searching the web…";
@@ -2882,7 +5544,7 @@
         }
 
         fetchPyxStream("talk", JSON.stringify({
-          messages: messages,
+          messages: messagesForTalkApi(messages),
           mode: mode,
           use_web: useWeb,
           use_web_auto: useWebAuto,
@@ -2996,7 +5658,7 @@
         appPyxelBtn.addEventListener("click", function () {
           var sub = window.prompt("Pyxel subject?", "a happy robot waving");
           if (!sub) return;
-          messages.push({ role: "user", content: "pyxel " + sub });
+          pushUserMessage("pyxel " + sub);
           addBubble("pyxel " + sub, "user");
           runInChatPixelArt(sub);
         });
@@ -3057,14 +5719,17 @@
       function reloadThreadForLine() {
         messages = loadChatFromStorage();
         chatEl.innerHTML = "";
+        attachmentQueue.length = 0;
+        renderAttachmentRow();
         for (var i = 0; i < messages.length; i++) {
           if (messages[i].role === "user") {
-            addBubble(messages[i].content, "user");
+            userBubbleFromStoredMessage(messages[i]);
           } else {
             addAssistantBubbleContent(messages[i].content);
           }
         }
         chatEl.scrollTop = chatEl.scrollHeight;
+        renderThreadList();
       }
 
       if (talkLineEl) {
@@ -3080,11 +5745,20 @@
           updateLineUi();
           mentionClose();
           reloadThreadForLine();
+          talkRouteApply();
+          scheduleOrbitRefresh(true);
         });
         saveTalkLine();
       }
 
       updateLineUi();
+
+      migrateLegacyThreadsIfNeeded();
+      renderThreadList();
+      applyOrbitToUi(normalizeOrbitPayload(loadingOrbitSnapshot()));
+      startOrbitLoadingWatchdog();
+      talkRouteApply();
+      window.addEventListener("hashchange", talkRouteApply);
 
       (function initChatHistory() {
         var loaded = loadChatFromStorage();
@@ -3093,7 +5767,7 @@
           chatEl.innerHTML = "";
           for (var i = 0; i < messages.length; i++) {
             if (messages[i].role === "user") {
-              addBubble(messages[i].content, "user");
+              userBubbleFromStoredMessage(messages[i]);
             } else {
               addAssistantBubbleContent(messages[i].content);
             }
@@ -3101,6 +5775,40 @@
           chatEl.scrollTop = chatEl.scrollHeight;
         }
       })();
+
+      scheduleOrbitRefresh(false);
+
+      var talkNewThreadBtn = document.getElementById("talkNewThreadBtn");
+      if (talkNewThreadBtn) talkNewThreadBtn.addEventListener("click", newConversationThread);
+      ["orbitRefreshBtn", "orbitRefreshBtnB"].forEach(function (bid) {
+        var b = document.getElementById(bid);
+        if (b)
+          b.addEventListener("click", function () {
+            refreshOrbitSnapshotFromPyx();
+          });
+      });
+      var talkRouteClose = document.getElementById("talkRouteClose");
+      if (talkRouteClose)
+        talkRouteClose.addEventListener("click", function () {
+          location.hash = "#chat";
+          talkRouteApply();
+        });
+      var talkMemAdd = document.getElementById("talkCustomMemoryAdd");
+      var talkMemInp = document.getElementById("talkCustomMemoryInput");
+      if (talkMemAdd && talkMemInp) {
+        talkMemAdd.addEventListener("click", function () {
+          var v = (talkMemInp.value || "").trim();
+          if (!v) return;
+          var arr = loadCustomMemories();
+          arr.push(v);
+          saveCustomMemories(arr);
+          talkMemInp.value = "";
+          renderCustomMemoryEditor();
+          renderPinnedRail();
+          scheduleOrbitRefresh(true);
+        });
+      }
+
     })();
   </script>
 </body>

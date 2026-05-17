@@ -19,11 +19,19 @@ console.log("\n  Pyx API (dev)\n");
 console.log("  API key (use in your game / client):");
 console.log("  ", key);
 console.log("");
+console.log("  Browser UI: no API key needed (PYX_DEV_RELAX_AUTH=1).");
+console.log("  Game clients can still send X-API-Key if you want.");
 console.log("  Server: http://localhost:8765");
 console.log("  Health: http://localhost:8765/health");
 console.log("  (Ctrl+C to stop)\n");
 
-const env = { ...process.env, PYX_API_KEY: key, PORT: "8765" };
+const env = {
+  ...process.env,
+  PYX_API_KEY: key,
+  PORT: "8765",
+  /* Browser Talk / preview UI posts without X-API-Key; still prints a key for game clients. */
+  PYX_DEV_RELAX_AUTH: "1",
+};
 const child = spawn(py, ["app.py"], {
   env,
   stdio: "inherit",

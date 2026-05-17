@@ -617,6 +617,7 @@
 
       var WORD_OVERRIDES = {
         pyx: ["p", "ih", "k", "s"],
+        picks: ["p", "ih", "k", "s"],
         speak: ["s", "p", "iy", "k"],
         talk: ["t", "ao", "k"],
         calculator: ["k", "ae", "l", "k", "y", "uh", "l", "ey", "t", "er"],
@@ -1729,7 +1730,69 @@
       }
 
       function normalizeBrandPronunciation(raw) {
-        return String(raw || "").replace(/\bpyx\b/gi, "Pix");
+        return String(raw || "").replace(/\bpyx(?:es|'s)?\b/gi, function (m) {
+          var lw = m.toLowerCase();
+          if (lw === "pyxes") return "pickses";
+          if (lw === "pyx's") return "picks's";
+          return "picks";
+        });
+      }
+
+      function normalizeNativePronunciation(raw) {
+        var text = normalizeBrandPronunciation(raw);
+        var parts = String(text || "").match(/[A-Za-z']+|[^A-Za-z']+/g) || [String(text || "")];
+        var words = [];
+        var wordPos = [];
+        for (var i = 0; i < parts.length; i++) {
+          if (/^[A-Za-z']+$/.test(parts[i])) {
+            words.push(parts[i].toLowerCase());
+            wordPos.push(i);
+          }
+        }
+
+        function prevWord(wi) {
+          return wi > 0 ? words[wi - 1] : "";
+        }
+        function nextWord(wi) {
+          return wi < words.length - 1 ? words[wi + 1] : "";
+        }
+
+        var liveLyveNext = {
+          stream: 1, streams: 1, streaming: 1,
+          show: 1, shows: 1, event: 1, events: 1,
+          broadcast: 1, broadcasts: 1, coverage: 1,
+          demo: 1, demos: 1, concert: 1, concerts: 1,
+          chat: 1, session: 1, sessions: 1,
+          now: 1, today: 1, tonight: 1, update: 1, updates: 1,
+        };
+        var liveLivNext = {
+          in: 1, with: 1, on: 1, at: 1, near: 1, by: 1, under: 1,
+          here: 1, there: 1, abroad: 1, alone: 1, together: 1, longer: 1,
+        };
+        var liveLivPrev = {
+          i: 1, we: 1, you: 1, they: 1, he: 1, she: 1, to: 1, will: 1, can: 1,
+          could: 1, should: 1, must: 1, might: 1, may: 1, would: 1,
+          people: 1, humans: 1,
+        };
+        var liveLyvePrev = {
+          go: 1, going: 1, went: 1, watch: 1, watching: 1, watched: 1,
+          stream: 1, streaming: 1, broadcast: 1, broadcasting: 1,
+        };
+
+        for (var wi = 0; wi < words.length; wi++) {
+          if (words[wi] !== "live") continue;
+          var p = prevWord(wi);
+          var n = nextWord(wi);
+          var idx = wordPos[wi];
+          if (liveLivPrev[p] || liveLivNext[n]) {
+            parts[idx] = "liv";
+            continue;
+          }
+          if (liveLyvePrev[p] || liveLyveNext[n]) {
+            parts[idx] = "lyve";
+          }
+        }
+        return parts.join("");
       }
 
       function splitIntoChunks(text, maxLen) {
@@ -2025,7 +2088,7 @@
         var rate = Math.max(0.65, Number(settings.rate) || 1);
         var pitchMul = Math.max(0.6, Number(settings.pitch) || 1);
         var volume = Math.max(0.05, Math.min(Number(settings.volume) || 1, 1));
-        var segments = textToSegments(chunkText, rate);
+        var segments = textToSegments(normalizeBrandPronunciation(chunkText), rate);
         if (!segments.length) segments = [{ type: "pause", dur: 0.08 }];
 
         var sr = ctx.sampleRate;
@@ -2370,7 +2433,7 @@
         }
         cloudAbort = new AbortController();
         var payload = {
-          text: normalizeBrandPronunciation(chunks[index]),
+          text: normalizeNativePronunciation(chunks[index]),
           speed: Math.max(0.7, Math.min(1.35, Number(rateRange.value) || 1)),
         };
         fetch("/api/speak/tacotron", {

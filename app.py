@@ -6,6 +6,7 @@ Clients send the key in header X-API-Key or Authorization: Bearer <key>.
 If no keys are set, the API works without auth (open).
 """
 
+import base64
 import html
 import json
 import math
@@ -23,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
 
-from flask import Flask, request, jsonify, Response, stream_with_context
+from flask import Flask, abort, jsonify, request, Response, send_from_directory, stream_with_context
 
 from Pyx_ai_moderator import PyxAI, BAN_LINE, censor_letters
 from Pyx_ai_check import check_code, check_three_js, __version__ as check_version
@@ -68,6 +69,10 @@ pyx = PyxAI()
 _GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
 _TALK_MAX_MSG_LEN = 4000
 _TALK_MAX_MESSAGES = 24
+_TALK_MAX_VISION_IMAGES = 5
+_TALK_MAX_MULTIMODAL_TEXT = 6000
+# Groq data-URL images: stay under provider limits (see PYX_TALK_MODEL_VISION).
+_TALK_MAX_DATA_URL_BYTES = 3_500_000
 _TALK_SYSTEM = os.environ.get(
     "PYX_TALK_SYSTEM",
     "You are Pyx Talk, a helpful, friendly assistant. Keep answers concise and clear. "
@@ -110,6 +115,93 @@ _TALK_MODE_SPECS = {
 }
 
 
+def _talk_user_plain_text(content) -> str:
+    """Flatten user message content for moderation / web heuristics."""
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        chunks: list[str] = []
+        for p in content:
+            if isinstance(p, dict) and p.get("type") == "text":
+                t = p.get("text")
+                if isinstance(t, str):
+                    chunks.append(t)
+        return "\n".join(chunks).strip()
+    return ""
+
+
+def _data_url_image_byte_length(url: str) -> int | None:
+    """Return decoded byte length for data:image/...;base64,... URLs; None if not a data image URL."""
+    if not isinstance(url, str) or not url.startswith("data:image/"):
+        return None
+    try:
+        meta, b64 = url.split(",", 1)
+    except ValueError:
+        return -1
+    if ";base64" not in meta.lower():
+        return -1
+    try:
+        raw = base64.b64decode(b64, validate=True)
+    except Exception:
+        return -1
+    return len(raw)
+
+
+def _normalize_user_multimodal(parts: list) -> tuple[list | None, str | None]:
+    """OpenAI-style multimodal user parts -> sanitized list or error."""
+    if not isinstance(parts, list) or not parts:
+        return None, '"content" parts must be a non-empty list'
+    out: list[dict] = []
+    n_img = 0
+    text_total = 0
+    for p in parts:
+        if not isinstance(p, dict):
+            return None, "each content part must be an object"
+        typ = p.get("type")
+        if typ == "text":
+            tx = p.get("text")
+            if not isinstance(tx, str):
+                return None, "text part must be a string"
+            tx = tx.strip()
+            if not tx:
+                continue
+            if text_total + len(tx) > _TALK_MAX_MULTIMODAL_TEXT:
+                return None, "message text too long"
+            text_total += len(tx)
+            out.append({"type": "text", "text": tx})
+        elif typ == "image_url":
+            iu = p.get("image_url")
+            if not isinstance(iu, dict):
+                return None, "image_url part invalid"
+            url = iu.get("url")
+            if not isinstance(url, str) or not url.strip():
+                return None, "image_url.url missing"
+            url = url.strip()
+            if len(url) > 12_000_000:
+                return None, "image URL too long"
+            low = url[:24].lower()
+            if url.startswith("https://") or url.startswith("http://"):
+                pass
+            elif low.startswith("data:image/png") or low.startswith("data:image/jpeg") or low.startswith("data:image/jpg") or low.startswith("data:image/webp"):
+                sz = _data_url_image_byte_length(url)
+                if sz is None or sz < 0:
+                    return None, "invalid base64 image data"
+                if sz > _TALK_MAX_DATA_URL_BYTES:
+                    return None, "image too large (max ~4MB decoded for data URLs)"
+            else:
+                return None, "unsupported image URL (use https or data:image/png|jpeg|webp;base64,...)"
+            n_img += 1
+            if n_img > _TALK_MAX_VISION_IMAGES:
+                return None, f"too many images (max {_TALK_MAX_VISION_IMAGES})"
+            out.append({"type": "image_url", "image_url": {"url": url}})
+        else:
+            return None, "unsupported content part type"
+    plain = _talk_user_plain_text(out)
+    if not plain and n_img == 0:
+        return None, "empty message"
+    return out, None
+
+
 def _normalize_talk_messages(raw):
     if not isinstance(raw, list):
         return None, '"messages" must be a list'
@@ -123,14 +215,31 @@ def _normalize_talk_messages(raw):
         content = m.get("content")
         if role not in ("user", "assistant"):
             return None, '"role" must be "user" or "assistant"'
-        if not isinstance(content, str):
-            return None, '"content" must be a string'
-        content = content.strip()
-        if len(content) > _TALK_MAX_MSG_LEN:
-            return None, "message too long"
-        if not content:
-            return None, "empty message"
-        out.append({"role": role, "content": content})
+        if role == "assistant":
+            if not isinstance(content, str):
+                return None, "assistant content must be a string"
+            content = content.strip()
+            if len(content) > _TALK_MAX_MSG_LEN:
+                return None, "message too long"
+            if not content:
+                return None, "empty message"
+            out.append({"role": role, "content": content})
+            continue
+        # user
+        if isinstance(content, str):
+            content = content.strip()
+            if len(content) > _TALK_MAX_MSG_LEN:
+                return None, "message too long"
+            if not content:
+                return None, "empty message"
+            out.append({"role": role, "content": content})
+        elif isinstance(content, list):
+            norm, err = _normalize_user_multimodal(content)
+            if err:
+                return None, err
+            out.append({"role": role, "content": norm})
+        else:
+            return None, '"content" must be a string or a structured parts list'
     if not out or out[-1]["role"] != "user":
         return None, "last message must be from user"
     return out, None
@@ -431,6 +540,18 @@ def _enhance_talk_search_query(user_text: str) -> str:
     return f"{q} {year}".strip()
 
 
+def _talk_messages_have_images(messages_for_api: list) -> bool:
+    for m in messages_for_api:
+        if not isinstance(m, dict):
+            continue
+        c = m.get("content")
+        if isinstance(c, list):
+            for p in c:
+                if isinstance(p, dict) and p.get("type") == "image_url":
+                    return True
+    return False
+
+
 def _groq_openai_prepare(messages_for_api, mode="fast", web_context="", ground_web=False):
     """Build shared OpenAI-compatible chat request pieces. Returns None if Groq is selected but no API key."""
     key = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
@@ -440,7 +561,11 @@ def _groq_openai_prepare(messages_for_api, mode="fast", web_context="", ground_w
     if not key and url_norm == groq_norm:
         return None
     spec = _TALK_MODE_SPECS.get(mode) or _TALK_MODE_SPECS["fast"]
-    model = (os.environ.get(spec["model_env"]) or "").strip() or spec["default_model"]
+    has_vis = _talk_messages_have_images(messages_for_api)
+    if has_vis:
+        model = (os.environ.get("PYX_TALK_MODEL_VISION") or "").strip() or "meta-llama/llama-4-scout-17b-16e-instruct"
+    else:
+        model = (os.environ.get(spec["model_env"]) or "").strip() or spec["default_model"]
     max_tokens = min(max(spec["max_tokens"], 64), 2048)
     temperature = float(spec["temperature"])
     if ground_web:
@@ -891,6 +1016,20 @@ def _speak_tts_model_candidates(requested_model: str | None = None) -> list[str]
     return out
 
 
+def _normalize_pyx_brand_for_tts(text: str) -> str:
+    """Map the Pyx brand token to a common English word spelling so TTS reads it as one word, not letter-by-letter."""
+
+    def repl(m: re.Match[str]) -> str:
+        lw = m.group(0).lower()
+        if lw == "pyxes":
+            return "pickses"
+        if lw == "pyx's":
+            return "picks's"
+        return "picks"
+
+    return re.sub(r"\bpyx(?:es|'s)?\b", repl, text, flags=re.IGNORECASE)
+
+
 def _speak_direction_tag(instructions: str | None) -> str:
     if not instructions:
         return ""
@@ -1222,14 +1361,73 @@ def _get_api_key_from_request():
     return key
 
 
+def _public_file_for_path(url_path):
+    """If url_path maps to a regular file under ./public, return its resolved Path; else None."""
+    if not url_path or not url_path.startswith("/"):
+        return None
+    tail = url_path[1:]
+    if not tail or ".." in tail.split("/"):
+        return None
+    root = (Path(__file__).resolve().parent / "public").resolve()
+    try:
+        cand = (root / tail).resolve()
+    except OSError:
+        return None
+    if not str(cand).startswith(str(root)) or not cand.is_file():
+        return None
+    return cand
+
+
+def _is_local_dev_client():
+    """True when the request appears to come from this machine or a typical LAN client."""
+    addr = (request.remote_addr or "").replace("::ffff:", "")
+    if addr in ("127.0.0.1", "::1"):
+        return True
+    if addr.startswith("192.168.") or addr.startswith("10."):
+        return True
+    if addr.startswith("172."):
+        parts = addr.split(".")
+        if len(parts) >= 2:
+            try:
+                second = int(parts[1])
+                if 16 <= second <= 31:
+                    return True
+            except ValueError:
+                pass
+    return False
+
+
+# POST routes the static Talk UI calls from the browser (no API key header).
+_LOCAL_BROWSER_API_POST = frozenset(
+    {
+        "/talk",
+        "/api/talk",
+        "/pyx13-preview/chat",
+        "/api/pyx13-preview/chat",
+        "/pixel_art",
+        "/api/pixel_art",
+    }
+)
+
+
 def _require_api_key():
     if not _REQUIRE_API_KEY:
         return None
+    # npm run dev — skip key checks so /pyx-talk.html works (any host / preview line / streaming).
+    if os.environ.get("PYX_DEV_RELAX_AUTH") == "1":
+        return None
     if request.method == "OPTIONS":
         return None
-    # Allow GET /health and GET / without a key so load balancers can check
-    if request.method == "GET" and request.path in ("/", "/health"):
+    # Manual `python app.py` with PYX_API_KEY: allow browser UI from loopback + LAN.
+    if request.method == "POST" and request.path in _LOCAL_BROWSER_API_POST and _is_local_dev_client():
         return None
+    # Allow GET/HEAD /health and GET/HEAD / without a key so load balancers can check;
+    # allow GET/HEAD that map to real files under ./public (HTML + assets for local dev).
+    if request.method in ("GET", "HEAD"):
+        if request.path in ("/", "/health"):
+            return None
+        if _public_file_for_path(request.path) is not None:
+            return None
     key = _get_api_key_from_request()
     if key and key in _API_KEYS:
         return None
@@ -1558,7 +1756,8 @@ def talk():
     messages, err = _normalize_talk_messages(data.get("messages"))
     if err:
         return jsonify({"error": err}), 400
-    last_user = messages[-1]["content"]
+    last_plain = _talk_user_plain_text(messages[-1]["content"])
+    last_user = last_plain if last_plain else "(user attached image(s))"
     u_score = None
     try:
         u_score = pyx.score(last_user)
@@ -1758,7 +1957,7 @@ def speak_tts():
     text = data.get("text", "")
     if not isinstance(text, str):
         return jsonify({"error": '"text" must be a string'}), 400
-    text = text.strip()
+    text = _normalize_pyx_brand_for_tts(text.strip())
     if not text:
         return jsonify({"error": "empty text"}), 400
     if len(text) > 3200:
@@ -1865,7 +2064,7 @@ def speak_tacotron():
     text = data.get("text", "")
     if not isinstance(text, str):
         return jsonify({"error": '"text" must be a string'}), 400
-    text = text.strip()
+    text = _normalize_pyx_brand_for_tts(text.strip())
     if not text:
         return jsonify({"error": "empty text"}), 400
     if len(text) > 1200:
@@ -2126,6 +2325,20 @@ def analyze_route():
         return jsonify(out)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/<path:public_path>", methods=["GET", "HEAD"])
+def serve_public(public_path):
+    """Serve static assets from ./public (local dev). Registered last so API routes win."""
+    root = (Path(__file__).resolve().parent / "public").resolve()
+    try:
+        candidate = (root / public_path).resolve()
+    except OSError:
+        abort(404)
+    if not str(candidate).startswith(str(root)) or not candidate.is_file():
+        abort(404)
+    rel = candidate.relative_to(root)
+    return send_from_directory(str(root), str(rel).replace("\\", "/"))
 
 
 if __name__ == "__main__":
