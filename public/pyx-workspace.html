@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pyx Studio Workspace — Productivity</title>
+  <title>Pyx Studio Workspace — Write with Pyx</title>
   <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -39,6 +39,8 @@
     .ws-result, .ws-pin, .ws-blank {
       padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); margin-bottom: 8px;
     }
+    .ws-pin.is-read { border-color: rgba(52, 211, 153, 0.35); }
+    .ws-pin__badge { font-size: 0.68rem; color: #6ee7b7; font-weight: 700; }
     .ws-blank.is-filled { border-color: rgba(52, 211, 153, 0.45); }
     .ws-blank__tag { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: #a5b4fc; }
     .ws-blank textarea { width: 100%; min-height: 72px; margin-top: 8px; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: rgba(2, 6, 23, 0.35); color: var(--text); font: inherit; font-size: 0.9rem; }
@@ -49,7 +51,10 @@
     .ws-status--ok { color: #6ee7b7; }
     .ws-status--err { color: #fca5a5; }
     .ws-status--info { color: #93c5fd; }
-    .ws-export textarea { font-family: ui-monospace, Menlo, monospace; font-size: 0.78rem; min-height: 200px; }
+    .ws-plan-out { font-size: 0.92rem; line-height: 1.6; min-height: 200px; }
+    .ws-advanced { margin-top: 10px; font-size: 0.85rem; }
+    .ws-advanced summary { cursor: pointer; color: var(--muted); font-weight: 700; }
+    .ws-advanced textarea { font-family: ui-monospace, Menlo, monospace; font-size: 0.78rem; min-height: 120px; margin-top: 8px; }
     .ws-tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 14px; }
     .ws-hero-badge {
       display: inline-block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
@@ -86,70 +91,76 @@
 <body class="pyx-cosmos">
   <div data-pyx-shell data-pyx-active="workspace"></div>
   <main class="wrap pyx-wrap">
-    <span class="ws-hero-badge">Productivity for everybody</span>
+    <span class="ws-hero-badge">Write &amp; learn with Pyx</span>
     <h1>Pyx Studio Workspace</h1>
     <p class="ws-muted pyx-lede" style="max-width: 72ch;">
-      Give a topic — Pyx researches in an embedded web browser, builds a <strong>JSON + Python</strong> outline pack,
-      and you fill in the blanks together. Pin sources, read pages in Pyx, then export or continue in Talk.
+      Pick a topic. Pyx searches the web with you, reads the links you save, builds an <strong>essay plan</strong>,
+      and helps you <strong>fill in the blanks</strong>. No coding words — just writing.
     </p>
 
     <ol class="ws-steps" id="wsSteps" aria-label="Workflow">
-      <li data-step="topic">1. Topic</li>
-      <li data-step="search">2. Research</li>
-      <li data-step="pack">3. Data pack</li>
-      <li data-step="blanks">4. Fill blanks</li>
-      <li data-step="export">5. Export</li>
+      <li data-step="topic">1. Your topic</li>
+      <li data-step="search">2. Find links</li>
+      <li data-step="pack">3. Essay plan</li>
+      <li data-step="blanks">4. Fill in</li>
+      <li data-step="export">5. Save &amp; write</li>
     </ol>
 
     <div class="ws-layout">
       <aside class="ws-panel">
-        <h2>Essay &amp; project helper</h2>
+        <h2>Essay helper</h2>
         <div class="ws-field">
-          <label for="wsTopic">Topic or question</label>
+          <label for="wsTopic">What are you writing about?</label>
           <input id="wsTopic" type="text" placeholder="e.g. How do coral reefs recover after bleaching?" />
         </div>
         <div class="ws-field">
-          <label for="wsNotes">Your notes (optional)</label>
-          <textarea id="wsNotes" placeholder="Thesis ideas, class requirements, angle you want…"></textarea>
+          <label for="wsNotes">Your ideas (optional)</label>
+          <textarea id="wsNotes" placeholder="What your teacher wants, cool facts you already know…"></textarea>
         </div>
         <div class="ws-field">
-          <label for="wsSearchInput">Research search</label>
-          <input id="wsSearchInput" type="search" placeholder="Search the web with Pyx…" />
+          <label for="wsSearchInput">Search the web</label>
+          <input id="wsSearchInput" type="search" placeholder="What should Pyx look up?" />
         </div>
         <button type="button" class="btn" id="wsStartPyx" style="width:100%;margin-bottom:8px;">
-          Start essay with Pyx
+          Start with Pyx
         </button>
         <button type="button" class="btn secondary" id="wsSearchBtn">Search &amp; open browser</button>
         <p class="ws-status" id="wsStatus" aria-live="polite"></p>
-        <button type="button" class="btn" id="wsBuildEssay" style="width:100%;margin-top:8px;">
-          Build JSON + Python data pack
+        <button type="button" class="btn" id="wsReadAndFill" style="width:100%;margin-top:8px;">
+          Read my links &amp; help fill in
+        </button>
+        <button type="button" class="btn secondary" id="wsBuildEssay" style="width:100%;margin-top:6px;">
+          Make essay plan only
+        </button>
+        <button type="button" class="btn secondary" id="wsReadPins" style="width:100%;margin-top:6px;">
+          Read my saved links
         </button>
 
-        <h2 style="margin-top:16px;">Pinned sources <span class="ws-muted" style="font-weight:400;text-transform:none;">(<span id="wsPinCount">0</span>)</span></h2>
+        <h2 style="margin-top:16px;">Saved links <span class="ws-muted" style="font-weight:400;text-transform:none;">(<span id="wsPinCount">0</span>)</span></h2>
         <div id="wsPinned"></div>
       </aside>
 
       <section class="ws-panel">
         <article class="ws-coach" id="wsCoach" hidden>
-          <div class="ws-coach__avatar">Pyx · research coach</div>
+          <div class="ws-coach__avatar">Pyx · your writing buddy</div>
           <p class="ws-coach__msg" id="wsCoachMsg"></p>
           <div class="ws-coach-steps" id="wsCoachSteps"></div>
           <p class="ws-muted" id="wsCoachAfter" style="margin-top:10px;margin-bottom:0;"></p>
         </article>
         <div class="ws-tabs" role="tablist">
-          <button type="button" class="ws-tab is-active" data-ws-tab="results">Results</button>
+          <button type="button" class="ws-tab is-active" data-ws-tab="results">Search results</button>
           <button type="button" class="ws-tab" data-ws-tab="browser">Web browser</button>
-          <button type="button" class="ws-tab" data-ws-tab="reader">Page reader</button>
-          <button type="button" class="ws-tab" data-ws-tab="blanks">Fill blanks</button>
-          <button type="button" class="ws-tab" data-ws-tab="export">Export</button>
+          <button type="button" class="ws-tab" data-ws-tab="reader">Read a page</button>
+          <button type="button" class="ws-tab" data-ws-tab="blanks">Fill in the blanks</button>
+          <button type="button" class="ws-tab" data-ws-tab="export">Your plan</button>
         </div>
 
         <div data-ws-panel="results" id="wsSearchResults"></div>
 
         <div data-ws-panel="browser" hidden>
-          <p class="ws-muted">Embedded research browser. Many sites block iframes — use <strong>Read in Pyx</strong> on results for full article text.</p>
+          <p class="ws-muted">Pyx opens a real web search here. When you find a good page, go back to results and <strong>Save link</strong>.</p>
           <div class="ws-browser-bar">
-            <input type="url" id="wsBrowserUrl" placeholder="https://… or search from the left" />
+            <input type="url" id="wsBrowserUrl" placeholder="https://…" />
             <button type="button" class="btn secondary" id="wsBrowserGo">Go</button>
             <button type="button" class="btn secondary" id="wsBrowserSearch">Search topic</button>
           </div>
@@ -157,65 +168,72 @@
         </div>
 
         <div data-ws-panel="reader" hidden>
-          <h2 id="wsReaderTitle" style="font-size:1rem;text-transform:none;color:var(--text);">Page reader</h2>
+          <h2 id="wsReaderTitle" style="font-size:1rem;text-transform:none;color:var(--text);">Read a page</h2>
           <div class="ws-result-actions" style="margin-bottom:8px;">
-            <button type="button" class="btn secondary" id="wsQuoteToNotes">Add selection to notes</button>
-            <button type="button" class="btn secondary" id="wsQuoteAll">Add first paragraph to notes</button>
+            <button type="button" class="btn secondary" id="wsQuoteToNotes">Add selection to my ideas</button>
+            <button type="button" class="btn secondary" id="wsQuoteAll">Add opening paragraph to my ideas</button>
           </div>
-          <pre class="ws-reader" id="wsReaderText">Pick a result and click “Read in Pyx” to load article text here (server-side reader).</pre>
+          <pre class="ws-reader" id="wsReaderText">Tap “Read page” on a saved link to see the article here.</pre>
         </div>
 
         <div data-ws-panel="blanks" hidden>
-          <p class="ws-muted">You and Pyx fill these together — Pyx suggests from your pinned sources; you edit anything before export.</p>
+          <p class="ws-muted">Pyx read your saved links and suggests answers. Change anything — it's your essay!</p>
           <div class="ws-progress" aria-hidden="true"><div class="ws-progress__bar" id="wsBlankProgress"></div></div>
           <div class="ws-result-actions" style="margin-bottom:10px;">
-            <button type="button" class="btn" id="wsFillAll">Ask Pyx to suggest all blanks</button>
-            <button type="button" class="btn secondary" id="wsRefreshExport">Update export from fills</button>
+            <button type="button" class="btn secondary" id="wsFillAll">Ask Pyx to suggest again</button>
+            <button type="button" class="btn secondary" id="wsRefreshExport">Update my plan</button>
           </div>
           <div id="wsBlanksList"></div>
         </div>
 
         <div data-ws-panel="export" hidden>
-          <p class="ws-muted">Structured research pack — import Python into notebooks or paste JSON anywhere.</p>
-          <div class="ws-field ws-export">
-            <label for="wsJsonOut">JSON</label>
-            <textarea id="wsJsonOut" readonly placeholder="Build a data pack to see JSON…"></textarea>
-            <button type="button" class="btn secondary" id="wsCopyJson">Copy JSON</button>
+          <p class="ws-muted">Here's your essay plan — everything in one place.</p>
+          <div class="ws-field">
+            <label for="wsPlanOut">Your essay plan</label>
+            <textarea id="wsPlanOut" class="ws-plan-out" readonly placeholder="Pyx will show your plan here…"></textarea>
+            <button type="button" class="btn secondary" id="wsCopyPlan">Copy my plan</button>
           </div>
-          <div class="ws-field ws-export">
-            <label for="wsPyOut">Python</label>
-            <textarea id="wsPyOut" readonly placeholder="Build a data pack to see Python…"></textarea>
-            <button type="button" class="btn secondary" id="wsCopyPy">Copy Python</button>
-          </div>
-          <button type="button" class="btn" id="wsSendTalk">Continue writing in Pyx Talk</button>
+          <details class="ws-advanced">
+            <summary>For teachers &amp; coding apps (advanced)</summary>
+            <div class="ws-field">
+              <label for="wsJsonOut">Full plan file (technical)</label>
+              <textarea id="wsJsonOut" readonly></textarea>
+              <button type="button" class="btn secondary" id="wsCopyJson">Copy technical file</button>
+            </div>
+            <div class="ws-field">
+              <label for="wsPyOut">Computer script version</label>
+              <textarea id="wsPyOut" readonly></textarea>
+            </div>
+          </details>
+          <button type="button" class="btn" id="wsSendTalk">Write the essay in Pyx Talk</button>
         </div>
       </section>
     </div>
 
-    <section class="ws-tools-grid" aria-label="More productivity tools">
+    <section class="ws-tools-grid" aria-label="More tools">
       <article class="ws-panel">
         <h2>Flashcards</h2>
-        <p class="ws-muted">One card per line: <code>front | back</code></p>
+        <p class="ws-muted">One card per line: <code>question | answer</code></p>
         <textarea id="qtFlashIn" rows="4" placeholder="Mitochondria | powerhouse of the cell"></textarea>
-        <button type="button" class="btn secondary" id="qtFlashcards">Export deck JSON</button>
-        <textarea id="qtFlashOut" rows="5" readonly style="margin-top:8px;font-family:monospace;font-size:0.78rem;"></textarea>
+        <button type="button" class="btn secondary" id="qtFlashcards">Make flashcard set</button>
+        <textarea id="qtFlashOut" rows="5" readonly style="margin-top:8px;font-size:0.85rem;"></textarea>
       </article>
       <article class="ws-panel">
-        <h2>Study plan</h2>
-        <p class="ws-muted">Turn your essay topic into a week of study blocks (JSON).</p>
-        <button type="button" class="btn secondary" id="qtStudyPlan">Generate from topic</button>
-        <textarea id="qtStudyOut" rows="6" readonly style="margin-top:8px;font-family:monospace;font-size:0.78rem;"></textarea>
+        <h2>Study week</h2>
+        <p class="ws-muted">A simple 7-day plan from your topic.</p>
+        <button type="button" class="btn secondary" id="qtStudyPlan">Make study week</button>
+        <textarea id="qtStudyOut" rows="6" readonly style="margin-top:8px;font-size:0.85rem;"></textarea>
       </article>
       <article class="ws-panel">
-        <h2>Task board</h2>
-        <p class="ws-muted">Quick to-dos for this project (saved in your browser).</p>
+        <h2>Task list</h2>
+        <p class="ws-muted">Homework steps for this project.</p>
         <input id="qtTaskIn" type="text" placeholder="Add a task…" style="width:100%;margin-bottom:8px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);" />
         <button type="button" class="btn secondary" id="qtTaskAdd">Add</button>
         <ul id="qtTaskList" style="margin:10px 0 0;padding-left:18px;color:var(--muted);font-size:0.9rem;"></ul>
       </article>
       <article class="ws-panel">
         <h2>Focus timer</h2>
-        <p class="ws-muted">Pomodoro-style focus block.</p>
+        <p class="ws-muted">Study without distractions.</p>
         <label class="ws-muted" for="qtTimerMins">Minutes</label>
         <input id="qtTimerMins" type="number" min="1" max="120" value="25" style="max-width:100px;margin-bottom:8px;" />
         <button type="button" class="btn secondary" id="qtTimerStart">Start</button>
@@ -223,14 +241,12 @@
       </article>
       <article class="ws-panel">
         <h2>More Pyx apps</h2>
-        <p class="ws-muted">Talk, Code, Pyxel, Speak — connected via Studio handoffs.</p>
         <div style="display:flex;flex-wrap:wrap;gap:8px;">
           <a class="btn secondary" href="/">Studio</a>
           <a class="btn secondary" href="/pyx-talk.html">Talk</a>
           <a class="btn secondary" href="/pyx-code.html">Code</a>
           <a class="btn secondary" href="/pyxel-image.html">Pyxel</a>
           <a class="btn secondary" href="/pyx-speak.html">Speak</a>
-          <a class="btn secondary" href="/pyx-gallery.html">Gallery</a>
         </div>
       </article>
     </section>

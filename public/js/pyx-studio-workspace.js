@@ -53,6 +53,57 @@
       .replace(/"/g, "&quot;");
   }
 
+  function formatPlanForKids(essay) {
+    if (!essay || typeof essay !== "object") return "";
+    var lines = [];
+    lines.push("TOPIC");
+    lines.push(essay.topic || "(your topic)");
+    lines.push("");
+    lines.push("MAIN IDEA (thesis)");
+    lines.push(essay.thesis || "(fill in your main idea)");
+    lines.push("");
+    if (essay.outline && essay.outline.length) {
+      lines.push("OUTLINE — parts of your essay");
+      essay.outline.forEach(function (sec, i) {
+        var draft = sec.writer_draft || "";
+        var goal = sec.goal || "";
+        lines.push("");
+        lines.push(i + 1 + ". " + (sec.section || "Section"));
+        if (draft) lines.push("   Your words: " + draft);
+        else if (goal) lines.push("   What to cover: " + goal);
+      });
+    }
+    if (essay.fill_blanks && essay.fill_blanks.length) {
+      lines.push("");
+      lines.push("YOUR ANSWERS");
+      essay.fill_blanks.forEach(function (b) {
+        if ((b.user_fill || "").trim()) {
+          lines.push("");
+          lines.push("• " + (b.label || b.id));
+          lines.push("  " + b.user_fill.trim());
+        }
+      });
+    }
+    if (essay.citations && essay.citations.length) {
+      lines.push("");
+      lines.push("SOURCES YOU USED");
+      essay.citations.forEach(function (c, i) {
+        lines.push(i + 1 + ". " + (c.title || c.url || "Source"));
+        if (c.url) lines.push("   " + c.url);
+      });
+    }
+    return lines.join("\n");
+  }
+
+  function updatePlanViews(essay, pyText) {
+    var planOut = document.getElementById("wsPlanOut");
+    var jsonOut = document.getElementById("wsJsonOut");
+    var pyOut = document.getElementById("wsPyOut");
+    if (planOut) planOut.value = formatPlanForKids(essay);
+    if (jsonOut && essay) jsonOut.value = JSON.stringify(essay, null, 2);
+    if (pyOut && pyText) pyOut.value = pyText;
+  }
+
   function loadState() {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
@@ -138,7 +189,7 @@
     var blanks = (essay && essay.fill_blanks) || [];
     if (!blanks.length) {
       list.innerHTML =
-        '<p class="ws-muted">Build a data pack first — Pyx will create fill-in-the-blank prompts from your outline.</p>';
+        '<p class="ws-muted">Make an essay plan first, or tap <strong>Read my links &amp; help fill in</strong> on the left.</p>';
       return;
     }
     list.innerHTML = blanks
@@ -166,7 +217,7 @@
             ? '<p class="ws-muted">Pyx hint: ' + escapeHtml(b.suggested.slice(0, 200)) + "</p>"
             : "") +
           '<div class="ws-blank-actions">' +
-          '<button type="button" class="btn secondary ws-blank-pyx">Ask Pyx</button>' +
+          '<button type="button" class="btn secondary ws-blank-pyx">Pyx suggest</button>' +
           "</div>" +
           "</article>"
         );
@@ -201,13 +252,12 @@
   function fillOneBlank(blank, cardEl) {
     var topicEl = document.getElementById("wsTopic");
     var topic = (topicEl && topicEl.value) || (currentEssay && currentEssay.topic) || "";
-    var statusEl = document.getElementById("wsStatus");
     if (cardEl) {
       var ta = cardEl.querySelector("textarea");
       if (ta) ta.disabled = true;
     }
-    if (statusEl) statusEl.textContent = "Pyx is drafting a suggestion…";
-    api("/api/studio/fill", {
+    setStatus("Pyx is writing a suggestion…", "info");
+    return api("/api/studio/fill", {
       topic: topic,
       blank: blank,
       sources: getPinned(),
@@ -225,7 +275,7 @@
         blank.user_fill = j.suggestion || "";
         syncEssayFromDom();
         updateBlankProgress();
-        setStatus("Suggestion added — edit before you submit.", "ok");
+        setStatus("Pyx added a suggestion — change it if you want!", "ok");
         markStep("blanks", true);
       })
       .catch(function (e) {
@@ -233,35 +283,33 @@
           var ta3 = cardEl.querySelector("textarea");
           if (ta3) ta3.disabled = false;
         }
-        if (statusEl) statusEl.textContent = e.message;
+        setStatus(e.message, "err");
+        throw e;
       });
   }
 
   function refreshExportFromFills() {
-    var topicEl = document.getElementById("wsTopic");
-    var jsonOut = document.getElementById("wsJsonOut");
     var pyOut = document.getElementById("wsPyOut");
-    var statusEl = document.getElementById("wsStatus");
     if (!currentEssay) {
-      if (statusEl) statusEl.textContent = "Build a data pack first.";
-      return;
+      setStatus("Make an essay plan first.", "err");
+      return Promise.resolve();
     }
     syncEssayFromDom();
-    if (statusEl) statusEl.textContent = "Updating export…";
-    api("/api/studio/export", {
+    setStatus("Updating your plan…", "info");
+    return api("/api/studio/export", {
       essay: currentEssay,
       fills: collectFillsFromDom(),
     })
       .then(function (j) {
         currentEssay = j.essay || j.json;
-        if (jsonOut) jsonOut.value = JSON.stringify(currentEssay, null, 2);
-        if (pyOut) pyOut.value = j.python || "";
+        updatePlanViews(currentEssay, j.python || (pyOut && pyOut.value));
         saveState({ lastEssay: currentEssay });
-        setStatus("Export updated with your fills.", "ok");
+        setStatus("Your plan is updated!", "ok");
         markStep("export", true);
       })
       .catch(function (e) {
-        if (statusEl) statusEl.textContent = e.message;
+        setStatus(e.message, "err");
+        throw e;
       });
   }
 
@@ -289,7 +337,7 @@
     if (state.lastEssay) {
       currentEssay = state.lastEssay;
       renderBlanks(currentEssay);
-      if (jsonOut) jsonOut.value = JSON.stringify(currentEssay, null, 2);
+      updatePlanViews(currentEssay, state.lastPython);
     }
 
     var coachEl = document.getElementById("wsCoach");
@@ -378,13 +426,18 @@
       var pinned = getPinned();
       if (!pinned.length) {
         pinnedEl.innerHTML =
-          '<p class="ws-muted">Pin sources from search results. Pyx uses them when building your JSON/Python data pack and when filling blanks.</p>';
+          '<p class="ws-muted">Save links from search results. Pyx will read them when you tap <strong>Read my links &amp; help fill in</strong>.</p>';
         return;
       }
       pinnedEl.innerHTML = pinned
         .map(function (s, i) {
           return (
-            '<article class="ws-pin">' +
+            '<article class="ws-pin' +
+            (s.read_ok ? " is-read" : "") +
+            '">' +
+            (s.read_ok
+              ? '<span class="ws-pin__badge">Pyx read this ✓</span> '
+              : "") +
             '<strong>' +
             escapeHtml(s.title || s.url || "Source") +
             "</strong>" +
@@ -446,7 +499,7 @@
           return x.url === item.url;
         })
       ) {
-        setStatus("Already pinned.", "info");
+        setStatus("You already saved that link.", "info");
         return;
       }
       arr.unshift({
@@ -458,7 +511,7 @@
       });
       setPinned(arr);
       renderPinned();
-      setStatus("Pinned: " + (item.title || item.url), "ok");
+      setStatus("Saved link: " + (item.title || item.url), "ok");
       markStep("search", true);
     }
 
@@ -558,7 +611,7 @@
             '">Open site</button>' +
             '<button type="button" class="btn ws-pin" data-i="' +
             i +
-            '">Pin source</button>' +
+            '">Save link</button>' +
             "</div>" +
             "</article>"
           );
@@ -608,7 +661,7 @@
             setStatus(
               "Found " +
                 (j.results || []).length +
-                " results — check Web browser, then Pin source.",
+                " results — open Web browser, then Save link.",
               "ok"
             );
             markStep("search", true);
@@ -652,51 +705,134 @@
       });
     }
 
-    if (buildBtn) {
-      buildBtn.addEventListener("click", function () {
+    function readAllPinnedSources() {
+      var arr = getPinned();
+      if (!arr.length) {
+        return Promise.reject(
+          new Error("Save at least one link first — search the web, then tap Save link on a result.")
+        );
+      }
+      setStatus("Pyx is reading your saved links…", "info");
+      return api("/api/studio/read-sources", { sources: arr }).then(function (j) {
+        var enriched = j.sources || arr;
+        setPinned(enriched);
+        renderPinned();
+        var n = j.read_count || 0;
+        setStatus(
+          "Pyx read " + n + " of " + (j.total || enriched.length) + " saved links.",
+          n ? "ok" : "info"
+        );
+        markStep("search", true);
+        return enriched;
+      });
+    }
+
+    function buildEssayPlan() {
+      var topic = (topicEl && topicEl.value) || "";
+      topic = topic.trim();
+      if (!topic) {
+        return Promise.reject(new Error("Enter what you're writing about first."));
+      }
+      var notes = (notesEl && notesEl.value) || "";
+      var sources = getPinned();
+      saveState({ topic: topic, notes: notes });
+      markStep("topic", true);
+      setStatus("Pyx is making your essay plan…", "info");
+      return api("/api/studio/essay", {
+        topic: topic,
+        notes: notes,
+        sources: sources,
+        search: sources.length === 0,
+      }).then(function (j) {
+        currentEssay = j.json || j.essay;
+        saveState({ lastEssay: currentEssay, lastPython: j.python });
+        updatePlanViews(currentEssay, j.python);
+        renderBlanks(currentEssay);
+        setStatus("Essay plan ready — Pyx will help fill in the blanks.", "ok");
+        if (global.PyxHandoff && global.PyxHandoff.saveGalleryItem) {
+          global.PyxHandoff.saveGalleryItem({
+            type: "essay-pack",
+            title: topic.slice(0, 80),
+            json: currentEssay,
+            python: j.python,
+            at: Date.now(),
+          });
+        }
+        markStep("pack", true);
+        switchTab("blanks");
+        return j;
+      });
+    }
+
+    function fillAllBlanksSequential() {
+      if (!currentEssay || !currentEssay.fill_blanks) {
+        return Promise.reject(new Error("Make an essay plan first."));
+      }
+      setStatus("Pyx is filling in the blanks from your links…", "info");
+      var chain = Promise.resolve();
+      currentEssay.fill_blanks.forEach(function (blank) {
+        chain = chain.then(function () {
+          var card = document.querySelector('.ws-blank[data-blank-id="' + blank.id + '"]');
+          return fillOneBlank(blank, card);
+        });
+      });
+      return chain;
+    }
+
+    function runReadAndFill() {
+      return readAllPinnedSources()
+        .then(function () {
+          return buildEssayPlan();
+        })
+        .then(function () {
+          return fillAllBlanksSequential();
+        })
+        .then(function () {
+          return refreshExportFromFills();
+        })
+        .then(function () {
+          switchTab("export");
+        });
+    }
+
+    var readAndFillBtn = document.getElementById("wsReadAndFill");
+    var readPinsBtn = document.getElementById("wsReadPins");
+
+    if (readAndFillBtn) {
+      readAndFillBtn.addEventListener("click", function () {
         var topic = (topicEl && topicEl.value) || "";
-        topic = topic.trim();
-        if (!topic) {
-          setStatus("Enter an essay topic first.", "err");
+        if (!topic.trim()) {
+          setStatus("Enter your topic first.", "err");
           return;
         }
-        var notes = (notesEl && notesEl.value) || "";
-        var sources = getPinned();
-        saveState({ topic: topic, notes: notes });
-        markStep("topic", true);
-        setStatus("Pyx is building your JSON + Python data pack…", "info");
-        buildBtn.disabled = true;
-        api("/api/studio/essay", {
-          topic: topic,
-          notes: notes,
-          sources: sources,
-          search: sources.length === 0,
-        })
-          .then(function (j) {
-            currentEssay = j.json || j.essay;
-            saveState({ lastEssay: currentEssay });
-            if (jsonOut) jsonOut.value = JSON.stringify(currentEssay, null, 2);
-            if (pyOut) pyOut.value = j.python || "";
-            renderBlanks(currentEssay);
-            setStatus(
-              "Data pack ready" +
-                (j.model ? " · " + j.model : "") +
-                (j.web_search && j.web_search.used ? " · web research" : "") +
-                " — fill in the blanks next.",
-              "ok"
-            );
-            if (global.PyxHandoff && global.PyxHandoff.saveGalleryItem) {
-              global.PyxHandoff.saveGalleryItem({
-                type: "essay-pack",
-                title: topic.slice(0, 80),
-                json: currentEssay,
-                python: j.python,
-                at: Date.now(),
-              });
-            }
-            markStep("pack", true);
-            switchTab("blanks");
+        readAndFillBtn.disabled = true;
+        runReadAndFill()
+          .catch(function (e) {
+            setStatus(e.message, "err");
           })
+          .finally(function () {
+            readAndFillBtn.disabled = false;
+          });
+      });
+    }
+
+    if (readPinsBtn) {
+      readPinsBtn.addEventListener("click", function () {
+        readPinsBtn.disabled = true;
+        readAllPinnedSources()
+          .catch(function (e) {
+            setStatus(e.message, "err");
+          })
+          .finally(function () {
+            readPinsBtn.disabled = false;
+          });
+      });
+    }
+
+    if (buildBtn) {
+      buildBtn.addEventListener("click", function () {
+        buildBtn.disabled = true;
+        buildEssayPlan()
           .catch(function (e) {
             setStatus(e.message, "err");
           })
@@ -708,24 +844,24 @@
 
     if (document.getElementById("wsFillAll")) {
       document.getElementById("wsFillAll").addEventListener("click", function () {
-        if (!currentEssay || !currentEssay.fill_blanks) {
-          setStatus("Build a data pack first.", "err");
-          return;
-        }
-        setStatus("Pyx is filling blanks one by one…", "info");
-        var chain = Promise.resolve();
-        currentEssay.fill_blanks.forEach(function (blank) {
-          chain = chain.then(function () {
-            var card = document.querySelector('.ws-blank[data-blank-id="' + blank.id + '"]');
-            return new Promise(function (resolve) {
-              fillOneBlank(blank, card);
-              setTimeout(resolve, 400);
-            });
+        var btn = document.getElementById("wsFillAll");
+        btn.disabled = true;
+        readAllPinnedSources()
+          .then(function () {
+            if (!currentEssay) return buildEssayPlan();
+          })
+          .then(function () {
+            return fillAllBlanksSequential();
+          })
+          .then(function () {
+            return refreshExportFromFills();
+          })
+          .catch(function (e) {
+            setStatus(e.message, "err");
+          })
+          .finally(function () {
+            btn.disabled = false;
           });
-        });
-        chain.then(function () {
-          refreshExportFromFills();
-        });
       });
     }
 
@@ -733,46 +869,38 @@
       document.getElementById("wsRefreshExport").addEventListener("click", refreshExportFromFills);
     }
 
+    document.getElementById("wsCopyPlan") &&
+      document.getElementById("wsCopyPlan").addEventListener("click", function () {
+        var planOut = document.getElementById("wsPlanOut");
+        if (planOut && planOut.value) navigator.clipboard.writeText(planOut.value);
+        setStatus("Copied your essay plan!", "ok");
+      });
     document.getElementById("wsCopyJson") &&
       document.getElementById("wsCopyJson").addEventListener("click", function () {
         if (jsonOut && jsonOut.value) navigator.clipboard.writeText(jsonOut.value);
-        setStatus("JSON copied.", "ok");
-      });
-    document.getElementById("wsCopyPy") &&
-      document.getElementById("wsCopyPy").addEventListener("click", function () {
-        if (pyOut && pyOut.value) navigator.clipboard.writeText(pyOut.value);
-        setStatus("Python copied.", "ok");
+        setStatus("Copied technical file.", "ok");
       });
     document.getElementById("wsSendTalk") &&
       document.getElementById("wsSendTalk").addEventListener("click", function () {
         syncEssayFromDom();
         var topic = (topicEl && topicEl.value) || "my essay";
         function goTalk() {
-          var outline = jsonOut && jsonOut.value ? jsonOut.value.slice(0, 5000) : "";
+          var plan = document.getElementById("wsPlanOut");
+          var outline = plan && plan.value ? plan.value.slice(0, 6000) : formatPlanForKids(currentEssay);
           if (global.PyxHandoff) {
             global.PyxHandoff.sendTo(
               "talk",
               "Help me write an essay on: " +
                 topic +
-                "\n\nUse this Pyx Studio research pack (outline + my filled blanks):\n```json\n" +
+                "\n\nHere is my essay plan from Pyx Studio (I already researched and filled in blanks):\n\n" +
                 outline +
-                "\n```\n\nAsk me which sections to expand first.",
+                "\n\nAsk me which part to write first and help me turn it into full paragraphs.",
               "workspace"
             );
           }
         }
         if (currentEssay) {
-          api("/api/studio/export", {
-            essay: currentEssay,
-            fills: collectFillsFromDom(),
-          })
-            .then(function (j) {
-              currentEssay = j.essay || j.json;
-              if (jsonOut) jsonOut.value = JSON.stringify(currentEssay, null, 2);
-              if (pyOut) pyOut.value = j.python || "";
-              goTalk();
-            })
-            .catch(goTalk);
+          refreshExportFromFills().then(goTalk).catch(goTalk);
         } else {
           goTalk();
         }
@@ -822,7 +950,10 @@
           var parts = line.split("|");
           return { id: i + 1, front: (parts[0] || line).trim(), back: (parts[1] || "…").trim() };
         });
-        flashOut.value = JSON.stringify({ deck: "Pyx Studio", cards: cards }, null, 2);
+        var text = cards.map(function (c) {
+          return c.front + " → " + c.back;
+        }).join("\n");
+        flashOut.value = text || "(no cards)";
       });
     }
 
@@ -848,7 +979,11 @@
             return { day: d, focus: tasks[i] || "Review" };
           }),
         };
-        studyOut.value = JSON.stringify(plan, null, 2);
+        studyOut.value = plan.blocks
+          .map(function (b) {
+            return b.day + ": " + b.focus;
+          })
+          .join("\n");
       });
     }
 

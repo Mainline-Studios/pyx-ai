@@ -2511,6 +2511,25 @@ def _studio_merge_fills(essay_data: dict, fills: list) -> dict:
     return essay_data
 
 
+def _studio_source_context_line(s: dict) -> str:
+    if not isinstance(s, dict):
+        return ""
+    title = (s.get("title") or "Source").strip()
+    url = (s.get("url") or "").strip()
+    body = (s.get("page_text") or s.get("snippet") or s.get("excerpt") or "").strip()
+    if len(body) > 2200:
+        body = body[:2200] + "…"
+    note = (s.get("user_note") or "").strip()[:400]
+    parts = [f"- {title}", f"  URL: {url}"]
+    if body:
+        parts.append(f"  Page content: {body}")
+    elif s.get("snippet"):
+        parts.append(f"  Snippet: {(s.get('snippet') or '')[:400]}")
+    if note:
+        parts.append(f"  Student note: {note}")
+    return "\n".join(parts)
+
+
 def _studio_fill_blank_suggestion(
     topic: str,
     blank: dict,
@@ -2523,11 +2542,9 @@ def _studio_fill_blank_suggestion(
     label = (blank.get("label") or blank.get("id") or "field").strip()
     src_text = []
     for s in (sources or [])[:10]:
-        if not isinstance(s, dict):
-            continue
-        src_text.append(
-            f"{s.get('title', '')}: {(s.get('snippet') or '')[:300]} {(s.get('user_note') or '')[:200]}"
-        )
+        line = _studio_source_context_line(s)
+        if line:
+            src_text.append(line)
     context = "\n".join(src_text)[:3500]
     if _groq_openai_prepare is not None and (context or suggested):
         prompt = (
@@ -2620,28 +2637,28 @@ def _studio_research_guide(topic: str) -> dict:
     return {
         "topic": topic,
         "pyx_message": (
-            f"Let's write about «{short}». I'll walk you through research in the embedded browser — "
-            "run each search below, pin 2–3 sources, add short notes, then tap Build JSON + Python data pack. "
-            "We'll fill in the blanks together before you draft in Talk."
+            f"Let's write about «{short}»! Use the web browser to search, then pin 2–3 links you like. "
+            "When you're ready, tap Read my links and help fill in — I'll read those pages and help you "
+            "complete your essay plan."
         ),
         "search_steps": [
             {
                 "step": 1,
                 "query": f"{topic} overview explained",
-                "instruction": "Open the browser tab, skim results, pin one clear explainer (.edu or encyclopedia).",
+                "instruction": "Open the web browser tab, pick a good page, tap Save link.",
             },
             {
                 "step": 2,
                 "query": f"{topic} facts statistics recent",
-                "instruction": "Pin a source with numbers, dates, or study findings you can cite.",
+                "instruction": "Find a page with numbers or facts and Save link.",
             },
             {
                 "step": 3,
                 "query": f"{topic} pros cons debate",
-                "instruction": "Pin one source that shows another viewpoint for your counterpoint section.",
+                "instruction": "Save a link that shows a different opinion for your essay.",
             },
         ],
-        "after_pins": "When you have pins, click **Build JSON + Python data pack** — then use **Fill blanks** so we complete the outline.",
+        "after_pins": "Pinned some links? Click **Read my links & help fill in** on the left — Pyx reads them and fills your plan with you.",
     }
 
 
@@ -2700,6 +2717,50 @@ def studio_read_route():
     return jsonify({"url": url, "error": err, "text": text, "chars": len(text)})
 
 
+@app.route("/api/studio/read-sources", methods=["POST", "OPTIONS"])
+@app.route("/studio/read-sources", methods=["POST", "OPTIONS"])
+def studio_read_sources_route():
+    """Read full text from pinned source URLs so Pyx can use them for the essay plan."""
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(silent=True) or {}
+    sources = data.get("sources") if isinstance(data.get("sources"), list) else []
+    if not sources:
+        return jsonify({"error": "sources list required"}), 400
+    enriched = []
+    read_ok = 0
+    for s in sources[:8]:
+        if not isinstance(s, dict):
+            continue
+        url = (s.get("url") or "").strip()
+        row = dict(s)
+        if not url:
+            row["read_ok"] = False
+            row["read_error"] = "no url"
+            enriched.append(row)
+            continue
+        text, err = _studio_fetch_page_text(url)
+        if text:
+            row["page_text"] = text
+            row["read_ok"] = True
+            row["read_chars"] = len(text)
+            row["read_error"] = err
+            read_ok += 1
+        else:
+            row["page_text"] = ""
+            row["read_ok"] = False
+            row["read_error"] = err or "could not read page"
+            row["read_chars"] = 0
+        enriched.append(row)
+    return jsonify(
+        {
+            "sources": enriched,
+            "read_count": read_ok,
+            "total": len(enriched),
+        }
+    )
+
+
 @app.route("/api/studio/essay", methods=["POST", "OPTIONS"])
 @app.route("/studio/essay", methods=["POST", "OPTIONS"])
 def studio_essay_route():
@@ -2738,9 +2799,9 @@ def studio_essay_route():
         for s in sources[:10]:
             if not isinstance(s, dict):
                 continue
-            src_lines.append(
-                f"- {s.get('title', '')}\n  URL: {s.get('url', '')}\n  Snippet: {(s.get('snippet') or s.get('excerpt') or '')[:600]}\n  Your note: {(s.get('user_note') or '')[:400]}"
-            )
+            line = _studio_source_context_line(s)
+            if line:
+                src_lines.append(line)
         prompt = (
             "You are Pyx Studio Essay Helper. Build a structured research data pack for the writer.\n"
             "Return ONLY valid JSON (no markdown) matching this schema:\n"
