@@ -91,6 +91,25 @@
     .ws-coach-step strong { display: block; font-size: 0.82rem; color: #e0e7ff; margin-bottom: 4px; }
     .ws-coach-step span { font-size: 0.8rem; color: var(--muted); }
     .ws-coach-step.is-done { border-color: rgba(52, 211, 153, 0.45); opacity: 0.85; }
+    .ws-essay-part {
+      margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    }
+    .ws-essay-part:last-child { border-bottom: none; }
+    .ws-essay-part h3 { margin: 0 0 10px; font-size: 0.95rem; color: #e0e7ff; }
+    .ws-pyx-made { font-size: 0.9rem; line-height: 1.55; }
+    .ws-pyx-made ul { margin: 8px 0 0 18px; padding: 0; }
+    .ws-pyx-made li { margin-bottom: 6px; color: var(--muted); }
+    .ws-pyx-help-box {
+      margin-top: 10px; padding: 12px; border-radius: 10px;
+      border: 1px solid rgba(129, 140, 248, 0.35); background: rgba(76, 29, 149, 0.15);
+      font-size: 0.9rem; line-height: 1.55; white-space: pre-wrap;
+    }
+    .ws-blank-hint-box {
+      margin-top: 8px; padding: 10px; border-radius: 8px;
+      border: 1px dashed rgba(167, 139, 250, 0.45); background: rgba(76, 29, 149, 0.12);
+      font-size: 0.85rem; line-height: 1.5; white-space: pre-wrap;
+    }
+    .ws-blank-hint-box strong { color: #c4b5fd; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
   </style>
 </head>
 <body class="pyx-cosmos">
@@ -99,15 +118,15 @@
     <span class="ws-hero-badge">Write &amp; learn with Pyx</span>
     <h1>Pyx Studio Workspace</h1>
     <p class="ws-muted pyx-lede" style="max-width: 72ch;">
-      Pick a topic. Pyx searches the web with you, reads the links you save, builds an <strong>essay plan</strong>,
-      and helps you <strong>fill in the blanks</strong>. No coding words — just writing.
+      Pick a topic. Pyx searches the web with you, reads the links you save, builds your <strong>essay</strong>,
+      and helps you write the <strong>gaps</strong> with hints — never the full answer. No coding words — just writing.
     </p>
 
     <ol class="ws-steps" id="wsSteps" aria-label="Workflow">
       <li data-step="topic">1. Your topic</li>
       <li data-step="search">2. Find links</li>
       <li data-step="pack">3. Essay plan</li>
-      <li data-step="blanks">4. Fill in</li>
+      <li data-step="essay">4. Your essay</li>
       <li data-step="export">5. Save &amp; write</li>
     </ol>
 
@@ -132,7 +151,7 @@
         <button type="button" class="btn secondary" id="wsSearchBtn">Search the web</button>
         <p class="ws-status" id="wsStatus" aria-live="polite"></p>
         <button type="button" class="btn" id="wsReadAndFill" style="width:100%;margin-top:8px;">
-          Read my links &amp; help fill in
+          Read my links &amp; build my essay
         </button>
         <button type="button" class="btn secondary" id="wsBuildEssay" style="width:100%;margin-top:6px;">
           Make essay plan only
@@ -156,8 +175,8 @@
           <button type="button" class="ws-tab is-active" data-ws-tab="results">Search results</button>
           <button type="button" class="ws-tab" data-ws-tab="browser">Open on web</button>
           <button type="button" class="ws-tab" data-ws-tab="reader">Read a page</button>
-          <button type="button" class="ws-tab" data-ws-tab="blanks">Fill in the blanks</button>
-          <button type="button" class="ws-tab" data-ws-tab="export">Your plan</button>
+          <button type="button" class="ws-tab" data-ws-tab="essay">Your essay</button>
+          <button type="button" class="ws-tab" data-ws-tab="export">Save &amp; write</button>
         </div>
 
         <div data-ws-panel="results" id="wsSearchResults"></div>
@@ -187,14 +206,31 @@
           <pre class="ws-reader" id="wsReaderText">Tap “Read page” on a saved link to see the article here.</pre>
         </div>
 
-        <div data-ws-panel="blanks" hidden>
-          <p class="ws-muted">Pyx read your saved links and suggests answers. Change anything — it's your essay!</p>
+        <div data-ws-panel="essay" hidden id="wsEssayPanel">
+          <p class="ws-muted">Pyx builds the plan. <strong>You</strong> write the gaps. <strong>Help from Pyx</strong> only gives hints — never the full answer.</p>
           <div class="ws-progress" aria-hidden="true"><div class="ws-progress__bar" id="wsBlankProgress"></div></div>
-          <div class="ws-result-actions" style="margin-bottom:10px;">
-            <button type="button" class="btn secondary" id="wsFillAll">Ask Pyx to suggest again</button>
-            <button type="button" class="btn secondary" id="wsRefreshExport">Update my plan</button>
+          <section class="ws-essay-part">
+            <h3>What Pyx made for you</h3>
+            <div class="ws-pyx-made" id="wsPyxMade">
+              <p class="ws-muted">Build your essay to see Pyx’s outline here.</p>
+            </div>
+          </section>
+
+          <section class="ws-essay-part">
+            <h3>Your gaps — you write here</h3>
+            <div id="wsBlanksList"></div>
+          </section>
+
+          <section class="ws-essay-part">
+            <h3>Help from Pyx</h3>
+            <p class="ws-muted">Pyx looks at the sources you saved and what you both read. Hints only — like a teacher nudging you, not writing it for you.</p>
+            <button type="button" class="btn" id="wsHelpFromPyx">Review my sources &amp; give hints</button>
+            <div class="ws-pyx-help-box" id="wsPyxHelpOut" hidden></div>
+          </section>
+
+          <div class="ws-result-actions" style="margin-top:12px;">
+            <button type="button" class="btn secondary" id="wsRefreshExport">Update my saved plan</button>
           </div>
-          <div id="wsBlanksList"></div>
         </div>
 
         <div data-ws-panel="export" hidden>

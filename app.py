@@ -2530,31 +2530,79 @@ def _studio_source_context_line(s: dict) -> str:
     return "\n".join(parts)
 
 
-def _studio_fill_blank_suggestion(
-    topic: str,
-    blank: dict,
-    sources: list,
-    essay_data: dict | None = None,
-) -> str:
-    """Suggest text for one blank from pinned sources (+ optional LLM)."""
-    blank = blank if isinstance(blank, dict) else {}
-    suggested = (blank.get("suggested") or "").strip()
-    label = (blank.get("label") or blank.get("id") or "field").strip()
-    src_text = []
+def _studio_sources_block(sources: list, max_chars: int = 12000) -> str:
+    lines = []
     for s in (sources or [])[:10]:
         line = _studio_source_context_line(s)
         if line:
-            src_text.append(line)
-    context = "\n".join(src_text)[:3500]
-    if _groq_openai_prepare is not None and (context or suggested):
+            lines.append(line)
+    return "\n\n".join(lines)[:max_chars]
+
+
+def _studio_hint_only(
+    topic: str,
+    blank: dict | None,
+    sources: list,
+    essay_data: dict | None = None,
+    mode: str = "blank",
+) -> dict:
+    """Hints only — never the full answer students can copy."""
+    topic = (topic or "your topic").strip()[:500]
+    blank = blank if isinstance(blank, dict) else {}
+    label = (blank.get("label") or blank.get("id") or "this part of your essay").strip()
+    context = _studio_sources_block(sources)
+    essay_data = essay_data if isinstance(essay_data, dict) else {}
+    blanks_status = []
+    for b in (essay_data.get("fill_blanks") or [])[:16]:
+        if not isinstance(b, dict):
+            continue
+        filled = bool((b.get("user_fill") or "").strip())
+        blanks_status.append(f"- {b.get('label', b.get('id'))}: {'started' if filled else 'still empty'}")
+
+    rules = (
+        "You are Pyx, a friendly writing coach for students.\n"
+        "STRICT RULES:\n"
+        "- NEVER write the full answer, complete paragraph, or text the student can paste as their final work.\n"
+        "- NO thesis sentences, NO finished introductions, NO quoted blocks they can submit.\n"
+        "- ONLY: guiding questions, which saved source to re-read, what kind of fact to hunt for, "
+        "structure reminders, and gentle nudges.\n"
+        "- Refer to sources by title when possible.\n"
+        "- Keep it short: 2–4 bullet lines or 3 short sentences max.\n"
+        "- Plain text only, no markdown headings.\n"
+    )
+
+    if mode == "review":
         prompt = (
-            "You help a student fill ONE blank in an essay outline. "
-            "Use only the sources below; if unsure, say so briefly. "
-            "Return plain text only (2–4 sentences max, no markdown).\n\n"
-            f"TOPIC: {topic}\nBLANK: {label}\nPROMPT: {(blank.get('placeholder') or '')[:400]}\n\n"
-            f"SOURCES:\n{context or '(no sources)'}\n\n"
-            f"STARTING HINT: {suggested[:400] if suggested else '(none)'}"
+            rules
+            + f"\nTOPIC: {topic}\n\nWHAT PYX ALREADY PLANNED:\n"
+            f"Thesis idea: {essay_data.get('thesis', '')}\n"
+            f"Outline: {json.dumps(essay_data.get('outline') or [], ensure_ascii=False)[:2000]}\n\n"
+            f"STUDENT PROGRESS ON GAPS:\n"
+            + ("\n".join(blanks_status) if blanks_status else "(no gaps yet)")
+            + f"\n\nSOURCES YOU AND THE STUDENT READ:\n{context or '(no sources saved yet)'}\n\n"
+            "Give an overview: what the sources agree on, what to focus on next, and one hint per empty gap "
+            "(questions only, not answers)."
         )
+    else:
+        student_so_far = (blank.get("user_fill") or "").strip()[:500]
+        prompt = (
+            rules
+            + f"\nTOPIC: {topic}\nGAP TO WORK ON: {label}\n"
+            f"PROMPT FOR THIS GAP: {(blank.get('placeholder') or '')[:400]}\n"
+            f"WHAT THE STUDENT WROTE SO FAR (do not replace): {student_so_far or '(nothing yet)'}\n\n"
+            f"SOURCES YOU AND THE STUDENT READ:\n{context or '(no sources)'}\n\n"
+            "Give hints for THIS gap only."
+        )
+
+    hints = (
+        "Re-read your saved links and look for facts that match this section. "
+        "Try answering in your own words — Pyx won't write it for you."
+    )
+    source_titles = [
+        (s.get("title") or "a source") for s in (sources or [])[:5] if isinstance(s, dict)
+    ]
+
+    if _groq_openai_prepare is not None and (context or mode == "review"):
         try:
             reply, _model = _groq_openai_chat(
                 [{"role": "user", "content": prompt}],
@@ -2563,14 +2611,28 @@ def _studio_fill_blank_suggestion(
                 ground_web=False,
             )
             if reply and reply.strip():
-                return reply.strip()[:2000]
-        except Exception:
-            pass
-    if suggested:
-        return suggested
-    if src_text:
-        return f"Based on your research: {src_text[0][:280]}… (verify on the original page.)"
-    return f"Draft your {label.lower()} about {topic} — add pinned sources and search again for stronger evidence."
+                hints = reply.strip()[:2500]
+                return {
+                    "hints": hints,
+                    "source_titles": source_titles,
+                    "model": _model,
+                    "mode": mode,
+                }
+        except Exception as e:
+            return {"hints": hints, "source_titles": source_titles, "error": str(e)[:200], "mode": mode}
+
+    return {"hints": hints, "source_titles": source_titles, "mode": mode}
+
+
+def _studio_fill_blank_suggestion(
+    topic: str,
+    blank: dict,
+    sources: list,
+    essay_data: dict | None = None,
+) -> str:
+    """Legacy fill suggestion — prefer hint-only in student UI."""
+    out = _studio_hint_only(topic, blank, sources, essay_data, mode="blank")
+    return out.get("hints") or ""
 
 
 def _studio_essay_fallback(topic: str, sources: list, notes: str) -> dict:
@@ -2638,8 +2700,8 @@ def _studio_research_guide(topic: str) -> dict:
         "topic": topic,
         "pyx_message": (
             f"Let's write about «{short}»! Use the web browser to search, then pin 2–3 links you like. "
-            "When you're ready, tap Read my links and help fill in — I'll read those pages and help you "
-            "complete your essay plan."
+            "When you're ready, tap Read my links and build my essay — I'll read those pages, "
+            "show you what I planned, and give hints (never the full answer) for your gaps."
         ),
         "search_steps": [
             {
@@ -2851,10 +2913,10 @@ def studio_essay_route():
     )
 
 
-@app.route("/api/studio/fill", methods=["POST", "OPTIONS"])
-@app.route("/studio/fill", methods=["POST", "OPTIONS"])
-def studio_fill_route():
-    """Suggest text for one essay blank using pinned sources and optional web context."""
+@app.route("/api/studio/hint", methods=["POST", "OPTIONS"])
+@app.route("/studio/hint", methods=["POST", "OPTIONS"])
+def studio_hint_route():
+    """Hints for one gap — never the full answer."""
     if request.method == "OPTIONS":
         return "", 204
     data = request.get_json(silent=True) or {}
@@ -2866,11 +2928,51 @@ def studio_fill_route():
     essay = data.get("essay") if isinstance(data.get("essay"), dict) else {}
     if not topic:
         topic = (essay.get("topic") or "essay").strip()[:500]
-    suggestion = _studio_fill_blank_suggestion(topic, blank, sources, essay)
+    out = _studio_hint_only(topic, blank, sources, essay, mode="blank")
+    out["id"] = blank.get("id")
+    out["topic"] = topic
+    return jsonify(out)
+
+
+@app.route("/api/studio/help", methods=["POST", "OPTIONS"])
+@app.route("/studio/help", methods=["POST", "OPTIONS"])
+def studio_help_route():
+    """Review all sources and essay gaps — hints only, never full answers."""
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(silent=True) or {}
+    topic = (data.get("topic") or "").strip()[:500]
+    sources = data.get("sources") if isinstance(data.get("sources"), list) else []
+    essay = data.get("essay") if isinstance(data.get("essay"), dict) else {}
+    if not topic:
+        topic = (essay.get("topic") or "essay").strip()[:500]
+    out = _studio_hint_only(topic, None, sources, essay, mode="review")
+    out["topic"] = topic
+    out["sources_count"] = len(sources)
+    return jsonify(out)
+
+
+@app.route("/api/studio/fill", methods=["POST", "OPTIONS"])
+@app.route("/studio/fill", methods=["POST", "OPTIONS"])
+def studio_fill_route():
+    """Hints for one gap (same as /hint; kept for compatibility)."""
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(silent=True) or {}
+    topic = (data.get("topic") or "").strip()[:500]
+    blank = data.get("blank") if isinstance(data.get("blank"), dict) else {}
+    if not blank.get("id") and not blank.get("label"):
+        return jsonify({"error": "blank.id or blank.label required"}), 400
+    sources = data.get("sources") if isinstance(data.get("sources"), list) else []
+    essay = data.get("essay") if isinstance(data.get("essay"), dict) else {}
+    if not topic:
+        topic = (essay.get("topic") or "essay").strip()[:500]
+    out = _studio_hint_only(topic, blank, sources, essay, mode="blank")
     return jsonify(
         {
             "id": blank.get("id"),
-            "suggestion": suggestion,
+            "suggestion": out.get("hints"),
+            "hints": out.get("hints"),
             "topic": topic,
         }
     )

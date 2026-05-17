@@ -183,13 +183,76 @@
     bar.style.width = pct + "%";
   }
 
+  function renderPyxMade(essay) {
+    var el = document.getElementById("wsPyxMade");
+    if (!el) return;
+    if (!essay) {
+      el.innerHTML =
+        '<p class="ws-muted">Build your essay to see Pyx\u2019s outline here.</p>';
+      return;
+    }
+    var parts = [];
+    parts.push(
+      "<p><strong>Topic:</strong> " + escapeHtml(essay.topic || "") + "</p>"
+    );
+    if (essay.thesis) {
+      parts.push(
+        "<p><strong>Main idea Pyx suggests you argue:</strong> " +
+          escapeHtml(essay.thesis) +
+          "</p>"
+      );
+    }
+    if (essay.outline && essay.outline.length) {
+      parts.push("<p><strong>Essay structure Pyx planned:</strong></p><ul>");
+      essay.outline.forEach(function (sec) {
+        parts.push("<li><strong>" + escapeHtml(sec.section || "Section") + "</strong>");
+        if (sec.goal) parts.push(" — " + escapeHtml(sec.goal));
+        if (sec.writer_draft) {
+          parts.push(
+            '<br><span class="ws-muted">Starter note: ' +
+              escapeHtml(sec.writer_draft) +
+              "</span>"
+          );
+        }
+        parts.push("</li>");
+      });
+      parts.push("</ul>");
+    }
+    if (essay.key_points && essay.key_points.length) {
+      parts.push("<p><strong>Notes from your research:</strong></p><ul>");
+      essay.key_points.forEach(function (kp) {
+        parts.push("<li>" + escapeHtml(String(kp)) + "</li>");
+      });
+      parts.push("</ul>");
+    }
+    if (essay.citations && essay.citations.length) {
+      parts.push("<p><strong>Sources in your plan:</strong></p><ul>");
+      essay.citations.forEach(function (c) {
+        parts.push("<li>" + escapeHtml(c.title || c.url || "Source"));
+        if (c.url) {
+          parts.push(' <span class="ws-muted">' + escapeHtml(c.url) + "</span>");
+        }
+        parts.push("</li>");
+      });
+      parts.push("</ul>");
+    }
+    if (essay.disclaimer) {
+      parts.push(
+        '<p class="ws-muted" style="margin-top:10px;">' +
+          escapeHtml(essay.disclaimer) +
+          "</p>"
+      );
+    }
+    el.innerHTML = parts.join("");
+  }
+
   function renderBlanks(essay) {
     var list = document.getElementById("wsBlanksList");
     if (!list) return;
     var blanks = (essay && essay.fill_blanks) || [];
     if (!blanks.length) {
       list.innerHTML =
-        '<p class="ws-muted">Make an essay plan first, or tap <strong>Read my links &amp; help fill in</strong> on the left.</p>';
+        '<p class="ws-muted">Make an essay plan first, or tap <strong>Read my links &amp; build my essay</strong> on the left.</p>';
       return;
     }
     list.innerHTML = blanks
@@ -213,11 +276,9 @@
           '">' +
           escapeHtml(b.user_fill || "") +
           "</textarea>" +
-          (b.suggested && !b.user_fill
-            ? '<p class="ws-muted">Pyx hint: ' + escapeHtml(b.suggested.slice(0, 200)) + "</p>"
-            : "") +
+          '<div class="ws-blank-hint-box" hidden></div>' +
           '<div class="ws-blank-actions">' +
-          '<button type="button" class="btn secondary ws-blank-pyx">Pyx suggest</button>' +
+          '<button type="button" class="btn secondary ws-blank-hint">Hint from Pyx</button>' +
           "</div>" +
           "</article>"
         );
@@ -231,11 +292,11 @@
         if (card) card.classList.toggle("is-filled", ta.value.trim().length > 0);
         syncEssayFromDom();
         updateBlankProgress();
-        markStep("blanks", true);
+        markStep("essay", true);
       });
     });
 
-    list.querySelectorAll(".ws-blank-pyx").forEach(function (btn) {
+    list.querySelectorAll(".ws-blank-hint").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var card = btn.closest(".ws-blank");
         var id = card && card.getAttribute("data-blank-id");
@@ -243,21 +304,20 @@
           return x.id === id;
         });
         if (!blank) return;
-        fillOneBlank(blank, card);
+        hintForBlank(blank, card, btn);
       });
     });
     updateBlankProgress();
+    renderPyxMade(essay);
   }
 
-  function fillOneBlank(blank, cardEl) {
+  function hintForBlank(blank, cardEl, btnEl) {
     var topicEl = document.getElementById("wsTopic");
     var topic = (topicEl && topicEl.value) || (currentEssay && currentEssay.topic) || "";
-    if (cardEl) {
-      var ta = cardEl.querySelector("textarea");
-      if (ta) ta.disabled = true;
-    }
-    setStatus("Pyx is writing a suggestion…", "info");
-    return api("/api/studio/fill", {
+    syncEssayFromDom();
+    if (btnEl) btnEl.disabled = true;
+    setStatus("Pyx is thinking of a hint (not the answer)…", "info");
+    return api("/api/studio/hint", {
       topic: topic,
       blank: blank,
       sources: getPinned(),
@@ -265,24 +325,61 @@
     })
       .then(function (j) {
         if (cardEl) {
-          var ta2 = cardEl.querySelector("textarea");
-          if (ta2) {
-            ta2.value = j.suggestion || "";
-            ta2.disabled = false;
-            cardEl.classList.add("is-filled");
+          var box = cardEl.querySelector(".ws-blank-hint-box");
+          if (box) {
+            box.hidden = false;
+            box.innerHTML =
+              '<strong>Hint from Pyx</strong><div class="ws-blank-hint-text"></div>';
+            var hintBody = box.querySelector(".ws-blank-hint-text");
+            if (hintBody) {
+              hintBody.style.whiteSpace = "pre-wrap";
+              hintBody.style.marginTop = "6px";
+              hintBody.textContent = j.hints || "";
+            }
           }
         }
-        blank.user_fill = j.suggestion || "";
-        syncEssayFromDom();
-        updateBlankProgress();
-        setStatus("Pyx added a suggestion — change it if you want!", "ok");
-        markStep("blanks", true);
+        setStatus("Hint ready — write your own answer in the box above!", "ok");
+        markStep("essay", true);
       })
       .catch(function (e) {
-        if (cardEl) {
-          var ta3 = cardEl.querySelector("textarea");
-          if (ta3) ta3.disabled = false;
+        setStatus(e.message, "err");
+        throw e;
+      })
+      .finally(function () {
+        if (btnEl) btnEl.disabled = false;
+      });
+  }
+
+  function runHelpFromPyx() {
+    var topicEl = document.getElementById("wsTopic");
+    var topic = (topicEl && topicEl.value) || (currentEssay && currentEssay.topic) || "";
+    var helpOut = document.getElementById("wsPyxHelpOut");
+    if (!currentEssay) {
+      setStatus("Build your essay plan first.", "err");
+      return Promise.resolve();
+    }
+    syncEssayFromDom();
+    setStatus("Pyx is reviewing your sources…", "info");
+    return api("/api/studio/help", {
+      topic: topic,
+      sources: getPinned(),
+      essay: currentEssay,
+    })
+      .then(function (j) {
+        if (helpOut) {
+          helpOut.hidden = false;
+          var intro = "";
+          if (j.source_titles && j.source_titles.length) {
+            intro =
+              "Sources Pyx looked at: " + j.source_titles.join(", ") + "\n\n";
+          }
+          helpOut.textContent = intro + (j.hints || "");
         }
+        setStatus("Hints ready — Pyx never writes the answer for you.", "ok");
+        markStep("essay", true);
+        switchTab("essay");
+      })
+      .catch(function (e) {
         setStatus(e.message, "err");
         throw e;
       });
@@ -337,6 +434,7 @@
     if (notesEl && state.notes) notesEl.value = state.notes;
     if (state.lastEssay) {
       currentEssay = state.lastEssay;
+      renderPyxMade(currentEssay);
       renderBlanks(currentEssay);
       updatePlanViews(currentEssay, state.lastPython);
     }
@@ -427,7 +525,7 @@
       var pinned = getPinned();
       if (!pinned.length) {
         pinnedEl.innerHTML =
-          '<p class="ws-muted">Save links from search results. Pyx will read them when you tap <strong>Read my links &amp; help fill in</strong>.</p>';
+          '<p class="ws-muted">Save links from search results. Pyx will read them when you tap <strong>Read my links &amp; build my essay</strong>.</p>';
         return;
       }
       pinnedEl.innerHTML = pinned
@@ -817,8 +915,9 @@
         currentEssay = j.json || j.essay;
         saveState({ lastEssay: currentEssay, lastPython: j.python });
         updatePlanViews(currentEssay, j.python);
+        renderPyxMade(currentEssay);
         renderBlanks(currentEssay);
-        setStatus("Essay plan ready — Pyx will help fill in the blanks.", "ok");
+        setStatus("Essay ready — write your gaps, then ask Pyx for hints!", "ok");
         if (global.PyxHandoff && global.PyxHandoff.saveGalleryItem) {
           global.PyxHandoff.saveGalleryItem({
             type: "essay-pack",
@@ -829,24 +928,9 @@
           });
         }
         markStep("pack", true);
-        switchTab("blanks");
+        switchTab("essay");
         return j;
       });
-    }
-
-    function fillAllBlanksSequential() {
-      if (!currentEssay || !currentEssay.fill_blanks) {
-        return Promise.reject(new Error("Make an essay plan first."));
-      }
-      setStatus("Pyx is filling in the blanks from your links…", "info");
-      var chain = Promise.resolve();
-      currentEssay.fill_blanks.forEach(function (blank) {
-        chain = chain.then(function () {
-          var card = document.querySelector('.ws-blank[data-blank-id="' + blank.id + '"]');
-          return fillOneBlank(blank, card);
-        });
-      });
-      return chain;
     }
 
     function runReadAndFill() {
@@ -855,13 +939,7 @@
           return buildEssayPlan();
         })
         .then(function () {
-          return fillAllBlanksSequential();
-        })
-        .then(function () {
-          return refreshExportFromFills();
-        })
-        .then(function () {
-          switchTab("export");
+          switchTab("essay");
         });
     }
 
@@ -912,25 +990,24 @@
       });
     }
 
-    if (document.getElementById("wsFillAll")) {
-      document.getElementById("wsFillAll").addEventListener("click", function () {
-        var btn = document.getElementById("wsFillAll");
-        btn.disabled = true;
-        readAllPinnedSources()
+    var helpFromPyxBtn = document.getElementById("wsHelpFromPyx");
+    if (helpFromPyxBtn) {
+      helpFromPyxBtn.addEventListener("click", function () {
+        helpFromPyxBtn.disabled = true;
+        var chain = getPinned().some(function (s) {
+          return !s.read_ok && s.url;
+        })
+          ? readAllPinnedSources()
+          : Promise.resolve();
+        chain
           .then(function () {
-            if (!currentEssay) return buildEssayPlan();
-          })
-          .then(function () {
-            return fillAllBlanksSequential();
-          })
-          .then(function () {
-            return refreshExportFromFills();
+            return runHelpFromPyx();
           })
           .catch(function (e) {
             setStatus(e.message, "err");
           })
           .finally(function () {
-            btn.disabled = false;
+            helpFromPyxBtn.disabled = false;
           });
       });
     }
@@ -962,7 +1039,7 @@
               "talk",
               "Help me write an essay on: " +
                 topic +
-                "\n\nHere is my essay plan from Pyx Studio (I already researched and filled in blanks):\n\n" +
+                "\n\nHere is my essay plan from Pyx Studio (I researched and started my gaps):\n\n" +
                 outline +
                 "\n\nAsk me which part to write first and help me turn it into full paragraphs.",
               "workspace"

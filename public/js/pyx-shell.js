@@ -31,7 +31,9 @@
       ".pyx-studio-bar__link:hover{color:#e2e8f0;border-color:rgba(129,140,248,.35)}" +
       ".pyx-studio-bar__link.is-active{color:#e0e7ff;background:rgba(99,102,241,.25);border-color:rgba(129,140,248,.45)}" +
       ".pyx-studio-bar__menu{display:none;margin-left:auto;padding:6px 10px;border-radius:8px;border:1px solid rgba(148,163,184,.3);background:rgba(30,41,59,.6);color:#cbd5e1;font-weight:700;cursor:pointer}" +
-      "@media(max-width:760px){.pyx-studio-bar__nav{display:none}.pyx-studio-bar__nav.is-open{display:flex;position:absolute;left:12px;right:12px;top:52px;flex-direction:column;padding:10px;background:rgba(15,23,42,.97);border:1px solid rgba(129,140,248,.4);border-radius:12px}.pyx-studio-bar__menu{display:inline-flex}}";
+      "@media(max-width:760px){.pyx-studio-bar__nav{display:none}.pyx-studio-bar__nav.is-open{display:flex;position:absolute;left:12px;right:12px;top:52px;flex-direction:column;padding:10px;background:rgba(15,23,42,.97);border:1px solid rgba(129,140,248,.4);border-radius:12px}.pyx-studio-bar__menu{display:inline-flex}}" +
+      ".pyx-studio-footer{margin:28px auto 16px;padding:14px 0 0;max-width:72rem;font-size:.8rem;color:#94a3b8;text-align:center;border-top:1px solid rgba(129,140,248,.22)}" +
+      ".pyx-studio-footer a{color:#a5b4fc;text-decoration:none}.pyx-studio-footer a:hover{text-decoration:underline}";
     document.head.appendChild(s);
   }
 
@@ -90,6 +92,17 @@
 
     if (global.PyxHandoff && active !== "studio" && active !== "downloads" && active !== "gallery" && active !== "workspace") {
       global.PyxHandoff.touchRecent(active, active);
+    }
+
+    if (!document.getElementById("pyxStudioFooter")) {
+      var footer = document.createElement("footer");
+      footer.id = "pyxStudioFooter";
+      footer.className = "pyx-studio-footer wrap pyx-wrap";
+      footer.innerHTML =
+        '<a href="/">Pyx Studio</a> · ' +
+        '<a href="/pyx-workspace.html">Workspace</a> · ' +
+        '<a href="/pyx-trainer-auth.html">Trainer sign-in</a>';
+      document.body.appendChild(footer);
     }
   }
 
