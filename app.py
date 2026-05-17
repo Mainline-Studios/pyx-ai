@@ -2613,6 +2613,52 @@ def _studio_essay_to_python(data: dict) -> str:
     )
 
 
+def _studio_research_guide(topic: str) -> dict:
+    """Step-by-step search plan Pyx shows in Workspace (browser + pin sources)."""
+    topic = (topic or "your topic").strip()[:500]
+    short = topic if len(topic) < 60 else topic[:57] + "…"
+    return {
+        "topic": topic,
+        "pyx_message": (
+            f"Let's write about «{short}». I'll walk you through research in the embedded browser — "
+            "run each search below, pin 2–3 sources, add short notes, then tap Build JSON + Python data pack. "
+            "We'll fill in the blanks together before you draft in Talk."
+        ),
+        "search_steps": [
+            {
+                "step": 1,
+                "query": f"{topic} overview explained",
+                "instruction": "Open the browser tab, skim results, pin one clear explainer (.edu or encyclopedia).",
+            },
+            {
+                "step": 2,
+                "query": f"{topic} facts statistics recent",
+                "instruction": "Pin a source with numbers, dates, or study findings you can cite.",
+            },
+            {
+                "step": 3,
+                "query": f"{topic} pros cons debate",
+                "instruction": "Pin one source that shows another viewpoint for your counterpoint section.",
+            },
+        ],
+        "after_pins": "When you have pins, click **Build JSON + Python data pack** — then use **Fill blanks** so we complete the outline.",
+    }
+
+
+@app.route("/api/studio/guide", methods=["POST", "OPTIONS"])
+@app.route("/studio/guide", methods=["POST", "OPTIONS"])
+def studio_guide_route():
+    """Pyx research coach: what to search and how to use the embedded browser."""
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(silent=True) or {}
+    topic = (data.get("topic") or data.get("q") or "").strip()[:500]
+    if not topic:
+        return jsonify({"error": "topic required"}), 400
+    guide = _studio_research_guide(topic)
+    return jsonify(guide)
+
+
 @app.route("/api/studio/search", methods=["POST", "OPTIONS"])
 @app.route("/studio/search", methods=["POST", "OPTIONS"])
 def studio_search_route():

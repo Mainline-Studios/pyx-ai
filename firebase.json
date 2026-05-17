@@ -76,6 +76,34 @@
           "serviceId": "pyxaiapi",
           "region": "us-central1"
         }
+      },
+      {
+        "source": "/api/studio/**",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/check",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/check/**",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/health",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
       }
     ]
   }

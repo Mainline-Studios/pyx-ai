@@ -9,6 +9,8 @@
   var TASKS_KEY = "pyx.studio.tasks.v1";
 
   var currentEssay = null;
+  var currentGuide = null;
+  var coachStepDone = {};
 
   function setStatus(msg, kind) {
     var statusEl = document.getElementById("wsStatus");
@@ -20,11 +22,24 @@
   function api(path, body) {
     return fetch(path, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(body || {}),
     }).then(function (r) {
-      return r.json().then(function (j) {
-        if (!r.ok) throw new Error((j && j.error) || r.statusText);
+      return r.text().then(function (text) {
+        var trimmed = (text || "").trim();
+        if (trimmed.charAt(0) === "<") {
+          throw new Error(
+            "Pyx API returned a web page instead of JSON. Studio routes may need a hosting deploy — " +
+              "if you just updated, wait a minute and refresh. (Path: " + path + ")"
+          );
+        }
+        var j;
+        try {
+          j = trimmed ? JSON.parse(trimmed) : {};
+        } catch (parseErr) {
+          throw new Error("Bad API response: " + trimmed.slice(0, 120));
+        }
+        if (!r.ok) throw new Error((j && j.error) || r.statusText || "Request failed");
         return j;
       });
     });
@@ -277,12 +292,77 @@
       if (jsonOut) jsonOut.value = JSON.stringify(currentEssay, null, 2);
     }
 
+    var coachEl = document.getElementById("wsCoach");
+    var coachMsg = document.getElementById("wsCoachMsg");
+    var coachSteps = document.getElementById("wsCoachSteps");
+    var coachAfter = document.getElementById("wsCoachAfter");
+    var startPyxBtn = document.getElementById("wsStartPyx");
+
     function switchTab(id) {
       tabBtns.forEach(function (b) {
         b.classList.toggle("is-active", b.getAttribute("data-ws-tab") === id);
       });
       panels.forEach(function (p) {
         p.hidden = p.getAttribute("data-ws-panel") !== id;
+      });
+    }
+
+    function renderGuide(guide) {
+      currentGuide = guide;
+      if (!coachEl || !guide) return;
+      coachEl.hidden = false;
+      if (coachMsg) coachMsg.textContent = guide.pyx_message || "";
+      if (coachAfter) coachAfter.textContent = guide.after_pins || "";
+      if (!coachSteps) return;
+      var steps = guide.search_steps || [];
+      coachSteps.innerHTML = steps
+        .map(function (s, idx) {
+          var done = coachStepDone[s.step];
+          return (
+            '<button type="button" class="ws-coach-step' +
+            (done ? " is-done" : "") +
+            '" data-coach-step="' +
+            s.step +
+            '" data-coach-idx="' +
+            idx +
+            '">' +
+            "<strong>Search " +
+            s.step +
+            ": " +
+            escapeHtml(s.query) +
+            "</strong>" +
+            "<span>" +
+            escapeHtml(s.instruction) +
+            "</span></button>"
+          );
+        })
+        .join("");
+      coachSteps.querySelectorAll(".ws-coach-step").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var idx = parseInt(btn.getAttribute("data-coach-idx"), 10);
+          var step = parseInt(btn.getAttribute("data-coach-step"), 10);
+          var s = steps[idx];
+          if (!s) return;
+          if (searchInput) searchInput.value = s.query;
+          runSearch(s.query);
+          coachStepDone[step] = true;
+          btn.classList.add("is-done");
+        });
+      });
+    }
+
+    function loadGuide(topic, autoFirstSearch) {
+      return api("/api/studio/guide", { topic: topic }).then(function (guide) {
+        renderGuide(guide);
+        markStep("topic", true);
+        if (autoFirstSearch && guide.search_steps && guide.search_steps[0]) {
+          var first = guide.search_steps[0];
+          if (searchInput) searchInput.value = first.query;
+          return runSearch(first.query).then(function () {
+            coachStepDone[1] = true;
+            setStatus("Pyx opened the browser for search 1 — pin a source, then click the next search Pyx suggests.", "info");
+          });
+        }
       });
     }
 
@@ -504,31 +584,68 @@
       });
     }
 
-    function runSearch() {
-      var q = (searchInput && searchInput.value) || (topicEl && topicEl.value) || "";
-      q = q.trim();
-      if (!q) return;
+    function runSearch(queryOverride) {
+      var q =
+        queryOverride ||
+        (searchInput && searchInput.value) ||
+        (topicEl && topicEl.value) ||
+        "";
+      q = String(q).trim();
+      if (!q) return Promise.resolve();
+      if (searchInput) searchInput.value = q;
       setStatus("Searching the web…", "info");
       saveState({ lastSearch: q });
       if (topicEl && !topicEl.value.trim()) topicEl.value = q.slice(0, 500);
       markStep("topic", true);
-      api("/api/studio/search", { query: q })
+      return api("/api/studio/search", { query: q })
         .then(function (j) {
           renderResults(j.results || []);
           if (j.browser_url) loadBrowserUrl(j.browser_url);
           else loadBrowserSearch(j.search_query || q);
-          if (j.error && !(j.results && j.results.length)) setStatus("Search: " + j.error, "err");
+          if (j.error && !(j.results && j.results.length))
+            setStatus("Search: " + j.error, "err");
           else {
-            setStatus("Found " + (j.results || []).length + " results.", "ok");
+            setStatus(
+              "Found " +
+                (j.results || []).length +
+                " results — check Web browser, then Pin source.",
+              "ok"
+            );
             markStep("search", true);
           }
+          return j;
         })
         .catch(function (e) {
           setStatus(e.message, "err");
+          throw e;
         });
     }
 
-    if (searchBtn) searchBtn.addEventListener("click", runSearch);
+    if (startPyxBtn) {
+      startPyxBtn.addEventListener("click", function () {
+        var topic = (topicEl && topicEl.value) || "";
+        topic = topic.trim();
+        if (!topic) {
+          setStatus("Enter your essay topic first.", "err");
+          return;
+        }
+        saveState({ topic: topic });
+        coachStepDone = {};
+        setStatus("Pyx is planning your research…", "info");
+        startPyxBtn.disabled = true;
+        loadGuide(topic, true)
+          .catch(function (e) {
+            setStatus(e.message, "err");
+          })
+          .finally(function () {
+            startPyxBtn.disabled = false;
+          });
+      });
+    }
+
+    if (searchBtn) searchBtn.addEventListener("click", function () {
+      runSearch();
+    });
     if (searchInput) {
       searchInput.addEventListener("keydown", function (e) {
         if (e.key === "Enter") runSearch();
@@ -673,6 +790,11 @@
       runSearch();
     }
     if (url.get("tab")) switchTab(url.get("tab"));
+    if (url.get("start") === "1" && topicEl && topicEl.value.trim() && startPyxBtn) {
+      startPyxBtn.click();
+    } else if (topicEl && topicEl.value.trim()) {
+      loadGuide(topicEl.value.trim(), false).catch(function () {});
+    }
 
     if (global.PyxHandoff) {
       global.PyxHandoff.applyIncoming({

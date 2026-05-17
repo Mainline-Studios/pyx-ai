@@ -65,6 +65,22 @@
     h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 3vw, 2.2rem); background: var(--pyx-gradient-hero); -webkit-background-clip: text; background-clip: text; color: transparent; }
     .ws-progress { height: 6px; border-radius: 999px; background: var(--panel-2); margin: 8px 0 12px; overflow: hidden; }
     .ws-progress__bar { height: 100%; background: linear-gradient(90deg, #6366f1, #22d3ee); width: 0%; transition: width 0.25s ease; }
+    .ws-coach {
+      margin-bottom: 14px; padding: 14px; border-radius: var(--radius);
+      border: 1px solid rgba(129, 140, 248, 0.45);
+      background: linear-gradient(135deg, rgba(76, 29, 149, 0.22), rgba(14, 165, 233, 0.1));
+    }
+    .ws-coach__avatar { font-weight: 800; color: #c7d2fe; font-size: 0.85rem; margin-bottom: 6px; }
+    .ws-coach__msg { margin: 0 0 10px; font-size: 0.92rem; line-height: 1.5; }
+    .ws-coach-steps { display: flex; flex-direction: column; gap: 8px; }
+    .ws-coach-step {
+      text-align: left; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--panel-2); cursor: pointer; color: inherit; font: inherit;
+    }
+    .ws-coach-step:hover { border-color: rgba(129, 140, 248, 0.5); }
+    .ws-coach-step strong { display: block; font-size: 0.82rem; color: #e0e7ff; margin-bottom: 4px; }
+    .ws-coach-step span { font-size: 0.8rem; color: var(--muted); }
+    .ws-coach-step.is-done { border-color: rgba(52, 211, 153, 0.45); opacity: 0.85; }
   </style>
 </head>
 <body class="pyx-cosmos">
@@ -100,7 +116,10 @@
           <label for="wsSearchInput">Research search</label>
           <input id="wsSearchInput" type="search" placeholder="Search the web with Pyx…" />
         </div>
-        <button type="button" class="btn" id="wsSearchBtn">Search &amp; open browser</button>
+        <button type="button" class="btn" id="wsStartPyx" style="width:100%;margin-bottom:8px;">
+          Start essay with Pyx
+        </button>
+        <button type="button" class="btn secondary" id="wsSearchBtn">Search &amp; open browser</button>
         <p class="ws-status" id="wsStatus" aria-live="polite"></p>
         <button type="button" class="btn" id="wsBuildEssay" style="width:100%;margin-top:8px;">
           Build JSON + Python data pack
@@ -111,6 +130,12 @@
       </aside>
 
       <section class="ws-panel">
+        <article class="ws-coach" id="wsCoach" hidden>
+          <div class="ws-coach__avatar">Pyx · research coach</div>
+          <p class="ws-coach__msg" id="wsCoachMsg"></p>
+          <div class="ws-coach-steps" id="wsCoachSteps"></div>
+          <p class="ws-muted" id="wsCoachAfter" style="margin-top:10px;margin-bottom:0;"></p>
+        </article>
         <div class="ws-tabs" role="tablist">
           <button type="button" class="ws-tab is-active" data-ws-tab="results">Results</button>
           <button type="button" class="ws-tab" data-ws-tab="browser">Web browser</button>
