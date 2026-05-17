@@ -552,7 +552,9 @@ def _talk_messages_have_images(messages_for_api: list) -> bool:
     return False
 
 
-def _groq_openai_prepare(messages_for_api, mode="fast", web_context="", ground_web=False):
+def _groq_openai_prepare(
+    messages_for_api, mode="fast", web_context="", ground_web=False, orbit_context=""
+):
     """Build shared OpenAI-compatible chat request pieces. Returns None if Groq is selected but no API key."""
     key = os.environ.get("PYX_TALK_LLM_KEY", "").strip()
     url = os.environ.get("PYX_TALK_LLM_URL", _GROQ_CHAT_COMPLETIONS_URL).strip()
@@ -592,7 +594,14 @@ def _groq_openai_prepare(messages_for_api, mode="fast", web_context="", ground_w
             "(with timing). If snippets are thin, say you can’t confirm from search alone and point to NASA / the operator’s official site.\n\n"
             "--- Web search snippets ---\n" + ctx
         )
-    system_content = _TALK_SYSTEM + spec["system_suffix"] + web_block
+    orbit_block = ""
+    oc = (orbit_context or "").strip()
+    if oc:
+        orbit_block = (
+            "\n\n--- Pyx orbit (durable learnings about this user from their chats; reference naturally when relevant; "
+            "do not recite verbatim) ---\n" + oc[:4000]
+        )
+    system_content = _TALK_SYSTEM + spec["system_suffix"] + web_block + orbit_block
     body = {
         "model": model,
         "messages": [{"role": "system", "content": system_content}] + messages_for_api,
@@ -667,10 +676,12 @@ def _groq_openai_stream_deltas(prep):
                     yield piece
 
 
-def _groq_openai_chat(messages_for_api, mode="fast", web_context="", ground_web=False):
+def _groq_openai_chat(
+    messages_for_api, mode="fast", web_context="", ground_web=False, orbit_context=""
+):
     """Call OpenAI-compatible chat completions. Returns (reply_text, model_id) or raises.
     Groq requires PYX_TALK_LLM_KEY. For a custom PYX_TALK_LLM_URL (e.g. local Ollama), the key may be omitted."""
-    prep = _groq_openai_prepare(messages_for_api, mode, web_context, ground_web)
+    prep = _groq_openai_prepare(messages_for_api, mode, web_context, ground_web, orbit_context)
     if prep is None:
         return None, None
     headers = {**prep["headers"], "Accept": "application/json"}
@@ -1788,10 +1799,15 @@ def talk():
         web_context.strip()
         and not web_context.strip().lower().startswith("(search note:")
     )
+    orbit_context = data.get("orbit_context")
+    if not isinstance(orbit_context, str):
+        orbit_context = ""
 
     if want_stream:
         try:
-            prep = _groq_openai_prepare(llm_messages, mode, web_context, ground_web)
+            prep = _groq_openai_prepare(
+                llm_messages, mode, web_context, ground_web, orbit_context
+            )
         except Exception as e:
             app.logger.exception("talk: _groq_openai_prepare failed")
             return (
@@ -1866,6 +1882,7 @@ def talk():
             mode=mode,
             web_context=web_context,
             ground_web=ground_web,
+            orbit_context=orbit_context,
         )
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", errors="replace")[:800]

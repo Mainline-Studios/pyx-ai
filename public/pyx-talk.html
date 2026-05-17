@@ -238,19 +238,52 @@
       text-transform: uppercase;
       color: #c4b5fd;
     }
-    .talk-side-orbit-line {
-      margin: 0;
-      font-size: 11px;
-      line-height: 1.35;
-      color: #cbd5e1;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
+    .talk-side-orbit-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .talk-side-orbit-thumb {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      font-size: 9px;
+      line-height: 1.2;
+      padding: 4px;
       overflow: hidden;
-      padding: 4px 6px;
-      border-radius: 8px;
-      background: rgba(2, 6, 23, 0.35);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: #f8fafc;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    }
+    .talk-route-orbit-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: 56px;
+    }
+    .talk-mobile-orbits {
+      display: none;
+      margin: 0 0 14px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(167, 139, 250, 0.2);
+      background: rgba(15, 23, 42, 0.45);
+    }
+    .talk-mobile-orbits-head {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #c4b5fd;
+      margin-bottom: 8px;
+    }
+    @media (max-width: 1100px) {
+      .talk-mobile-orbits {
+        display: block;
+      }
     }
     .talk-conv-full-list {
       list-style: none;
@@ -2231,6 +2264,10 @@
           <span class="talk-nav__glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
           Projects
         </a>
+        <a class="talk-nav__link" href="#orbits" data-talk-route="orbits">
+          <span class="talk-nav__glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></span>
+          Orbits
+        </a>
         <a class="talk-nav__link" href="#memory" data-talk-route="memory">
           <span class="talk-nav__glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg></span>
           Memory
@@ -2257,7 +2294,7 @@
       </div>
       <div class="talk-side-orbits" aria-label="Orbits — Pyx learnings for this snippet">
         <div class="talk-side-orbits-head">Orbits</div>
-        <div id="talkSideOrbitStrip"></div>
+        <div id="talkSideOrbitStrip" class="talk-side-orbit-strip"></div>
       </div>
       <div class="talk-sidebar-footer">
         <div class="talk-profile">
@@ -2293,6 +2330,33 @@
             <div class="talk-route-section">
               <h4>All chats</h4>
               <ul class="talk-conv-full-list" id="talkRouteConversationsList"></ul>
+            </div>
+          </div>
+          <div class="talk-route-body" id="talkRoute-orbits" hidden>
+            <p class="talk-card-body" style="margin-bottom:12px;">
+              Orbits are learnings Pyx keeps about you from this chat. They show in the sidebar and are included when Pyx replies so it can reference them naturally.
+            </p>
+            <button type="button" class="talk-route-new-conv" id="talkRouteRefreshOrbitsBtn" style="margin-bottom:14px;">↻ Refresh orbits from chat</button>
+            <div class="talk-route-section">
+              <h4>Memory moments</h4>
+              <div id="talkRouteOrbitStrip" class="talk-memory-strip talk-route-orbit-strip" role="list"></div>
+            </div>
+            <div class="talk-route-section">
+              <h4>You researched</h4>
+              <div class="talk-chip-row" id="talkRouteOrbitResearched"></div>
+            </div>
+            <div class="talk-route-section">
+              <h4>Upcoming</h4>
+              <ul class="talk-events" id="talkRouteOrbitUpcoming"></ul>
+            </div>
+            <div class="talk-route-section">
+              <h4>Projects</h4>
+              <ul id="talkRouteOrbitProjects"></ul>
+            </div>
+            <div class="talk-route-section">
+              <h4>World &amp; people</h4>
+              <ul id="talkRouteOrbitWorld"></ul>
+              <ul id="talkRouteOrbitPeople" style="margin-top:10px;"></ul>
             </div>
           </div>
           <div class="talk-route-body" id="talkRoute-projects" hidden>
@@ -2384,6 +2448,11 @@
           <p class="talk-subgreeting" id="talkSubgreeting">
             Pyx scanned your vibe and the cosmos agrees — let’s make today unfairly productive (with snacks).
           </p>
+        </div>
+
+        <div class="talk-mobile-orbits" id="talkMobileOrbits" aria-label="Orbits on mobile">
+          <div class="talk-mobile-orbits-head">Orbits</div>
+          <div id="talkMobileOrbitStrip" class="talk-side-orbit-strip"></div>
         </div>
 
         <div class="talk-action-strip">
@@ -3155,7 +3224,96 @@
       var orbitLoadGiveUp = false;
       var ORBIT_UI_LOADING_MS = 150000;
       var ORBIT_UI_LOADING_LABEL = "Loading…";
+      var ORBIT_STORE_PREFIX = "pyx.talk.orbit.v1.";
+      var ORBIT_PLACEHOLDER_FAIL = "fail";
       var lastOrbitData = null;
+
+      var ORBIT_THUMB_GRADS = [
+        "linear-gradient(145deg, rgba(56, 189, 248, 0.55), rgba(99, 102, 241, 0.35))",
+        "linear-gradient(145deg, rgba(167, 139, 250, 0.55), rgba(236, 72, 153, 0.28))",
+        "linear-gradient(145deg, rgba(52, 211, 153, 0.5), rgba(14, 165, 233, 0.3))",
+        "linear-gradient(145deg, rgba(251, 191, 36, 0.55), rgba(249, 115, 22, 0.3))",
+      ];
+
+      function orbitStorageKey() {
+        var lk = currentLineKey();
+        var tid = getActiveThreadId(lk === "preview" ? "preview" : "cloud");
+        return tid ? ORBIT_STORE_PREFIX + lk + "." + tid : "";
+      }
+
+      function orbitLineIsPlaceholder(s) {
+        var t = (s || "").trim().toLowerCase();
+        return !t || t === ORBIT_PLACEHOLDER_FAIL || t === ORBIT_UI_LOADING_LABEL.toLowerCase() || t === "—";
+      }
+
+      function orbitDataIsUsable(data) {
+        if (!data || !Array.isArray(data.memoryStrip)) return false;
+        for (var i = 0; i < data.memoryStrip.length; i++) {
+          if (!orbitLineIsPlaceholder(data.memoryStrip[i])) return true;
+        }
+        return false;
+      }
+
+      function saveOrbitForActiveThread(data) {
+        var key = orbitStorageKey();
+        if (!key || !data) return;
+        try {
+          localStorage.setItem(key, JSON.stringify(data));
+        } catch (e) {}
+      }
+
+      function loadOrbitForActiveThread() {
+        var key = orbitStorageKey();
+        if (!key) return null;
+        try {
+          var raw = localStorage.getItem(key);
+          if (!raw) return null;
+          var j = JSON.parse(raw);
+          return normalizeOrbitPayload(j);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function buildOrbitContextForApi() {
+        if (!lastOrbitData || !orbitSnapshotSuccess || !orbitDataIsUsable(lastOrbitData)) return "";
+        var d = lastOrbitData;
+        var lines = [];
+        if (d.memoryStrip && d.memoryStrip.length) {
+          lines.push("Memory moments: " + d.memoryStrip.filter(function (x) { return !orbitLineIsPlaceholder(x); }).join(" | "));
+        }
+        if (d.researched && d.researched.length) {
+          lines.push("Researched: " + d.researched.filter(function (x) { return !orbitLineIsPlaceholder(x); }).join(", "));
+        }
+        if (d.projects && d.projects.length) {
+          lines.push("Projects: " + d.projects.filter(function (x) { return !orbitLineIsPlaceholder(x); }).join(", "));
+        }
+        if (d.worldInfo && d.worldInfo.length) {
+          lines.push("World: " + d.worldInfo.filter(function (x) { return !orbitLineIsPlaceholder(x); }).join(", "));
+        }
+        if (d.people && d.people.length) {
+          lines.push("People: " + d.people.filter(function (x) { return !orbitLineIsPlaceholder(x); }).join(", "));
+        }
+        var pinned = loadCustomMemories();
+        if (pinned.length) lines.push("User pinned: " + pinned.join("; "));
+        return lines.join("\n");
+      }
+
+      function fillOrbitThumbStrip(containerId, memoryStrip) {
+        var el = document.getElementById(containerId);
+        if (!el) return;
+        el.textContent = "";
+        var strip = memoryStrip || [];
+        for (var i = 0; i < 4; i++) {
+          var th = document.createElement("div");
+          th.className = containerId === "talkSideOrbitStrip" ? "talk-side-orbit-thumb" : "talk-memory-thumb";
+          th.style.background = ORBIT_THUMB_GRADS[i];
+          var cap = strip[i] && String(strip[i]).trim() ? String(strip[i]).trim() : "—";
+          th.title = cap;
+          th.textContent = cap;
+          el.appendChild(th);
+        }
+      }
 
       function pyxRandomId() {
         return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 9);
@@ -3368,17 +3526,62 @@
       }
 
       function refreshTalkSideOrbits() {
-        var el = document.getElementById("talkSideOrbitStrip");
-        if (!el) return;
-        el.textContent = "";
         var strip =
           lastOrbitData && Array.isArray(lastOrbitData.memoryStrip) ? lastOrbitData.memoryStrip : [];
-        for (var i = 0; i < 4; i++) {
-          var p = document.createElement("p");
-          p.className = "talk-side-orbit-line";
-          p.textContent = strip[i] && String(strip[i]).trim() ? String(strip[i]).trim() : "\u2014";
-          el.appendChild(p);
+        fillOrbitThumbStrip("talkSideOrbitStrip", strip);
+        fillOrbitThumbStrip("talkMobileOrbitStrip", strip);
+        fillOrbitThumbStrip("talkRouteOrbitStrip", strip);
+      }
+
+      function refreshOrbitRoutePanels(data) {
+        if (!data) return;
+        function fillChips(id, arr) {
+          var row = document.getElementById(id);
+          if (!row) return;
+          row.textContent = "";
+          for (var c = 0; c < (arr || []).length; c++) {
+            var chip = document.createElement("span");
+            chip.className = "talk-chip";
+            chip.textContent = arr[c];
+            row.appendChild(chip);
+          }
         }
+        fillChips("talkRouteOrbitResearched", data.researched);
+        var ulUp = document.getElementById("talkRouteOrbitUpcoming");
+        if (ulUp) {
+          ulUp.textContent = "";
+          var cols = ["#38bdf8", "#a78bfa", "#fbbf24"];
+          for (var e = 0; e < (data.upcoming || []).length; e++) {
+            var ev = data.upcoming[e];
+            var li = document.createElement("li");
+            li.className = "talk-event";
+            var dot = document.createElement("span");
+            dot.className = "talk-event-dot";
+            dot.style.color = cols[e % cols.length];
+            dot.style.background = cols[e % cols.length];
+            var tm = document.createElement("time");
+            tm.textContent = ev.time;
+            var sp = document.createElement("span");
+            sp.textContent = ev.label;
+            li.appendChild(dot);
+            li.appendChild(tm);
+            li.appendChild(sp);
+            ulUp.appendChild(li);
+          }
+        }
+        function fillUl(id, arr) {
+          var u = document.getElementById(id);
+          if (!u) return;
+          u.textContent = "";
+          for (var i = 0; i < (arr || []).length; i++) {
+            var li = document.createElement("li");
+            li.textContent = arr[i];
+            u.appendChild(li);
+          }
+        }
+        fillUl("talkRouteOrbitProjects", data.projects);
+        fillUl("talkRouteOrbitWorld", data.worldInfo);
+        fillUl("talkRouteOrbitPeople", data.people);
       }
 
       function activateThread(threadId) {
@@ -3400,6 +3603,14 @@
         renderThreadList();
         scheduleOrbitRefresh(true);
         renderConversationRouteList();
+        var cached = loadOrbitForActiveThread();
+        if (cached) {
+          orbitSnapshotSuccess = true;
+          applyOrbitToUi(cached);
+        } else {
+          applyOrbitToUi(normalizeOrbitPayload(loadingOrbitSnapshot()));
+          scheduleOrbitRefresh(true);
+        }
       }
 
       function newConversationThread() {
@@ -3689,24 +3900,8 @@
           }
         }
         var memEl = document.getElementById("talkMemoryStrip");
-        if (memEl) {
-          memEl.textContent = "";
-          memEl.removeAttribute("aria-hidden");
-          var grads = [
-            "linear-gradient(145deg, rgba(56, 189, 248, 0.55), rgba(99, 102, 241, 0.35))",
-            "linear-gradient(145deg, rgba(167, 139, 250, 0.55), rgba(236, 72, 153, 0.28))",
-            "linear-gradient(145deg, rgba(52, 211, 153, 0.5), rgba(14, 165, 233, 0.3))",
-            "linear-gradient(145deg, rgba(251, 191, 36, 0.55), rgba(249, 115, 22, 0.3))",
-          ];
-          for (var mi = 0; mi < 4; mi++) {
-            var th = document.createElement("div");
-            th.className = "talk-memory-thumb";
-            th.style.background = grads[mi];
-            th.title = data.memoryStrip[mi];
-            th.textContent = data.memoryStrip[mi];
-            memEl.appendChild(th);
-          }
-        }
+        if (memEl) memEl.removeAttribute("aria-hidden");
+        fillOrbitThumbStrip("talkMemoryStrip", data.memoryStrip);
         fillChips("talkResearchedChips", data.researched);
         fillChips("talkRouteMemoryChips", data.researched);
 
@@ -3748,6 +3943,8 @@
         fillUl("talkRoutePeopleList", data.people);
         renderPinnedRail();
         refreshTalkSideOrbits();
+        refreshOrbitRoutePanels(data);
+        saveOrbitForActiveThread(data);
       }
 
       function scheduleOrbitRefresh(force) {
@@ -3824,6 +4021,7 @@
         var panel = document.getElementById("talkRoutePanel");
         var titles = {
           conversations: "Conversations",
+          orbits: "Orbits",
           projects: "Projects",
           memory: "Memory",
           world: "World Info",
@@ -3831,6 +4029,7 @@
         };
         var sectionMap = {
           conversations: "talkRoute-conversations",
+          orbits: "talkRoute-orbits",
           projects: "talkRoute-projects",
           memory: "talkRoute-memory",
           world: "talkRoute-world",
@@ -3859,6 +4058,7 @@
             });
             if (hash === "memory") renderCustomMemoryEditor();
             if (hash === "conversations") renderConversationRouteList();
+            if (hash === "orbits" && lastOrbitData) refreshOrbitRoutePanels(lastOrbitData);
           }
         }
         if (hash === "composer" && inputEl) {
@@ -5762,6 +5962,7 @@
           use_web: useWeb,
           use_web_auto: useWebAuto,
           stream: true,
+          orbit_context: buildOrbitContextForApi(),
         }))
           .then(function (res) {
             if (!res.ok) {
@@ -5944,6 +6145,14 @@
         chatEl.scrollTop = chatEl.scrollHeight;
         renderThreadList();
         renderConversationRouteList();
+        var cachedLine = loadOrbitForActiveThread();
+        if (cachedLine) {
+          orbitSnapshotSuccess = true;
+          applyOrbitToUi(cachedLine);
+        } else {
+          applyOrbitToUi(normalizeOrbitPayload(loadingOrbitSnapshot()));
+          scheduleOrbitRefresh(true);
+        }
       }
 
       if (talkLineEl) {
@@ -5970,8 +6179,14 @@
       migrateLegacyThreadsIfNeeded();
       renderThreadList();
       renderConversationRouteList();
-      applyOrbitToUi(normalizeOrbitPayload(loadingOrbitSnapshot()));
-      startOrbitLoadingWatchdog();
+      var cachedOrbitInit = loadOrbitForActiveThread();
+      if (cachedOrbitInit) {
+        orbitSnapshotSuccess = true;
+        applyOrbitToUi(cachedOrbitInit);
+      } else {
+        applyOrbitToUi(normalizeOrbitPayload(loadingOrbitSnapshot()));
+        startOrbitLoadingWatchdog();
+      }
       talkRouteApply();
       window.addEventListener("hashchange", talkRouteApply);
 
@@ -6002,13 +6217,16 @@
           location.hash = "#chat";
           talkRouteApply();
         });
-      ["orbitRefreshBtn", "orbitRefreshBtnB"].forEach(function (bid) {
-        var b = document.getElementById(bid);
-        if (b)
-          b.addEventListener("click", function () {
-            refreshOrbitSnapshotFromPyx();
-          });
-      });
+      function bindOrbitRefreshButtons() {
+        ["orbitRefreshBtn", "orbitRefreshBtnB", "talkRouteRefreshOrbitsBtn"].forEach(function (bid) {
+          var b = document.getElementById(bid);
+          if (b)
+            b.addEventListener("click", function () {
+              refreshOrbitSnapshotFromPyx();
+            });
+        });
+      }
+      bindOrbitRefreshButtons();
       var talkRouteClose = document.getElementById("talkRouteClose");
       if (talkRouteClose)
         talkRouteClose.addEventListener("click", function () {
