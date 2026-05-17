@@ -244,6 +244,143 @@
       );
     }
     el.innerHTML = parts.join("");
+    renderRiverside();
+  }
+
+  function buildDraftStreamText(essay) {
+    if (!essay) return "";
+    var lines = [];
+    lines.push(essay.topic || "Your topic");
+    lines.push("");
+    if (essay.thesis) {
+      lines.push("Main idea: " + essay.thesis);
+      lines.push("");
+    }
+    var fillsBySection = {};
+    (essay.fill_blanks || []).forEach(function (b) {
+      var sec = b.section || "Essay";
+      if (!fillsBySection[sec]) fillsBySection[sec] = [];
+      fillsBySection[sec].push(b);
+    });
+    (essay.outline || []).forEach(function (sec, i) {
+      var title = sec.section || "Section " + (i + 1);
+      lines.push("—— " + title + " ——");
+      if (sec.goal) lines.push("(Goal: " + sec.goal + ")");
+      var draft = (sec.writer_draft || "").trim();
+      if (draft) lines.push(draft);
+      var gaps = fillsBySection[title] || [];
+      gaps.forEach(function (b) {
+        var fill = (b.user_fill || "").trim();
+        if (fill) {
+          lines.push("");
+          lines.push(fill);
+        } else if (b.label) {
+          lines.push("");
+          lines.push("[" + b.label + " — you write here]");
+        }
+      });
+      lines.push("");
+    });
+    return lines.join("\n").trim();
+  }
+
+  function renderResearchRiver() {
+    var el = document.getElementById("wsResearchRiver");
+    if (!el) return;
+    var pinned = getPinned();
+    var essay = currentEssay;
+    var outline = (essay && essay.outline) || [];
+    if (!pinned.length && !outline.length) {
+      el.innerHTML =
+        '<p class="ws-muted" style="min-width:200px;">Save links and build an essay plan — your river appears here.</p>';
+      return;
+    }
+    var html = [];
+    pinned.forEach(function (s, i) {
+      if (i) html.push('<span class="ws-river__arrow" aria-hidden="true">→</span>');
+      html.push(
+        '<div class="ws-river__node ws-river__node--source">' +
+          "<strong>" +
+          escapeHtml((s.title || "Source").slice(0, 48)) +
+          "</strong>" +
+          "<span>" +
+          (s.read_ok ? "Pyx read ✓" : "not read yet") +
+          "</span></div>"
+      );
+    });
+    if (pinned.length && outline.length) {
+      html.push('<span class="ws-river__arrow" aria-hidden="true">⇢</span>');
+    }
+    outline.forEach(function (sec, i) {
+      if (i) html.push('<span class="ws-river__arrow" aria-hidden="true">→</span>');
+      html.push(
+        '<div class="ws-river__node ws-river__node--section">' +
+          "<strong>" +
+          escapeHtml(sec.section || "Section") +
+          "</strong>" +
+          "<span>" +
+          escapeHtml((sec.goal || "").slice(0, 80) || "section") +
+          "</span></div>"
+      );
+    });
+    el.innerHTML = html.join("");
+  }
+
+  function renderDraftStream() {
+    var el = document.getElementById("wsDraftStream");
+    if (!el) return;
+    syncEssayFromDom();
+    if (!currentEssay) {
+      el.textContent = "Build your essay plan first — then your draft stream flows here.";
+      return;
+    }
+    var raw = buildDraftStreamText(currentEssay);
+    var parts = raw.split(/\n—— (.+?) ——\n/);
+    if (parts.length < 2) {
+      el.textContent = raw;
+      return;
+    }
+    var html = "<h4>" + escapeHtml(parts[0].trim()) + "</h4>";
+    for (var i = 1; i < parts.length; i += 2) {
+      html += "<h4>" + escapeHtml(parts[i]) + "</h4>";
+      html += "<p>" + escapeHtml(parts[i + 1] || "").replace(/\n/g, "<br>") + "</p>";
+    }
+    el.innerHTML = html;
+  }
+
+  function renderRiverside() {
+    renderResearchRiver();
+    renderDraftStream();
+  }
+
+  function runFlowCheck() {
+    var topicEl = document.getElementById("wsTopic");
+    var topic = (topicEl && topicEl.value) || (currentEssay && currentEssay.topic) || "";
+    var flowOut = document.getElementById("wsFlowOut");
+    if (!currentEssay) {
+      setStatus("Build your essay plan first.", "err");
+      return Promise.resolve();
+    }
+    syncEssayFromDom();
+    setStatus("Pyx is checking how your essay flows…", "info");
+    return api("/api/studio/flow", {
+      topic: topic,
+      sources: getPinned(),
+      essay: currentEssay,
+    })
+      .then(function (j) {
+        if (flowOut) {
+          flowOut.hidden = false;
+          flowOut.textContent = j.flow_notes || "";
+        }
+        setStatus("Flow check ready — smooth the bends in your own words.", "ok");
+        markStep("riverside", true);
+        switchTab("riverside");
+      })
+      .catch(function (e) {
+        setStatus(e.message, "err");
+        throw e;
+      });
   }
 
   function renderBlanks(essay) {
@@ -292,6 +429,7 @@
         if (card) card.classList.toggle("is-filled", ta.value.trim().length > 0);
         syncEssayFromDom();
         updateBlankProgress();
+        renderDraftStream();
         markStep("essay", true);
       });
     });
@@ -436,6 +574,7 @@
       currentEssay = state.lastEssay;
       renderPyxMade(currentEssay);
       renderBlanks(currentEssay);
+      renderRiverside();
       updatePlanViews(currentEssay, state.lastPython);
     }
 
@@ -452,6 +591,7 @@
       panels.forEach(function (p) {
         p.hidden = p.getAttribute("data-ws-panel") !== id;
       });
+      if (id === "riverside") renderRiverside();
     }
 
     function renderGuide(guide) {
@@ -610,6 +750,7 @@
       });
       setPinned(arr);
       renderPinned();
+      renderResearchRiver();
       setStatus("Saved link: " + (item.title || item.url), "ok");
       markStep("search", true);
     }
@@ -917,7 +1058,8 @@
         updatePlanViews(currentEssay, j.python);
         renderPyxMade(currentEssay);
         renderBlanks(currentEssay);
-        setStatus("Essay ready — write your gaps, then ask Pyx for hints!", "ok");
+        renderRiverside();
+        setStatus("Essay ready — visit Riverside or write your gaps!", "ok");
         if (global.PyxHandoff && global.PyxHandoff.saveGalleryItem) {
           global.PyxHandoff.saveGalleryItem({
             type: "essay-pack",
@@ -991,6 +1133,31 @@
     }
 
     var helpFromPyxBtn = document.getElementById("wsHelpFromPyx");
+    var flowCheckBtn = document.getElementById("wsFlowCheck");
+    if (flowCheckBtn) {
+      flowCheckBtn.addEventListener("click", function () {
+        flowCheckBtn.disabled = true;
+        runFlowCheck()
+          .catch(function (e) {
+            setStatus(e.message, "err");
+          })
+          .finally(function () {
+            flowCheckBtn.disabled = false;
+          });
+      });
+    }
+
+    var copyDraftBtn = document.getElementById("wsCopyDraftStream");
+    if (copyDraftBtn) {
+      copyDraftBtn.addEventListener("click", function () {
+        syncEssayFromDom();
+        var text = buildDraftStreamText(currentEssay);
+        if (text) navigator.clipboard.writeText(text);
+        setStatus("Copied draft stream!", "ok");
+        markStep("riverside", true);
+      });
+    }
+
     if (helpFromPyxBtn) {
       helpFromPyxBtn.addEventListener("click", function () {
         helpFromPyxBtn.disabled = true;

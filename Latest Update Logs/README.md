@@ -11,8 +11,8 @@ Human-readable release notes for Pyx web and API deploys.
 
 Examples:
 
-- `1.0 Schoolhouse LATEST.md` — live now
-- `1.1 Riverside.md` — after 1.1 ships, rename 1.0 file to `1.0 Schoolhouse.md` and add the new LATEST file
+- `1.1 Riverside LATEST.md` — live now
+- `1.05 Schoolhouse Patches.md` — archived after 1.1 ships (drop `LATEST` from the previous file)
 
 ## When to update
 

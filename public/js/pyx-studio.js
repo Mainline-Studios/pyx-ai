@@ -114,7 +114,7 @@
   var RECIPES = [
     {
       title: "Essay with web research",
-      desc: "Topic → search & pin sources → JSON/Python pack → Talk",
+      desc: "Topic → search & pin sources → essay plan → Talk",
       steps: [
         {
           label: "1. Workspace",
@@ -128,6 +128,35 @@
           label: "3. Write in Talk",
           action: function () {
             global.location.href = "/pyx-talk.html";
+          },
+        },
+      ],
+    },
+    {
+      title: "Riverside essay flow",
+      desc: "Research river → draft stream → flow check → Talk",
+      steps: [
+        {
+          label: "1. Start topic",
+          href: "/pyx-workspace.html?topic=the%20water%20cycle&start=1",
+        },
+        {
+          label: "2. Riverside",
+          href: "/pyx-workspace.html?tab=riverside",
+        },
+        {
+          label: "3. Talk",
+          action: function () {
+            var s = {};
+            try {
+              s = JSON.parse(localStorage.getItem("pyx.studio.workspace.v1") || "{}");
+            } catch (e) {}
+            var topic = (s.topic || "my essay").trim();
+            global.PyxHandoff.sendTo(
+              "talk",
+              "Help me turn my Riverside draft stream into full paragraphs for: " + topic,
+              "studio"
+            );
           },
         },
       ],

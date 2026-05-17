@@ -2624,6 +2624,75 @@ def _studio_hint_only(
     return {"hints": hints, "source_titles": source_titles, "mode": mode}
 
 
+def _studio_flow_check(
+    topic: str,
+    sources: list,
+    essay_data: dict | None = None,
+) -> dict:
+    """Riverside flow coach — how sections connect; hints only, no rewritten essay."""
+    topic = (topic or "your topic").strip()[:500]
+    essay_data = essay_data if isinstance(essay_data, dict) else {}
+    context = _studio_sources_block(sources)
+    outline = essay_data.get("outline") or []
+    sections = []
+    for i, sec in enumerate(outline[:12]):
+        if not isinstance(sec, dict):
+            continue
+        name = (sec.get("section") or f"Section {i + 1}").strip()
+        goal = (sec.get("goal") or "").strip()[:300]
+        draft = (sec.get("writer_draft") or "").strip()[:400]
+        sections.append(f"{i + 1}. {name}: goal={goal or '—'}; draft={draft or '—'}")
+    fills = []
+    for b in (essay_data.get("fill_blanks") or [])[:16]:
+        if not isinstance(b, dict):
+            continue
+        label = (b.get("label") or b.get("id") or "gap").strip()
+        filled = (b.get("user_fill") or "").strip()
+        fills.append(
+            f"- {label}: {'(' + str(len(filled)) + ' chars written)' if filled else 'still empty'}"
+        )
+    rules = (
+        "You are Pyx at the Riverside — a writing coach by a flowing river.\n"
+        "STRICT RULES:\n"
+        "- NEVER write full paragraphs, bridge sentences the student can paste, or a finished essay.\n"
+        "- ONLY: where the 'current' of ideas might splash or stall between sections, "
+        "which source could feed the next bend, and 1–2 guiding questions per weak transition.\n"
+        "- Use river metaphors lightly (flow, bend, pool, downstream) but stay clear for kids.\n"
+        "- Plain text, 3–6 short bullets max.\n"
+    )
+    prompt = (
+        rules
+        + f"\nTOPIC: {topic}\nTHESIS IDEA: {(essay_data.get('thesis') or '')[:500]}\n\n"
+        f"OUTLINE SECTIONS (downstream order):\n"
+        + ("\n".join(sections) if sections else "(no outline yet)")
+        + f"\n\nSTUDENT GAPS:\n"
+        + ("\n".join(fills) if fills else "(no gaps yet)")
+        + f"\n\nSOURCES IN THE RIVER:\n{context or '(no sources saved)'}\n\n"
+        "Comment on how well the essay plan flows from introduction to conclusion."
+    )
+    flow_notes = (
+        "Read your outline top to bottom like a river — does each section lead naturally to the next? "
+        "If one bend feels sudden, jot a connecting idea in your own words."
+    )
+    if _groq_openai_prepare is not None and (sections or context):
+        try:
+            reply, model = _groq_openai_chat(
+                [{"role": "user", "content": prompt}],
+                mode="fast",
+                web_context="",
+                ground_web=False,
+            )
+            if reply and reply.strip():
+                return {
+                    "flow_notes": reply.strip()[:2500],
+                    "model": model,
+                    "sections_count": len(sections),
+                }
+        except Exception as e:
+            return {"flow_notes": flow_notes, "error": str(e)[:200]}
+    return {"flow_notes": flow_notes, "sections_count": len(sections)}
+
+
 def _studio_fill_blank_suggestion(
     topic: str,
     blank: dict,
@@ -2700,8 +2769,8 @@ def _studio_research_guide(topic: str) -> dict:
         "topic": topic,
         "pyx_message": (
             f"Let's write about «{short}»! Use the web browser to search, then pin 2–3 links you like. "
-            "When you're ready, tap Read my links and build my essay — I'll read those pages, "
-            "show you what I planned, and give hints (never the full answer) for your gaps."
+            "When you're ready, tap Read my links and build my essay — then visit Riverside to see your "
+            "research river and draft stream, and ask for a flow check (hints only, never the full answer)."
         ),
         "search_steps": [
             {
@@ -2930,6 +2999,23 @@ def studio_hint_route():
         topic = (essay.get("topic") or "essay").strip()[:500]
     out = _studio_hint_only(topic, blank, sources, essay, mode="blank")
     out["id"] = blank.get("id")
+    out["topic"] = topic
+    return jsonify(out)
+
+
+@app.route("/api/studio/flow", methods=["POST", "OPTIONS"])
+@app.route("/studio/flow", methods=["POST", "OPTIONS"])
+def studio_flow_route():
+    """Riverside flow check — how sections connect; hints only."""
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(silent=True) or {}
+    topic = (data.get("topic") or "").strip()[:500]
+    sources = data.get("sources") if isinstance(data.get("sources"), list) else []
+    essay = data.get("essay") if isinstance(data.get("essay"), dict) else {}
+    if not topic:
+        topic = (essay.get("topic") or "essay").strip()[:500]
+    out = _studio_flow_check(topic, sources, essay)
     out["topic"] = topic
     return jsonify(out)
 
