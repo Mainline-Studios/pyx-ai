@@ -30,6 +30,10 @@ Start each log with:
 ```markdown
 # Pyx {version} — {Nickname}
 **Status:** LATEST · **Date:** YYYY-MM-DD
+**Preceded by:** [1.0 Schoolhouse](1.0%20Schoolhouse.md) · **Superseded by:** —
 ```
 
-Remove **LATEST** from the status line when archiving an old file.
+- **Preceded by** — link to the previous release file (use `—` if this is the first tracked log).
+- **Superseded by** — link to the newer release that replaced this one (use `—` while this file is still `LATEST`).
+
+Remove **LATEST** from the status line when archiving. When you ship a new version, update the old file’s **Superseded by** link and set the new file’s **Preceded by** to that old file.
