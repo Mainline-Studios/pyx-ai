@@ -713,18 +713,45 @@
         );
       }
       setStatus("Pyx is reading your saved links…", "info");
-      return api("/api/studio/read-sources", { sources: arr }).then(function (j) {
-        var enriched = j.sources || arr;
+      function finishRead(enriched) {
         setPinned(enriched);
         renderPinned();
-        var n = j.read_count || 0;
-        setStatus(
-          "Pyx read " + n + " of " + (j.total || enriched.length) + " saved links.",
-          n ? "ok" : "info"
-        );
+        var n = enriched.filter(function (s) {
+          return s.read_ok;
+        }).length;
+        setStatus("Pyx read " + n + " of " + enriched.length + " saved links.", n ? "ok" : "info");
         markStep("search", true);
         return enriched;
-      });
+      }
+      return api("/api/studio/read-sources", { sources: arr })
+        .then(function (j) {
+          return finishRead(j.sources || arr);
+        })
+        .catch(function () {
+          var chain = Promise.resolve([]);
+          var updated = arr.slice();
+          updated.forEach(function (s, i) {
+            chain = chain.then(function () {
+              setStatus("Reading link " + (i + 1) + " of " + updated.length + "…", "info");
+              if (!s.url) {
+                s.read_ok = false;
+                return updated;
+              }
+              return api("/api/studio/read", { url: s.url })
+                .then(function (j) {
+                  s.page_text = (j.text || "").slice(0, 4000);
+                  s.read_ok = !!(j.text && j.text.length > 50);
+                  s.read_chars = j.chars || 0;
+                  return updated;
+                })
+                .catch(function () {
+                  s.read_ok = false;
+                  return updated;
+                });
+            });
+          });
+          return chain.then(finishRead);
+        });
     }
 
     function buildEssayPlan() {
