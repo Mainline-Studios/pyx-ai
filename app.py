@@ -8,6 +8,7 @@ If no keys are set, the API works without auth (open).
 
 import base64
 import html
+import ipaddress
 import json
 import math
 import os
@@ -401,19 +402,17 @@ def _unwrap_duck_redirect(href: str) -> str:
     return href
 
 
-def _local_web_search_snippets(query: str):
-    """Pyx local web search: DuckDuckGo HTML (no API keys). Returns (text, provider, error)."""
+def _local_web_search_results(query: str):
+    """DuckDuckGo HTML search → list of {title, url, snippet}."""
     query = (query or "").strip()[:500]
     if not query:
-        return "", None, "empty query"
+        return [], "local-web", "empty query"
     max_results = 6
     try:
         max_results = max(1, min(int(os.environ.get("PYX_TALK_WEB_MAX_RESULTS", "6")), 12))
     except ValueError:
         pass
-    cap = min(max(int(os.environ.get("PYX_TALK_WEB_CONTEXT_CHARS", "8000")), 2000), 32000)
     timeout = max(5, min(int(os.environ.get("PYX_TALK_WEB_TIMEOUT", "22")), 45))
-
     ddg_url = (os.environ.get("PYX_TALK_WEB_HTML_URL") or "https://html.duckduckgo.com/html/").strip()
     ua = (os.environ.get("PYX_TALK_USER_AGENT") or "").strip() or (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -436,15 +435,14 @@ def _local_web_search_snippets(query: str):
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             page = resp.read().decode("utf-8", errors="replace")
     except Exception as e:
-        return "", "local-web", str(e)[:300]
+        return [], "local-web", str(e)[:300]
 
-    # DDG: result__a (title+link), optional result__snippet in the same result block
+    results = []
     blocks = re.findall(
         r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>(?s:.*?)class="result__snippet"[^>]*>(.*?)</a>',
         page,
         re.IGNORECASE | re.DOTALL,
     )
-    lines = []
     for href, title_html, snip_html in blocks:
         if _ddg_is_ad_link(href):
             continue
@@ -455,12 +453,11 @@ def _local_web_search_snippets(query: str):
         snippet = _strip_html_fragment(snip_html)
         if not title and not snippet:
             continue
-        lines.append(f"- {title}\n  {url}\n  {snippet[:1200]}")
-        if len(lines) >= max_results:
+        results.append({"title": title, "url": url, "snippet": snippet[:1200]})
+        if len(results) >= max_results:
             break
 
-    if not lines:
-        # Fallback: titles/links only (older or alternate markup)
+    if not results:
         for m in re.finditer(
             r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>',
             page,
@@ -474,14 +471,31 @@ def _local_web_search_snippets(query: str):
                 continue
             title = _strip_html_fragment(m.group(2))
             if title or url:
-                lines.append(f"- {title}\n  {url}\n  ")
-            if len(lines) >= max_results:
+                results.append({"title": title, "url": url, "snippet": ""})
+            if len(results) >= max_results:
                 break
 
+    if not results:
+        return [], "local-web", "no results (blocked, empty query, or page layout changed)"
+    return results, "local-web", None
+
+
+def _local_web_search_snippets(query: str):
+    """Pyx local web search: DuckDuckGo HTML (no API keys). Returns (text, provider, error)."""
+    query = (query or "").strip()[:500]
+    if not query:
+        return "", None, "empty query"
+    cap = min(max(int(os.environ.get("PYX_TALK_WEB_CONTEXT_CHARS", "8000")), 2000), 32000)
+    results, provider, err = _local_web_search_results(query)
+    if err and not results:
+        return "", provider, err
+    lines = []
+    for r in results:
+        lines.append(f"- {r.get('title', '')}\n  {r.get('url', '')}\n  {r.get('snippet', '')}")
     text = "\n".join(lines).strip()
     if not text:
-        return "", "local-web", "no results (blocked, empty query, or page layout changed)"
-    return text[:cap], "local-web", None
+        return "", provider, err or "no results"
+    return text[:cap], provider, err
 
 
 def _talk_web_snippets(query: str):
@@ -1946,7 +1960,7 @@ def pyx13_preview_chat():
     out = {
         "bad": False,
         "reply": reply,
-        "model": "Pyx 1.3 Preview 4.26",
+        "model": "Pyx 1.3 (website preview)",
         "engine": meta.get("engine", "pyx-1.3-preview"),
         "web_search": {
             "used": bool(web.get("used")),
@@ -2319,6 +2333,459 @@ def pixel_art():
             "gen_w": gw,
             "gen_h": gh,
             "model": model_used or "unknown",
+        }
+    )
+
+
+# ---- Pyx Studio (productivity + research) ----
+_STUDIO_READ_MAX_BYTES = 450_000
+_STUDIO_READ_TIMEOUT = 18
+
+
+def _studio_url_allowed(url: str) -> bool:
+    try:
+        p = urllib.parse.urlparse((url or "").strip())
+    except Exception:
+        return False
+    if p.scheme not in ("http", "https"):
+        return False
+    host = (p.hostname or "").lower()
+    if not host:
+        return False
+    if host in ("localhost", "127.0.0.1", "0.0.0.0", "::1") or host.endswith(".local"):
+        return False
+    try:
+        ip = ipaddress.ip_address(host)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            return False
+    except ValueError:
+        pass
+    return True
+
+
+def _studio_fetch_page_text(url: str):
+    if not _studio_url_allowed(url):
+        return "", "URL not allowed (use public http/https links)"
+    ua = (os.environ.get("PYX_TALK_USER_AGENT") or "").strip() or (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    )
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": ua, "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8"},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=_STUDIO_READ_TIMEOUT) as resp:
+            raw = resp.read(_STUDIO_READ_MAX_BYTES + 1)
+            ctype = (resp.headers.get("Content-Type") or "").lower()
+    except Exception as e:
+        return "", str(e)[:300]
+    if len(raw) > _STUDIO_READ_MAX_BYTES:
+        raw = raw[:_STUDIO_READ_MAX_BYTES]
+    if "html" not in ctype and "text/plain" not in ctype and "json" not in ctype:
+        return "", "unsupported content type (try a normal article page)"
+    text = _strip_html_fragment(raw.decode("utf-8", errors="replace"))
+    if len(text) > 12000:
+        text = text[:12000] + "…"
+    return text, None
+
+
+def _studio_extract_json_object(text: str):
+    text = (text or "").strip()
+    if not text:
+        return None
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    m = re.search(r"```(?:json)?\s*([\s\S]*?)```", text, re.IGNORECASE)
+    if m:
+        try:
+            return json.loads(m.group(1).strip())
+        except json.JSONDecodeError:
+            pass
+    start = text.find("{")
+    end = text.rfind("}")
+    if start >= 0 and end > start:
+        try:
+            return json.loads(text[start : end + 1])
+        except json.JSONDecodeError:
+            pass
+    return None
+
+
+def _studio_build_fill_blanks(essay_data: dict) -> list:
+    """Interactive blanks for writer + Pyx to fill from research."""
+    essay_data = essay_data if isinstance(essay_data, dict) else {}
+    blanks = []
+    thesis = (essay_data.get("thesis") or "").strip()
+    blanks.append(
+        {
+            "id": "thesis",
+            "label": "Thesis statement",
+            "placeholder": "Your main argument in one or two sentences…",
+            "suggested": thesis,
+            "user_fill": "",
+            "hint": "State what you will prove or explain.",
+            "section": "core",
+        }
+    )
+    for i, sec in enumerate(essay_data.get("outline") or []):
+        if not isinstance(sec, dict):
+            continue
+        name = (sec.get("section") or f"Section {i + 1}").strip()
+        goal = (sec.get("goal") or "").strip()
+        blanks.append(
+            {
+                "id": f"outline_{i}",
+                "label": name,
+                "placeholder": goal or f"What will you cover in {name}?",
+                "suggested": goal,
+                "user_fill": "",
+                "hint": goal,
+                "section": "outline",
+            }
+        )
+    for b in (essay_data.get("research_bullets") or [])[:8]:
+        if not isinstance(b, dict):
+            continue
+        bid = (b.get("id") or f"rb_{len(blanks)}").strip()
+        claim = (b.get("claim") or "").strip()
+        blanks.append(
+            {
+                "id": f"evidence_{bid}",
+                "label": f"Evidence: {claim[:72] or 'Research point'}",
+                "placeholder": "Quote or paraphrase from your sources…",
+                "suggested": (b.get("evidence") or claim)[:500],
+                "user_fill": "",
+                "hint": (b.get("source_url") or "")[:200],
+                "section": "evidence",
+            }
+        )
+    blanks.append(
+        {
+            "id": "conclusion_hook",
+            "label": "Conclusion — final thought",
+            "placeholder": "What should the reader remember?",
+            "suggested": "",
+            "user_fill": "",
+            "hint": "Tie back to your thesis.",
+            "section": "core",
+        }
+    )
+    return blanks[:24]
+
+
+def _studio_essay_finalize(essay_data: dict) -> dict:
+    if not isinstance(essay_data, dict):
+        essay_data = {}
+    if not isinstance(essay_data.get("fill_blanks"), list) or not essay_data["fill_blanks"]:
+        essay_data["fill_blanks"] = _studio_build_fill_blanks(essay_data)
+    return essay_data
+
+
+def _studio_merge_fills(essay_data: dict, fills: list) -> dict:
+    essay_data = _studio_essay_finalize(dict(essay_data))
+    by_id = {b.get("id"): b for b in essay_data.get("fill_blanks") if isinstance(b, dict) and b.get("id")}
+    for item in fills or []:
+        if not isinstance(item, dict):
+            continue
+        bid = item.get("id")
+        if bid not in by_id:
+            continue
+        val = (item.get("user_fill") or item.get("value") or "").strip()
+        if val:
+            by_id[bid]["user_fill"] = val[:4000]
+    essay_data["fill_blanks"] = list(by_id.values())
+    # Rebuild outline/thesis from fills when present
+    for b in essay_data["fill_blanks"]:
+        if b.get("id") == "thesis" and b.get("user_fill"):
+            essay_data["thesis"] = b["user_fill"]
+        m = re.match(r"outline_(\d+)$", str(b.get("id") or ""))
+        if m and b.get("user_fill"):
+            idx = int(m.group(1))
+            outline = essay_data.get("outline")
+            if isinstance(outline, list) and idx < len(outline) and isinstance(outline[idx], dict):
+                outline[idx]["writer_draft"] = b["user_fill"]
+    return essay_data
+
+
+def _studio_fill_blank_suggestion(
+    topic: str,
+    blank: dict,
+    sources: list,
+    essay_data: dict | None = None,
+) -> str:
+    """Suggest text for one blank from pinned sources (+ optional LLM)."""
+    blank = blank if isinstance(blank, dict) else {}
+    suggested = (blank.get("suggested") or "").strip()
+    label = (blank.get("label") or blank.get("id") or "field").strip()
+    src_text = []
+    for s in (sources or [])[:10]:
+        if not isinstance(s, dict):
+            continue
+        src_text.append(
+            f"{s.get('title', '')}: {(s.get('snippet') or '')[:300]} {(s.get('user_note') or '')[:200]}"
+        )
+    context = "\n".join(src_text)[:3500]
+    if _groq_openai_prepare is not None and (context or suggested):
+        prompt = (
+            "You help a student fill ONE blank in an essay outline. "
+            "Use only the sources below; if unsure, say so briefly. "
+            "Return plain text only (2–4 sentences max, no markdown).\n\n"
+            f"TOPIC: {topic}\nBLANK: {label}\nPROMPT: {(blank.get('placeholder') or '')[:400]}\n\n"
+            f"SOURCES:\n{context or '(no sources)'}\n\n"
+            f"STARTING HINT: {suggested[:400] if suggested else '(none)'}"
+        )
+        try:
+            reply, _model = _groq_openai_chat(
+                [{"role": "user", "content": prompt}],
+                mode="fast",
+                web_context="",
+                ground_web=False,
+            )
+            if reply and reply.strip():
+                return reply.strip()[:2000]
+        except Exception:
+            pass
+    if suggested:
+        return suggested
+    if src_text:
+        return f"Based on your research: {src_text[0][:280]}… (verify on the original page.)"
+    return f"Draft your {label.lower()} about {topic} — add pinned sources and search again for stronger evidence."
+
+
+def _studio_essay_fallback(topic: str, sources: list, notes: str) -> dict:
+    topic = (topic or "Untitled topic").strip()[:500]
+    bullets = []
+    citations = []
+    for i, s in enumerate(sources[:8]):
+        if not isinstance(s, dict):
+            continue
+        title = (s.get("title") or f"Source {i + 1}").strip()
+        url = (s.get("url") or "").strip()
+        snippet = (s.get("snippet") or s.get("excerpt") or "").strip()[:400]
+        user_note = (s.get("user_note") or "").strip()[:400]
+        bullets.append(
+            {
+                "id": f"src_{i + 1}",
+                "claim": snippet[:200] if snippet else title,
+                "evidence": user_note or snippet or title,
+                "source_url": url,
+                "confidence": "medium" if snippet else "low",
+            }
+        )
+        citations.append({"title": title, "url": url, "accessed": datetime.now(timezone.utc).strftime("%Y-%m-%d")})
+    outline = [
+        {"section": "Introduction", "goal": f"Introduce {topic} and state your thesis."},
+        {"section": "Background", "goal": "Define key terms and give context from your research."},
+        {"section": "Main points", "goal": "Develop 2–4 arguments using your pinned sources."},
+        {"section": "Counterpoint", "goal": "Address one reasonable opposing view."},
+        {"section": "Conclusion", "goal": "Synthesize findings and restate thesis."},
+    ]
+    out = {
+        "topic": topic,
+        "thesis": f"This essay explores {topic} using current web research and your notes.",
+        "audience": "general",
+        "word_count_target": 800,
+        "outline": outline,
+        "key_points": [b["claim"] for b in bullets[:5] if b.get("claim")],
+        "research_bullets": bullets,
+        "citations": citations,
+        "writer_notes": (notes or "").strip()[:2000],
+        "disclaimer": "Built from search snippets — verify facts on original pages before submitting.",
+    }
+    return _studio_essay_finalize(out)
+
+
+def _studio_essay_to_python(data: dict) -> str:
+    payload = json.dumps(data, ensure_ascii=False, indent=2)
+    return (
+        "# Pyx Studio — essay research data pack\n"
+        "# Generated for structured writing workflows (import into scripts, notebooks, or apps).\n\n"
+        "ESSAY_DATA = "
+        + payload
+        + "\n\n"
+        "if __name__ == '__main__':\n"
+        "    import json\n"
+        "    print(json.dumps(ESSAY_DATA, indent=2, ensure_ascii=False))\n"
+    )
+
+
+@app.route("/api/studio/search", methods=["POST", "OPTIONS"])
+@app.route("/studio/search", methods=["POST", "OPTIONS"])
+def studio_search_route():
+    """Structured web search for Pyx Studio research browser."""
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(silent=True) or {}
+    query = (data.get("query") or data.get("q") or "").strip()[:500]
+    if not query:
+        return jsonify({"error": "query required"}), 400
+    search_query = _enhance_talk_search_query(query)
+    results, provider, err = _local_web_search_results(search_query)
+    return jsonify(
+        {
+            "query": query,
+            "search_query": search_query,
+            "provider": provider,
+            "error": err,
+            "results": results,
+            "browser_url": "https://html.duckduckgo.com/html/?q="
+            + urllib.parse.quote_plus(search_query),
+        }
+    )
+
+
+@app.route("/api/studio/read", methods=["POST", "OPTIONS"])
+@app.route("/studio/read", methods=["POST", "OPTIONS"])
+def studio_read_route():
+    """Fetch readable text from a public URL (server-side reader for embedded research)."""
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(silent=True) or {}
+    url = (data.get("url") or "").strip()
+    if not url:
+        return jsonify({"error": "url required"}), 400
+    text, err = _studio_fetch_page_text(url)
+    if err and not text:
+        return jsonify({"url": url, "error": err, "text": ""}), 422
+    return jsonify({"url": url, "error": err, "text": text, "chars": len(text)})
+
+
+@app.route("/api/studio/essay", methods=["POST", "OPTIONS"])
+@app.route("/studio/essay", methods=["POST", "OPTIONS"])
+def studio_essay_route():
+    """Build essay research pack (JSON + Python) from topic, web sources, and notes."""
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(silent=True) or {}
+    topic = (data.get("topic") or "").strip()[:500]
+    if not topic:
+        return jsonify({"error": "topic required"}), 400
+    notes = (data.get("notes") or data.get("writer_notes") or "").strip()[:8000]
+    sources = data.get("sources") if isinstance(data.get("sources"), list) else []
+    do_search = _as_bool(data.get("search", True))
+    search_results = []
+    web_meta = {"used": False, "provider": None, "error": None}
+    if do_search and not sources:
+        sq = _enhance_talk_search_query(topic + " overview facts")
+        web_meta["used"] = True
+        web_meta["query"] = sq
+        search_results, provider, werr = _local_web_search_results(sq)
+        web_meta["provider"] = provider
+        web_meta["error"] = werr
+        sources = [
+            {
+                "title": r.get("title"),
+                "url": r.get("url"),
+                "snippet": r.get("snippet"),
+            }
+            for r in search_results
+        ]
+
+    essay_data = None
+    llm_note = None
+    if _groq_openai_prepare is not None:
+        src_lines = []
+        for s in sources[:10]:
+            if not isinstance(s, dict):
+                continue
+            src_lines.append(
+                f"- {s.get('title', '')}\n  URL: {s.get('url', '')}\n  Snippet: {(s.get('snippet') or s.get('excerpt') or '')[:600]}\n  Your note: {(s.get('user_note') or '')[:400]}"
+            )
+        prompt = (
+            "You are Pyx Studio Essay Helper. Build a structured research data pack for the writer.\n"
+            "Return ONLY valid JSON (no markdown) matching this schema:\n"
+            '{"topic":str,"thesis":str,"audience":str,"word_count_target":int,'
+            '"outline":[{"section":str,"goal":str}],'
+            '"key_points":[str],"research_bullets":[{"id":str,"claim":str,"evidence":str,"source_url":str,"confidence":"high"|"medium"|"low"}],'
+            '"citations":[{"title":str,"url":str,"accessed":"YYYY-MM-DD"}],'
+            '"fill_blanks":[{"id":str,"label":str,"placeholder":str,"suggested":str,"hint":str,"section":str}],'
+            '"writer_notes":str,"disclaimer":str}\n'
+            "Ground claims in the sources provided; if unsure, mark confidence low.\n\n"
+            f"TOPIC: {topic}\n\nWRITER NOTES:\n{notes or '(none)'}\n\nSOURCES:\n"
+            + ("\n".join(src_lines) if src_lines else "(no sources — use cautious general framing)")
+        )
+        try:
+            reply, model = _groq_openai_chat(
+                [{"role": "user", "content": prompt}],
+                mode="smart",
+                web_context="",
+                ground_web=False,
+            )
+            if reply:
+                essay_data = _studio_extract_json_object(reply)
+                llm_note = model
+        except Exception as e:
+            llm_note = f"llm_error: {str(e)[:200]}"
+
+    if not isinstance(essay_data, dict):
+        essay_data = _studio_essay_fallback(topic, sources, notes)
+    else:
+        essay_data = _studio_essay_finalize(essay_data)
+
+    fills_in = data.get("fills") if isinstance(data.get("fills"), list) else None
+    if fills_in:
+        essay_data = _studio_merge_fills(essay_data, fills_in)
+
+    py_export = _studio_essay_to_python(essay_data)
+    return jsonify(
+        {
+            "topic": topic,
+            "essay": essay_data,
+            "json": essay_data,
+            "python": py_export,
+            "web_search": web_meta,
+            "sources_count": len(sources),
+            "model": llm_note,
+        }
+    )
+
+
+@app.route("/api/studio/fill", methods=["POST", "OPTIONS"])
+@app.route("/studio/fill", methods=["POST", "OPTIONS"])
+def studio_fill_route():
+    """Suggest text for one essay blank using pinned sources and optional web context."""
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(silent=True) or {}
+    topic = (data.get("topic") or "").strip()[:500]
+    blank = data.get("blank") if isinstance(data.get("blank"), dict) else {}
+    if not blank.get("id") and not blank.get("label"):
+        return jsonify({"error": "blank.id or blank.label required"}), 400
+    sources = data.get("sources") if isinstance(data.get("sources"), list) else []
+    essay = data.get("essay") if isinstance(data.get("essay"), dict) else {}
+    if not topic:
+        topic = (essay.get("topic") or "essay").strip()[:500]
+    suggestion = _studio_fill_blank_suggestion(topic, blank, sources, essay)
+    return jsonify(
+        {
+            "id": blank.get("id"),
+            "suggestion": suggestion,
+            "topic": topic,
+        }
+    )
+
+
+@app.route("/api/studio/export", methods=["POST", "OPTIONS"])
+@app.route("/studio/export", methods=["POST", "OPTIONS"])
+def studio_export_route():
+    """Merge user fill-ins into essay pack and return JSON + Python."""
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(silent=True) or {}
+    essay = data.get("essay") if isinstance(data.get("essay"), dict) else {}
+    if not essay:
+        return jsonify({"error": "essay object required"}), 400
+    fills = data.get("fills") if isinstance(data.get("fills"), list) else []
+    merged = _studio_merge_fills(essay, fills)
+    return jsonify(
+        {
+            "essay": merged,
+            "json": merged,
+            "python": _studio_essay_to_python(merged),
         }
     )
 

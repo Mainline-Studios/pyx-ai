@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pyx Studio Workspace — Productivity</title>
+  <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/brand/pyx-brand.css" />
+  <link rel="stylesheet" href="/brand/pyx-cosmos.css" />
+  <style>
+    .ws-layout { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 14px; align-items: start; }
+    @media (max-width: 960px) { .ws-layout { grid-template-columns: 1fr; } }
+    .ws-panel {
+      background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px; box-shadow: var(--shadow);
+    }
+    .ws-panel h2 { margin: 0 0 10px; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    .ws-muted { color: var(--muted); font-size: 0.88rem; margin: 0 0 8px; }
+    .ws-field { margin-bottom: 12px; }
+    .ws-field label { display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; }
+    .ws-field input, .ws-field textarea, .ws-field select {
+      width: 100%; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2);
+      color: var(--text); font: inherit; padding: 10px 12px;
+    }
+    .ws-field textarea { min-height: 100px; resize: vertical; line-height: 1.5; }
+    .ws-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .ws-tab {
+      padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border);
+      background: var(--panel-2); color: var(--muted); font-size: 0.78rem; font-weight: 700; cursor: pointer;
+    }
+    .ws-tab.is-active { color: #e0e7ff; background: rgba(99, 102, 241, 0.28); border-color: rgba(129, 140, 248, 0.45); }
+    .ws-browser-bar { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .ws-browser-bar input { flex: 1; min-width: 160px; }
+    .ws-browser-frame { width: 100%; min-height: 440px; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
+    .ws-reader { max-height: 440px; overflow: auto; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); font-size: 0.9rem; line-height: 1.55; white-space: pre-wrap; }
+    .ws-result, .ws-pin, .ws-blank {
+      padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); margin-bottom: 8px;
+    }
+    .ws-blank.is-filled { border-color: rgba(52, 211, 153, 0.45); }
+    .ws-blank__tag { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: #a5b4fc; }
+    .ws-blank textarea { width: 100%; min-height: 72px; margin-top: 8px; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: rgba(2, 6, 23, 0.35); color: var(--text); font: inherit; font-size: 0.9rem; }
+    .ws-result a, .ws-pin strong { color: #c7d2fe; text-decoration: none; }
+    .ws-result-actions, .ws-pin-actions, .ws-blank-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .ws-pin-note { width: 100%; margin-top: 8px; font-size: 0.85rem; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: rgba(2, 6, 23, 0.35); color: var(--text); }
+    .ws-status { font-size: 0.85rem; color: var(--muted); min-height: 1.2em; margin: 8px 0; }
+    .ws-status--ok { color: #6ee7b7; }
+    .ws-status--err { color: #fca5a5; }
+    .ws-status--info { color: #93c5fd; }
+    .ws-export textarea { font-family: ui-monospace, Menlo, monospace; font-size: 0.78rem; min-height: 200px; }
+    .ws-tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 14px; }
+    .ws-hero-badge {
+      display: inline-block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #a5b4fc; border: 1px solid rgba(129, 140, 248, 0.4);
+      padding: 5px 10px; border-radius: 999px; margin-bottom: 10px;
+    }
+    .ws-steps { margin: 0 0 14px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+    .ws-steps li {
+      font-size: 0.78rem; font-weight: 700; padding: 6px 10px; border-radius: 999px;
+      border: 1px solid var(--border); color: var(--muted); background: var(--panel-2);
+    }
+    .ws-steps li.is-done { color: #6ee7b7; border-color: rgba(52, 211, 153, 0.4); }
+    h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 3vw, 2.2rem); background: var(--pyx-gradient-hero); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .ws-progress { height: 6px; border-radius: 999px; background: var(--panel-2); margin: 8px 0 12px; overflow: hidden; }
+    .ws-progress__bar { height: 100%; background: linear-gradient(90deg, #6366f1, #22d3ee); width: 0%; transition: width 0.25s ease; }
+  </style>
+</head>
+<body class="pyx-cosmos">
+  <div data-pyx-shell data-pyx-active="workspace"></div>
+  <main class="wrap pyx-wrap">
+    <span class="ws-hero-badge">Productivity for everybody</span>
+    <h1>Pyx Studio Workspace</h1>
+    <p class="ws-muted pyx-lede" style="max-width: 72ch;">
+      Give a topic — Pyx researches in an embedded web browser, builds a <strong>JSON + Python</strong> outline pack,
+      and you fill in the blanks together. Pin sources, read pages in Pyx, then export or continue in Talk.
+    </p>
+
+    <ol class="ws-steps" id="wsSteps" aria-label="Workflow">
+      <li data-step="topic">1. Topic</li>
+      <li data-step="search">2. Research</li>
+      <li data-step="pack">3. Data pack</li>
+      <li data-step="blanks">4. Fill blanks</li>
+      <li data-step="export">5. Export</li>
+    </ol>
+
+    <div class="ws-layout">
+      <aside class="ws-panel">
+        <h2>Essay &amp; project helper</h2>
+        <div class="ws-field">
+          <label for="wsTopic">Topic or question</label>
+          <input id="wsTopic" type="text" placeholder="e.g. How do coral reefs recover after bleaching?" />
+        </div>
+        <div class="ws-field">
+          <label for="wsNotes">Your notes (optional)</label>
+          <textarea id="wsNotes" placeholder="Thesis ideas, class requirements, angle you want…"></textarea>
+        </div>
+        <div class="ws-field">
+          <label for="wsSearchInput">Research search</label>
+          <input id="wsSearchInput" type="search" placeholder="Search the web with Pyx…" />
+        </div>
+        <button type="button" class="btn" id="wsSearchBtn">Search &amp; open browser</button>
+        <p class="ws-status" id="wsStatus" aria-live="polite"></p>
+        <button type="button" class="btn" id="wsBuildEssay" style="width:100%;margin-top:8px;">
+          Build JSON + Python data pack
+        </button>
+
+        <h2 style="margin-top:16px;">Pinned sources <span class="ws-muted" style="font-weight:400;text-transform:none;">(<span id="wsPinCount">0</span>)</span></h2>
+        <div id="wsPinned"></div>
+      </aside>
+
+      <section class="ws-panel">
+        <div class="ws-tabs" role="tablist">
+          <button type="button" class="ws-tab is-active" data-ws-tab="results">Results</button>
+          <button type="button" class="ws-tab" data-ws-tab="browser">Web browser</button>
+          <button type="button" class="ws-tab" data-ws-tab="reader">Page reader</button>
+          <button type="button" class="ws-tab" data-ws-tab="blanks">Fill blanks</button>
+          <button type="button" class="ws-tab" data-ws-tab="export">Export</button>
+        </div>
+
+        <div data-ws-panel="results" id="wsSearchResults"></div>
+
+        <div data-ws-panel="browser" hidden>
+          <p class="ws-muted">Embedded research browser. Many sites block iframes — use <strong>Read in Pyx</strong> on results for full article text.</p>
+          <div class="ws-browser-bar">
+            <input type="url" id="wsBrowserUrl" placeholder="https://… or search from the left" />
+            <button type="button" class="btn secondary" id="wsBrowserGo">Go</button>
+            <button type="button" class="btn secondary" id="wsBrowserSearch">Search topic</button>
+          </div>
+          <iframe id="wsBrowserFrame" class="ws-browser-frame" title="Pyx research browser" sandbox="allow-forms allow-scripts allow-same-origin allow-popups"></iframe>
+        </div>
+
+        <div data-ws-panel="reader" hidden>
+          <h2 id="wsReaderTitle" style="font-size:1rem;text-transform:none;color:var(--text);">Page reader</h2>
+          <div class="ws-result-actions" style="margin-bottom:8px;">
+            <button type="button" class="btn secondary" id="wsQuoteToNotes">Add selection to notes</button>
+            <button type="button" class="btn secondary" id="wsQuoteAll">Add first paragraph to notes</button>
+          </div>
+          <pre class="ws-reader" id="wsReaderText">Pick a result and click “Read in Pyx” to load article text here (server-side reader).</pre>
+        </div>
+
+        <div data-ws-panel="blanks" hidden>
+          <p class="ws-muted">You and Pyx fill these together — Pyx suggests from your pinned sources; you edit anything before export.</p>
+          <div class="ws-progress" aria-hidden="true"><div class="ws-progress__bar" id="wsBlankProgress"></div></div>
+          <div class="ws-result-actions" style="margin-bottom:10px;">
+            <button type="button" class="btn" id="wsFillAll">Ask Pyx to suggest all blanks</button>
+            <button type="button" class="btn secondary" id="wsRefreshExport">Update export from fills</button>
+          </div>
+          <div id="wsBlanksList"></div>
+        </div>
+
+        <div data-ws-panel="export" hidden>
+          <p class="ws-muted">Structured research pack — import Python into notebooks or paste JSON anywhere.</p>
+          <div class="ws-field ws-export">
+            <label for="wsJsonOut">JSON</label>
+            <textarea id="wsJsonOut" readonly placeholder="Build a data pack to see JSON…"></textarea>
+            <button type="button" class="btn secondary" id="wsCopyJson">Copy JSON</button>
+          </div>
+          <div class="ws-field ws-export">
+            <label for="wsPyOut">Python</label>
+            <textarea id="wsPyOut" readonly placeholder="Build a data pack to see Python…"></textarea>
+            <button type="button" class="btn secondary" id="wsCopyPy">Copy Python</button>
+          </div>
+          <button type="button" class="btn" id="wsSendTalk">Continue writing in Pyx Talk</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="ws-tools-grid" aria-label="More productivity tools">
+      <article class="ws-panel">
+        <h2>Flashcards</h2>
+        <p class="ws-muted">One card per line: <code>front | back</code></p>
+        <textarea id="qtFlashIn" rows="4" placeholder="Mitochondria | powerhouse of the cell"></textarea>
+        <button type="button" class="btn secondary" id="qtFlashcards">Export deck JSON</button>
+        <textarea id="qtFlashOut" rows="5" readonly style="margin-top:8px;font-family:monospace;font-size:0.78rem;"></textarea>
+      </article>
+      <article class="ws-panel">
+        <h2>Study plan</h2>
+        <p class="ws-muted">Turn your essay topic into a week of study blocks (JSON).</p>
+        <button type="button" class="btn secondary" id="qtStudyPlan">Generate from topic</button>
+        <textarea id="qtStudyOut" rows="6" readonly style="margin-top:8px;font-family:monospace;font-size:0.78rem;"></textarea>
+      </article>
+      <article class="ws-panel">
+        <h2>Task board</h2>
+        <p class="ws-muted">Quick to-dos for this project (saved in your browser).</p>
+        <input id="qtTaskIn" type="text" placeholder="Add a task…" style="width:100%;margin-bottom:8px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);" />
+        <button type="button" class="btn secondary" id="qtTaskAdd">Add</button>
+        <ul id="qtTaskList" style="margin:10px 0 0;padding-left:18px;color:var(--muted);font-size:0.9rem;"></ul>
+      </article>
+      <article class="ws-panel">
+        <h2>Focus timer</h2>
+        <p class="ws-muted">Pomodoro-style focus block.</p>
+        <label class="ws-muted" for="qtTimerMins">Minutes</label>
+        <input id="qtTimerMins" type="number" min="1" max="120" value="25" style="max-width:100px;margin-bottom:8px;" />
+        <button type="button" class="btn secondary" id="qtTimerStart">Start</button>
+        <p id="qtTimerDisplay" style="font-size:1.8rem;font-weight:800;margin:12px 0 0;">25:00</p>
+      </article>
+      <article class="ws-panel">
+        <h2>More Pyx apps</h2>
+        <p class="ws-muted">Talk, Code, Pyxel, Speak — connected via Studio handoffs.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <a class="btn secondary" href="/">Studio</a>
+          <a class="btn secondary" href="/pyx-talk.html">Talk</a>
+          <a class="btn secondary" href="/pyx-code.html">Code</a>
+          <a class="btn secondary" href="/pyxel-image.html">Pyxel</a>
+          <a class="btn secondary" href="/pyx-speak.html">Speak</a>
+          <a class="btn secondary" href="/pyx-gallery.html">Gallery</a>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="/js/pyx-handoff.js"></script>
+  <script src="/js/pyx-shell.js"></script>
+  <script src="/js/pyx-studio-workspace.js"></script>
+  <script>
+    PyxShell.init({ active: "workspace" });
+    PyxStudioWorkspace.initWorkspace();
+    PyxStudioWorkspace.initQuickTools();
+  </script>
+</body>
+</html>

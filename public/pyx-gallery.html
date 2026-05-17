@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pyx Gallery</title>
+  <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/brand/pyx-brand.css" />
+  <link rel="stylesheet" href="/brand/pyx-cosmos.css" />
+  <style>
+    h1 { margin: 0 0 8px; font-size: 1.8rem; }
+    .lede { color: var(--muted); margin-bottom: 16px; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    #galleryGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .gallery-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      overflow: hidden;
+    }
+    .gallery-thumb {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: contain;
+      background: #0f172a;
+      image-rendering: pixelated;
+    }
+    .gallery-thumb--text {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 800;
+      color: #a5b4fc;
+    }
+    .gallery-card__body { padding: 10px; }
+    .gallery-card__body h3 { margin: 0 0 4px; font-size: 0.9rem; }
+    .gallery-card__body p { margin: 0 0 8px; font-size: 0.78rem; color: var(--muted); }
+    .gallery-card__actions { display: flex; gap: 6px; }
+    .gallery-card__actions button {
+      font: inherit;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 5px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      cursor: pointer;
+    }
+    #galleryEmpty { color: var(--muted); }
+    input[type="file"] { display: none; }
+  </style>
+</head>
+<body class="pyx-cosmos">
+  <div data-pyx-shell></div>
+  <main class="wrap pyx-wrap">
+    <h1>Pyx Gallery</h1>
+    <p class="lede">Your saved Talk moments, Pyxel art, and Speak scripts in one place. Export everything as a portable <strong>Pyx pack</strong>.</p>
+    <div class="toolbar">
+      <button type="button" class="btn" id="galleryExport">Export Pyx pack</button>
+      <button type="button" class="btn secondary" id="galleryImport">Import Pyx pack</button>
+      <input type="file" id="galleryImportFile" accept="application/json,.json" />
+      <a class="btn secondary" href="/">← Studio</a>
+    </div>
+    <p id="galleryEmpty" hidden>Nothing saved yet — tap <strong>Gallery</strong> or <strong>Save to Gallery</strong> in Talk, Pyxel, or Speak.</p>
+    <div id="galleryGrid"></div>
+  </main>
+  <script src="/js/pyx-handoff.js"></script>
+  <script src="/js/pyx-shell.js"></script>
+  <script src="/js/pyx-gallery-page.js"></script>
+  <script>PyxGalleryPage.init();</script>
+</body>
+</html>

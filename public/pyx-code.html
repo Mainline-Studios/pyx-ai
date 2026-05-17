@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pyx AI Code</title>
+  <title>Pyx Code</title>
   <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -220,6 +220,7 @@
   </style>
 </head>
 <body class="pyx-cosmos">
+  <div data-pyx-shell></div>
   <div class="page">
     <div class="top">
       <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px;">
@@ -234,28 +235,26 @@
            style="display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:600; color:#fff;
                   background:linear-gradient(135deg,#6366f1,#0ea5e9); padding:6px 12px; border-radius:999px;
                   text-decoration:none; box-shadow:0 4px 14px rgba(99,102,241,0.35);"
-           title="Open the Pyx 1.3 app">Pyx 1.3</a>
-        <span class="badge">Pyx 1.0</span>
+           title="Pyx 1.3 preview and downloads">Pyx 1.3</a>
+        <span class="badge">Pyx 1.0 (cloud)</span>
         
-        <span class="badge badge--soft">Coding studio</span>
+        <span class="badge badge--soft">Pyx Studio</span>
       </div>
     </div>
     <div id="pyx15Banner" role="note"
       style="display:none; margin: 0 0 18px; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.45;
              background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(14, 165, 233, 0.10));
              border: 1px solid rgba(129, 140, 248, 0.4); color: #1f2244;">
-      <strong style="color:#4c3bd8">Pyx 1.0 cloud</strong> (Groq) is active on this site.
-      Up to <strong>90% faster</strong> and <strong>~90% more environmentally friendly</strong>* than the cloud build.
+      <strong style="color:#4c3bd8">Pyx 1.0 (cloud)</strong> powers the assistant on this page.
       <a href="/pyx-download.html"
-         style="color:#4338ca; font-weight: 600; text-decoration: none; margin-left: 4px;">Open Launcher →</a>
-      <span style="font-size:11px; color:#4c3bd8; margin-left: 4px;">* vs. typical cloud chat round-trip</span>
+         style="color:#4338ca; font-weight: 600; text-decoration: none; margin-left: 4px;">Downloads →</a>
     </div>
 
     <div class="title-block">
-      <h1>Pyx AI Code</h1>
+      <h1>Pyx Code</h1>
       <p class="sub">
-        Studio mode: editor + assistant. <strong>Agent</strong> mode asks the model for minimal JSON patches instead of pasting the whole file.
-        <strong>Run</strong> executes JavaScript or Python in your browser. Powered by GPT-OSS on Groq (Pyx 1.0 cloud).
+        Write code with an AI assistant in Pyx Studio. Turn on <strong>Agent</strong> for small JSON patches instead of full-file dumps.
+        <strong>Run</strong> executes JavaScript or Python in your browser — powered by <strong>Pyx 1.0 (cloud)</strong>.
       </p>
     </div>
 
@@ -284,7 +283,16 @@
           </div>
         </div>
         <div class="editor-wrap">
-          <textarea id="editor" spellcheck="false" placeholder="// Write or paste code. Toggle “Include editor” when you want the model to see this buffer." aria-label="Code editor"></textarea>
+          <textarea id="editor" spellcheck="false" placeholder="// Write or paste code here. Turn on “Include editor” when the assistant should see this file." aria-label="Code editor"></textarea>
+        </div>
+        <div class="run-panel" aria-label="Pyx Check">
+          <h3>Pyx Check</h3>
+          <div class="toolbar" style="margin:0;">
+            <button type="button" id="btnCheck">Run check</button>
+            <button type="button" id="btnSendTalk">Send to Talk</button>
+            <button type="button" id="btnSaveGallery">Save to Gallery</button>
+          </div>
+          <div id="checkTips" class="hint" style="margin:0;max-height:140px;overflow:auto;"></div>
         </div>
         <div class="run-panel" aria-label="Run output">
           <h3>Run <span style="font-weight:500;text-transform:none;color:var(--muted);">(browser)</span></h3>
@@ -293,7 +301,7 @@
             <button type="button" id="btnClearRun">Clear output</button>
           </div>
           <textarea id="runOut" readonly placeholder="stdout / logs appear here…" aria-label="Program output"></textarea>
-          <p class="hint" style="margin:0;">JavaScript runs in a sandboxed iframe. Python uses Pyodide (downloaded on first run). Other languages: run locally.</p>
+          <p class="hint" style="margin:0;">JavaScript runs in a sandboxed iframe. Python uses Pyodide (downloads on first run). Other languages: run on your machine.</p>
         </div>
       </section>
 
@@ -303,7 +311,7 @@
           <div class="agent-row">
             <label>
               <input type="checkbox" id="agentMode" />
-              <strong>Agent</strong> — search/replace JSON edits (no full-file dumps)
+              <strong>Agent</strong> — small JSON patches (not whole files)
             </label>
             <label>
               <input type="checkbox" id="includeEditor" checked />
@@ -313,7 +321,7 @@
         </div>
         <div id="chat" aria-live="polite"></div>
         <div class="composer">
-          <textarea id="ask" rows="3" placeholder="Ask anything: explain this, add error handling, write tests…" aria-label="Message to Pyx AI Code"></textarea>
+          <textarea id="ask" rows="3" placeholder="Ask Pyx Code: explain this, fix a bug, add tests…" aria-label="Message to Pyx Code"></textarea>
           <div class="composer-row">
             <span class="hint"><span class="kbd">⌘</span> + <span class="kbd">Enter</span> to send</span>
             <button type="button" class="primary" id="send">Send</button>
@@ -326,6 +334,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js" crossorigin="anonymous"></script>
+  <script src="/js/pyx-handoff.js"></script>
+  <script src="/js/pyx-shell.js"></script>
   <script>
     (function () {
       var PYX_CLOUD_RUN = "https://pyxaiapi-574247481583.us-central1.run.app";
@@ -935,6 +945,85 @@
         statusEl.textContent = "Editor cleared.";
         persist();
       });
+
+      function runPyxCheck() {
+        var src = editorEl.value || "";
+        var lang = langEl.value === "python" ? "python" : "javascript";
+        var tipsEl = document.getElementById("checkTips");
+        if (!src.trim()) {
+          if (tipsEl) tipsEl.textContent = "Nothing to check.";
+          return;
+        }
+        if (tipsEl) tipsEl.textContent = "Checking…";
+        fetch("/api/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source: src, language: lang }),
+        })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (j) {
+            var tips = j.tips || [];
+            if (!tips.length) {
+              if (tipsEl) tipsEl.textContent = "No tips — looks clean.";
+              return;
+            }
+            if (tipsEl) {
+              tipsEl.innerHTML = tips
+                .map(function (t) {
+                  return "L" + t.line + " [" + t.severity + "]: " + t.message;
+                })
+                .join("<br>");
+            }
+          })
+          .catch(function () {
+            if (tipsEl) tipsEl.textContent = "Check failed — is the API up?";
+          });
+      }
+
+      document.getElementById("btnCheck").addEventListener("click", runPyxCheck);
+      document.getElementById("btnSendTalk").addEventListener("click", function () {
+        if (!window.PyxHandoff) return;
+        PyxHandoff.sendTo(
+          "talk",
+          "Explain this code:\n\n```" + langEl.value + "\n" + (editorEl.value || "").slice(0, 4000) + "\n```",
+          "code"
+        );
+      });
+      document.getElementById("btnSaveGallery").addEventListener("click", function () {
+        if (!window.PyxHandoff) return;
+        PyxHandoff.saveGalleryItem({
+          kind: "code",
+          title: "Code snippet",
+          preview: (editorEl.value || "").slice(0, 500),
+        });
+        statusEl.textContent = "Saved to Gallery.";
+      });
+
+      editorEl.addEventListener("input", function () {
+        try {
+          localStorage.setItem("pyx.code.editor.at", String(Date.now()));
+        } catch (e) {}
+      });
+
+      if (window.PyxShell) PyxShell.init({ active: "code" });
+      if (window.PyxHandoff) {
+        PyxHandoff.applyIncoming({
+          app: "code",
+          onText: function (text, payload) {
+            editorEl.value = text;
+            if (payload.meta && payload.meta.lang) {
+              langEl.value = payload.meta.lang;
+            } else {
+              var g = PyxHandoff.guessLangFromCode(text);
+              if (g) langEl.value = g;
+            }
+            statusEl.textContent = "Imported from " + (payload.source || "Studio") + ".";
+          },
+        });
+        PyxHandoff.touchRecent("code", "Code editor");
+      }
 
       load();
     })();

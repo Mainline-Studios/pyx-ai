@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pyx AI Image Generation</title>
+  <title>Pyxel</title>
   <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
   <link rel="stylesheet" href="/brand/pyx-brand.css" />
@@ -194,6 +194,7 @@
   </style>
 </head>
 <body>
+  <div data-pyx-shell></div>
   <div class="page">
     <div class="nav">
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
@@ -204,13 +205,13 @@
         <a href="/" style="font-size:12px;">← Home</a>
       </div>
       <div class="nav-links" style="align-items:center;">
-        <a href="/pyx-talk.html">Pyx AI Talk</a>
-        <a href="/pyx-code.html">Pyx AI Code</a>
+        <a href="/pyx-talk.html">Pyx Talk</a>
+        <a href="/pyx-code.html">Pyx Code</a>
         <a id="getPyx15" href="/pyx-download.html"
            style="display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:600; color:#fff;
                   background:linear-gradient(135deg,#6366f1,#0ea5e9); padding:6px 12px; border-radius:999px;
                   text-decoration:none; box-shadow:0 4px 14px rgba(99,102,241,0.35);"
-           title="Open the Pyx 1.3 app">Pyx 1.3</a>
+           title="Pyx 1.3 preview and downloads">Pyx 1.3</a>
       </div>
     </div>
 
@@ -218,14 +219,12 @@
       style="display:none; margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.45;
              background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(14, 165, 233, 0.10));
              border: 1px solid rgba(129, 140, 248, 0.4); color: #1f2244;">
-      <strong style="color:#4c3bd8">Pyx 1.0 cloud</strong> (Groq) is active on this site.
-      Up to <strong>90% faster</strong> and <strong>~90% more environmentally friendly</strong>* than the cloud build.
+      <strong style="color:#4c3bd8">Pyx 1.0 (cloud)</strong> powers generation on this page.
       <a href="/pyx-download.html"
-         style="color:#4338ca; font-weight: 600; text-decoration: none; margin-left: 4px;">Open Launcher →</a>
-      <span style="font-size:11px; color:#4c3bd8; margin-left: 4px;">* vs. typical cloud chat round-trip</span>
+         style="color:#4338ca; font-weight: 600; text-decoration: none; margin-left: 4px;">Downloads →</a>
     </div>
 
-    <h1>Pyx AI Image Generation</h1>
+    <h1>Pyxel</h1>
 
     <div class="model-bar">
       <span>Model</span>
@@ -237,12 +236,12 @@
     <div class="canvas-wrap">
       <div class="canvas-inner">
         <canvas id="pixelCanvas" width="10" height="10" aria-label="10 by 10 pixel art output (100 pixels)"></canvas>
-        <div class="canvas-placeholder" id="placeholder">10×10 pixel grid (100 pixels) — your art appears here after you generate.</div>
+        <div class="canvas-placeholder" id="placeholder">Your 10×10 grid shows up here after you generate.</div>
       </div>
     </div>
 
     <div class="prompt-row">
-      <input type="text" id="prompt" placeholder="Type your prompt here…" autocomplete="off" aria-label="Prompt" />
+      <input type="text" id="prompt" placeholder="Describe your scene — neon cafe, cosmic frog DJ…" autocomplete="off" aria-label="Prompt" />
     </div>
 
     <div class="generate-wrap">
@@ -251,6 +250,11 @@
 
     <p id="status"></p>
 
+    <div class="secondary is-visible" id="handoffActions" style="display:flex;margin-bottom:8px;">
+      <button type="button" id="btnTalk">Send to Talk</button>
+      <button type="button" id="btnSpeak">Send to Speak</button>
+      <button type="button" id="btnGallery">Save to Gallery</button>
+    </div>
     <div class="secondary" id="secondaryActions">
       <button type="button" id="btnJson">Show px1=#hex data</button>
       <button type="button" id="btnCopy">Copy</button>
@@ -259,6 +263,8 @@
     <pre class="json-panel" id="jsonPanel" aria-hidden="true"></pre>
   </div>
 
+  <script src="/js/pyx-handoff.js"></script>
+  <script src="/js/pyx-shell.js"></script>
   <script>
     (function () {
       var PYX_CLOUD_RUN = "https://pyxaiapi-574247481583.us-central1.run.app";
@@ -477,6 +483,10 @@
             lastH = x.j.height || 10;
             drawPixels(lastPixels, lastW, lastH);
             statusEl.textContent = x.j.model ? "Done · " + x.j.model : "Done.";
+            try {
+              localStorage.setItem("pyx.pyxel.lastPrompt", p);
+              localStorage.setItem("pyx.pyxel.lastAt", String(Date.now()));
+            } catch (e) {}
           })
           .catch(function (e) {
             statusEl.textContent = "Network: " + (e.message || String(e));
@@ -524,6 +534,57 @@
           URL.revokeObjectURL(a.href);
         });
       });
+
+      function canvasToDataUrl(cb) {
+        canvas.toBlob(function (blob) {
+          if (!blob) return cb(null);
+          var r = new FileReader();
+          r.onload = function () {
+            cb(r.result);
+          };
+          r.readAsDataURL(blob);
+        });
+      }
+
+      document.getElementById("btnTalk").addEventListener("click", function () {
+        if (!window.PyxHandoff) return;
+        var p = (promptEl.value || "").trim() || "my pixel art";
+        PyxHandoff.sendTo("talk", "I made 10x10 pixel art: " + p + ". What story fits this scene?", "pyxel");
+      });
+      document.getElementById("btnSpeak").addEventListener("click", function () {
+        if (!window.PyxHandoff) return;
+        var p = (promptEl.value || "").trim() || "pixel art";
+        PyxHandoff.sendTo("speak", "Behold! A tiny Pyxel masterpiece: " + p + ".", "pyxel");
+      });
+      document.getElementById("btnGallery").addEventListener("click", function () {
+        if (!window.PyxHandoff || !lastPixels) {
+          statusEl.textContent = "Generate art first.";
+          return;
+        }
+        canvasToDataUrl(function (url) {
+          PyxHandoff.saveGalleryItem({
+            kind: "pyxel",
+            title: (promptEl.value || "Pyxel").slice(0, 40),
+            preview: promptEl.value || "",
+            prompt: promptEl.value || "",
+            pixels: lastPixels,
+            pngDataUrl: url,
+          });
+          statusEl.textContent = "Saved to Gallery.";
+        });
+      });
+
+      if (window.PyxShell) PyxShell.init({ active: "pyxel" });
+      if (window.PyxHandoff) {
+        PyxHandoff.applyIncoming({
+          app: "pyxel",
+          onText: function (text) {
+            promptEl.value = text;
+            statusEl.textContent = "Imported prompt from Studio.";
+          },
+        });
+        PyxHandoff.touchRecent("pyxel", "Pyxel");
+      }
     })();
   </script>
 </body>

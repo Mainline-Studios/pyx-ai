@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pyx AI Talk</title>
+  <title>Pyx Talk</title>
   <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -907,6 +907,15 @@
       min-width: 200px;
       max-width: 340px;
     }
+    .talk-line-row label.talk-line-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
     .talk-line-row select {
       width: 100%;
       padding: 10px 12px;
@@ -918,6 +927,21 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       cursor: pointer;
+    }
+    .talk-line-switch-btn {
+      margin-left: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(129, 140, 248, 0.5);
+      background: rgba(99, 102, 241, 0.35);
+      color: #e0e7ff;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .talk-line-switch-btn:hover {
+      filter: brightness(1.08);
     }
 
     .talk-chat-panel.panel {
@@ -2316,6 +2340,7 @@
     </aside>
 
     <div class="talk-center">
+      <div data-pyx-shell></div>
       <div class="talk-route-panel" id="talkRoutePanel" hidden>
         <div class="talk-route-inner">
           <div class="talk-route-top">
@@ -2402,11 +2427,11 @@
           <img class="pyx-brand__wordmark pyx-brand__wordmark--pill" src="/brand/pyx-wordmark.png" alt="PYX." />
         </a>
         <div class="talk-topbar-links">
-          <a class="talk-pill-link" href="/pyx-code.html">Pyx AI Code</a>
+          <a class="talk-pill-link" href="/pyx-code.html">Pyx Code</a>
           <a class="talk-pill-link" href="/pyxel-image.html">Pyxel</a>
           <a class="talk-pill-link talk-pill-link--accent" id="getPyx15"
              href="/pyx-download.html"
-             title="Open the Pyx 1.3 app">Pyx 1.3</a>
+             title="Pyx 1.3 preview and downloads">Pyx 1.3</a>
         </div>
         <span class="talk-badge-orbit" id="headerLineBadge">Pyx 1.0</span>
       </header>
@@ -2432,21 +2457,20 @@
         </div>
 
         <div class="pyx15-banner" id="pyxLineBannerCloud" role="note">
-          <strong>Pyx 1.0 cloud</strong> is active on this line.
-          Fast hosted responses, plus in-chat app support on the same screen.
-          <a href="/pyx-download.html">Explore Pyx 1.3 →</a>
-          <span class="pills">Switch lines anytime</span>
+          <strong>Pyx 1.0 (cloud)</strong> is active — full chat, vision, and in-chat apps.
+          <a href="/pyx-download.html">Try Pyx 1.3 (preview) →</a>
+          <span class="pills">Switch lines anytime in Product line</span>
         </div>
         <div class="pyx15-banner" id="pyxLineBannerPreview" role="note" hidden>
-          <strong>Pyx 1.3 website preview</strong> is active.
-          Same Talk UI as desktop, running a lightweight preview engine (no GGUF).
-          For local kit files, <a href="/pyx-download.html">open downloads</a>.
+          <strong>Pyx 1.3 (preview)</strong> is active — a lightweight demo, not full cloud chat.
+          <button type="button" class="talk-line-switch-btn" id="switchToCloudBtn">Switch to Pyx 1.0 (cloud)</button>
+          Need the full experience? Use cloud, or <a href="/pyx-download.html">grab downloads</a>.
         </div>
 
         <div class="talk-hero">
           <h1 class="talk-greeting" id="talkGreeting">Good morning.</h1>
           <p class="talk-subgreeting" id="talkSubgreeting">
-            Pyx scanned your vibe and the cosmos agrees — let’s make today unfairly productive (with snacks).
+            Your cosmic co-pilot is online — ask anything, try a recipe, or hand off to another Studio app.
           </p>
         </div>
 
@@ -2459,33 +2483,43 @@
           <button type="button" class="talk-action-card" data-pyx-prompt="Give me a hype morning briefing in Pyx style: 3 bullets (energy, focus, one playful prediction). Keep it short.">
             <span class="talk-action-icon talk-action-icon--brief" aria-hidden="true">📋</span>
             <span class="talk-action-title">Briefing</span>
-            <span class="talk-action-desc">Morning update</span>
+            <span class="talk-action-desc">Start the day</span>
           </button>
           <button type="button" class="talk-action-card" data-pyx-prompt="Summarize my imaginary active projects as if you’re Pyx mission control — funny status lights included.">
             <span class="talk-action-icon talk-action-icon--projects" aria-hidden="true">🧊</span>
             <span class="talk-action-title">Projects</span>
-            <span class="talk-action-desc">Mission stack</span>
+            <span class="talk-action-desc">What’s in flight</span>
           </button>
           <button type="button" class="talk-action-card" data-pyx-prompt="Teach me something surprising about quantum computing in very plain language — end with a tiny quiz.">
             <span class="talk-action-icon talk-action-icon--learn" aria-hidden="true">🌀</span>
             <span class="talk-action-title">Learn</span>
-            <span class="talk-action-desc">Quantum vibes</span>
+            <span class="talk-action-desc">Learn something new</span>
           </button>
           <button type="button" class="talk-action-card" data-pyx-prompt="Brainstorm 5 ultra-creative prompts I could give Pyxel for tiny pixel art scenes (cosmic cafe, neon frog DJ, etc.).">
             <span class="talk-action-icon talk-action-icon--create" aria-hidden="true">✨</span>
             <span class="talk-action-title">Create</span>
-            <span class="talk-action-desc">Dream &amp; remix</span>
+            <span class="talk-action-desc">Ideas for Pyxel</span>
           </button>
           <button type="button" class="talk-action-card" data-pyx-prompt="Turn today into a playful mission schedule: 4 time blocks with heroic names and 10-minute dopamine breaks.">
             <span class="talk-action-icon talk-action-icon--plan" aria-hidden="true">✓</span>
             <span class="talk-action-title">Plan</span>
-            <span class="talk-action-desc">Time-block missions</span>
+            <span class="talk-action-desc">Block your day</span>
+          </button>
+          <button type="button" class="talk-action-card" data-pyx-prompt="Write a short narrator script (2-3 sentences) I can read aloud in Pyx Speak about something fun and cosmic.">
+            <span class="talk-action-icon" aria-hidden="true">🔊</span>
+            <span class="talk-action-title">Narrate</span>
+            <span class="talk-action-desc">Open in Pyx Speak</span>
+          </button>
+          <button type="button" class="talk-action-card" id="talkRecipePyxelSpeak" title="Chain: brainstorm → Pyxel → Speak">
+            <span class="talk-action-icon" aria-hidden="true">✦</span>
+            <span class="talk-action-title">Studio recipe</span>
+            <span class="talk-action-desc">Talk → Pyxel → Speak</span>
           </button>
         </div>
 
         <div class="talk-controls-row">
           <div class="talk-line-row">
-            <label class="visually-hidden" for="talkLine">Pyx line</label>
+            <label class="talk-line-label" for="talkLine">Product line</label>
             <select id="talkLine" name="talkLine" aria-label="Pyx product line">
               <option value="cloud">Pyx 1.0 (cloud)</option>
               <option value="preview">Pyx 1.3 (website preview)</option>
@@ -2496,11 +2530,15 @@
         <div class="web-row" id="webRow">
           <label class="web-opt">
             <input type="checkbox" id="useWeb" />
-            <span><strong>Search the web</strong> — Pyx fetches result snippets locally, then answers from them.</span>
+            <span><strong>Search the web</strong> — Pyx pulls snippets, then answers from what it found.</span>
           </label>
           <label class="web-opt">
             <input type="checkbox" id="useWebAuto" />
-            <span><strong>Auto</strong> — search when the question looks time-sensitive (news, dates, “latest”, etc.).</span>
+            <span><strong>Auto</strong> — search when your question sounds time-sensitive (news, dates, “latest”, and similar).</span>
+          </label>
+          <label class="web-opt">
+            <input type="checkbox" id="pyxSafetyCheck" />
+            <span><strong>Safety check</strong> — screen your message with Pyx Moderator before sending.</span>
           </label>
         </div>
 
@@ -2514,7 +2552,7 @@
               <div class="composer-stack">
                 <div id="talkAttachmentRow" class="talk-attach-row" hidden></div>
                 <div class="composer-inner">
-                  <textarea id="input" placeholder="Ask Pyx anything… (@ for apps) — attach images via 📎" rows="2" aria-label="Message"></textarea>
+                  <textarea id="input" placeholder="Message Pyx… type @ for apps, or attach images with 📎" rows="2" aria-label="Message"></textarea>
                   <button type="button" class="composer-mic" id="micBtn" aria-pressed="false"
                     aria-label="Voice input"
                     title="Voice to text (browser Web Speech API — Chrome / Edge)">
@@ -2538,10 +2576,10 @@
             <button type="button" class="talk-dock-icon" id="dockCameraBtn" title="Camera (coming soon)">
               <svg viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
             </button>
-            <button type="button" class="talk-dock-icon" id="dockGalleryBtn" title="Gallery — stash your favorites here soon">
+            <button type="button" class="talk-dock-icon" id="dockGalleryBtn" title="Open Pyx Gallery">
               <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
             </button>
-            <button type="button" class="talk-dock-icon" id="dockFileBtn" title="Attach images — Llama vision (Pyx 1.0 cloud)">
+            <button type="button" class="talk-dock-icon" id="dockFileBtn" title="Attach images — vision on Pyx 1.0 (cloud)">
               <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
             </button>
           </div>
@@ -2566,7 +2604,7 @@
           <h3 class="talk-card-title">Memory snapshot</h3>
           <button type="button" class="talk-mini-btn" id="orbitRefreshBtn" title="Regenerate learnings from this snippet">Refresh</button>
         </div>
-        <p class="talk-card-body" style="margin-bottom:0;">Little snippets of what Pyx has picked up about you from this chat — safe to reference in replies.</p>
+        <p class="talk-card-body" style="margin-bottom:0;">Small notes Pyx picked up from this chat — safe to weave into replies.</p>
         <div class="talk-memory-strip" id="talkMemoryStrip" role="list" aria-label="Learned snippets about you"></div>
         <p class="talk-section-label">Pinned</p>
         <div class="talk-chip-row" id="talkPinnedChipRow"></div>
@@ -2592,6 +2630,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js" crossorigin="anonymous"></script>
+  <script src="/js/pyx-handoff.js"></script>
+  <script src="/js/pyx-shell.js"></script>
+  <script src="/js/pyx-talk-studio.js"></script>
   <script>
     (function () {
       var PYX_CLOUD_RUN = "https://pyxaiapi-574247481583.us-central1.run.app";
@@ -2697,8 +2738,18 @@
         }
         return "HTTP " + (status || "?");
       }
-      function fetchPyxPost(endpoint, bodyString) {
-        return fetchPyxHttp(endpoint, bodyString);
+      function fetchPyxPost(endpoint, bodyString, opts) {
+        opts = opts || {};
+        var timeoutMs = opts.timeoutMs || 0;
+        if (!timeoutMs) return fetchPyxHttp(endpoint, bodyString);
+        return Promise.race([
+          fetchPyxHttp(endpoint, bodyString),
+          new Promise(function (_, reject) {
+            setTimeout(function () {
+              reject(new Error("Request timed out after " + Math.round(timeoutMs / 1000) + "s"));
+            }, timeoutMs);
+          }),
+        ]);
       }
       function fetchPyxStream(endpoint, bodyString) {
         return fetchPyxHttp(endpoint, bodyString);
@@ -2749,7 +2800,7 @@
       appDockLoadingEl.className = "app-dock-loading";
       appDockLoadingEl.hidden = true;
       appDockLoadingCopyEl.className = "app-dock-loading-copy";
-      appDockLoadingCopyEl.textContent = "Loading this app... just a sec.";
+      appDockLoadingCopyEl.textContent = "Loading app… one moment.";
       if (loadSpinnerEl) appDockLoadingEl.appendChild(loadSpinnerEl);
       appDockLoadingEl.appendChild(appDockLoadingCopyEl);
       var messages = [];
@@ -2840,7 +2891,7 @@
         if (!dataUrl || attachmentQueue.length >= MAX_ATTACHMENTS) return;
         attachmentQueue.push(dataUrl);
         renderAttachmentRow();
-        if (statusEl) statusEl.textContent = "Image attached — sent with Llama vision on Pyx 1.0 (cloud).";
+        if (statusEl) statusEl.textContent = "Image attached — vision runs on Pyx 1.0 (cloud).";
       }
 
       if (talkAttachmentInput) {
@@ -2916,10 +2967,10 @@
       }
 
       var PYX_SUBGREETINGS = [
-        "Pyx scanned your vibe and the cosmos agrees — let’s ship something stellar today.",
-        "Vibe check: curiosity high, chaos optional — ask Pyx anything or whisper it with voice.",
-        "I’ve got neon gradients, hot takes, and helpful diagrams — pick your adventure.",
-        "Fun mode: on. Serious answers: also on. Try a wildcard prompt and see what sparks.",
+        "Curiosity levels: cosmic. Pick a quick action or type your own adventure.",
+        "Talk, Pyxel, Code, Speak — hop between Studio apps without losing your thread.",
+        "Warm answers, sharp ideas, and the occasional pixel frog — you’re in the right place.",
+        "Ask big questions, silly questions, or “what should I make next?” — Pyx is listening.",
       ];
 
       function refreshTalkChrome() {
@@ -3162,7 +3213,7 @@
       }
       function openTalkAttachmentPicker() {
         if (getTalkLine() === "preview") {
-          dockNudge("Attach images on Pyx 1.0 (cloud) — Llama vision isn’t on Preview.");
+          dockNudge("Attach images on Pyx 1.0 (cloud) — vision isn’t available on 1.3 preview.");
           return;
         }
         if (talkAttachmentInput) talkAttachmentInput.click();
@@ -4078,8 +4129,8 @@
         if (!modeSelect) return;
         var preview = getTalkLine() === "preview";
         if (preview) {
-          modeSelect.innerHTML = '<option value="preview426">Pyx 1.3 Preview 4.26</option>';
-          modeSelect.value = "preview426";
+          modeSelect.innerHTML = '<option value="preview13">Pyx 1.3 (website preview)</option>';
+          modeSelect.value = "preview13";
         } else {
           modeSelect.innerHTML =
             '<option value="fast">Pyx Mini 1.0</option>' +
@@ -4099,7 +4150,7 @@
         if (cloudWrap) cloudWrap.style.display = "";
         setModeOptionsForLine();
         var badge = document.getElementById("headerLineBadge");
-        if (badge) badge.textContent = preview ? "Pyx 1.3 Preview 4.26" : "Pyx 1.0";
+        if (badge) badge.textContent = preview ? "Pyx 1.3 preview" : "Pyx 1.0";
         var bc = document.getElementById("pyxLineBannerCloud");
         var bp = document.getElementById("pyxLineBannerPreview");
         if (bc) bc.hidden = preview;
@@ -4129,7 +4180,7 @@
       }
 
       function getMode() {
-        if (getTalkLine() === "preview") return "preview426";
+        if (getTalkLine() === "preview") return "preview13";
         var v = modeSelect.value;
         return v === "smart" || v === "thinking" ? v : "fast";
       }
@@ -4218,6 +4269,9 @@
         }
         chatEl.appendChild(d);
         chatEl.scrollTop = chatEl.scrollHeight;
+        if (role === "bot" && window.PyxTalkStudio && window.PyxTalkStudio.attachHandoffToolbar) {
+          window.PyxTalkStudio.attachHandoffToolbar(d, text);
+        }
       }
 
       function addUserBubble(text, imageDataUrls) {
@@ -5480,6 +5534,9 @@
             } else {
               d.textContent = full;
             }
+            if (window.PyxTalkStudio && window.PyxTalkStudio.attachHandoffToolbar) {
+              window.PyxTalkStudio.attachHandoffToolbar(d, full);
+            }
             chatEl.scrollTop = chatEl.scrollHeight;
             return full;
           },
@@ -5863,7 +5920,8 @@
               messages: messagesForTalkApi(messages, { preview: true }),
               use_web: useWebP,
               use_web_auto: useWebAutoP,
-            })
+            }),
+            { timeoutMs: 45000 }
           )
             .then(function (res) {
               return res.text().then(function (raw) {
@@ -5931,7 +5989,7 @@
             })
             .finally(function () {
               persistChat();
-              if (!previewChainsPixel) setBusy(false);
+              setBusy(false);
             });
           return;
         }
@@ -6155,14 +6213,56 @@
         }
       }
 
-      if (talkLineEl) {
-        var savedLine = localStorage.getItem("pyx.talk.line");
-        if (savedLine === "preview") talkLineEl.value = "preview";
-        if (savedLine === "cloud") talkLineEl.value = "cloud";
+      function applyTalkLineFromUrlOrStorage() {
+        if (!talkLineEl) return;
         var qp = new URLSearchParams(typeof location !== "undefined" ? location.search : "");
         var qLine = (qp.get("line") || "").toLowerCase();
-        if (qLine === "preview" || qLine === "13" || qLine === "1.3") talkLineEl.value = "preview";
-        if (qLine === "cloud" || qLine === "10" || qLine === "1.0") talkLineEl.value = "cloud";
+        var explicitUrl = false;
+        if (qLine === "preview" || qLine === "13" || qLine === "1.3") {
+          talkLineEl.value = "preview";
+          explicitUrl = true;
+        } else if (qLine === "cloud" || qLine === "10" || qLine === "1.0") {
+          talkLineEl.value = "cloud";
+          explicitUrl = true;
+        } else {
+          var savedLine = localStorage.getItem("pyx.talk.line");
+          if (savedLine === "cloud") {
+            talkLineEl.value = "cloud";
+          } else {
+            talkLineEl.value = "cloud";
+            if (savedLine === "preview") {
+              try {
+                localStorage.setItem("pyx.talk.line", "cloud");
+              } catch (e) {}
+            }
+          }
+        }
+        if (qp.has("line")) {
+          qp.delete("line");
+          var newQs = qp.toString();
+          var cleanUrl =
+            location.pathname + (newQs ? "?" + newQs : "") + (location.hash || "");
+          try {
+            history.replaceState(null, "", cleanUrl);
+          } catch (e) {}
+        }
+        if (explicitUrl) saveTalkLine();
+      }
+
+      function switchTalkLineToCloud() {
+        if (!talkLineEl) return;
+        talkLineEl.value = "cloud";
+        saveTalkLine();
+        updateLineUi();
+        mentionClose();
+        reloadThreadForLine();
+        talkRouteApply();
+        scheduleOrbitRefresh(true);
+        if (statusEl) statusEl.textContent = "Switched to Pyx 1.0 cloud.";
+      }
+
+      if (talkLineEl) {
+        applyTalkLineFromUrlOrStorage();
         talkLineEl.addEventListener("change", function () {
           saveTalkLine();
           updateLineUi();
@@ -6172,6 +6272,10 @@
           scheduleOrbitRefresh(true);
         });
         saveTalkLine();
+      }
+      var switchToCloudBtn = document.getElementById("switchToCloudBtn");
+      if (switchToCloudBtn) {
+        switchToCloudBtn.addEventListener("click", switchTalkLineToCloud);
       }
 
       updateLineUi();
@@ -6249,6 +6353,25 @@
         });
       }
 
+      var talkRecipePyxelSpeak = document.getElementById("talkRecipePyxelSpeak");
+      if (talkRecipePyxelSpeak && window.PyxHandoff) {
+        talkRecipePyxelSpeak.addEventListener("click", function () {
+          window.PyxHandoff.sendTo(
+            "pyxel",
+            "cosmic cafe with neon frog DJ, 10x10 pixel art",
+            "talk",
+            { recipe: "chain" }
+          );
+        });
+      }
+      if (window.PyxHandoff) {
+        PyxHandoff.applyIncoming({
+          app: "talk",
+          onText: function (text) {
+            if (inputEl) inputEl.value = text;
+          },
+        });
+      }
     })();
   </script>
 </body>

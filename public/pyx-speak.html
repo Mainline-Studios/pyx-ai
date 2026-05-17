@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pyx Speak 1 Models</title>
+  <title>Pyx Speak</title>
   <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -372,23 +372,25 @@
   </style>
 </head>
 <body class="pyx-cosmos">
+  <div data-pyx-shell></div>
   <main class="wrap">
     <div class="top">
-      <a class="home" href="/">← Home</a>
-      <span class="badge">Preview App</span>
+      <a class="home" href="/">← Studio</a>
+      <a class="home" href="/pyx-talk.html" id="speakBackTalk">← Talk</a>
+      <button type="button" class="home" id="speakSaveGallery" style="cursor:pointer;font:inherit;">Save to Gallery</button>
+      <span class="badge">Pyx Studio</span>
     </div>
-    <h1>Pyx Speak 1 Models</h1>
+    <h1>Pyx Speak</h1>
     <p class="lede">
-      Standalone text-to-speech studio for Pyx. Built for natural pacing, stable long-form playback, and clear voice control.
-      This is intentionally separate from Talk for now; Talk integration comes later.
+      Turn text into voice inside Pyx Studio. Send scripts from <strong>Pyx Talk</strong>, or paste your own — presets and style chips help you dial the vibe.
     </p>
 
     <section class="grid">
       <article class="card stack">
         <h2>Script</h2>
         <div>
-          <label for="speakInput">Text To Speak</label>
-          <textarea id="speakInput" placeholder="Paste or type text here...">Pyx Speak is live. This is a high quality browser-based TTS pipeline with smart sentence chunking and reliable playback control.</textarea>
+          <label for="speakInput">Script</label>
+          <textarea id="speakInput" placeholder="Paste or type what Pyx should say…">Welcome to Pyx Speak. Type a script, pick a voice, and hit Speak — Pyx handles the rest.</textarea>
         </div>
         <div class="preset-row" id="presetRow">
           <button type="button" class="preset is-active" data-preset="natural">Natural</button>
@@ -402,31 +404,31 @@
           <button type="button" id="resumeBtn" class="secondary">Resume</button>
           <button type="button" id="stopBtn" class="danger">Stop</button>
         </div>
-        <p class="small">Tip: press <code>Cmd/Ctrl + Enter</code> to speak.</p>
+        <p class="small">Tip: <code>Cmd/Ctrl + Enter</code> plays your script.</p>
         <div id="status" class="status"></div>
       </article>
 
       <article class="card stack">
-        <h2>Pyx Speak 1 Models</h2>
+        <h2>Voice settings</h2>
         <div>
           <label for="engineSelect">Engine</label>
           <select id="engineSelect">
-            <option value="cloud">Cloud Pyx (Pyx Speak 1)</option>
-            <option value="native">Native Pyx (Tacotron 2 local)</option>
+            <option value="cloud">Cloud (hosted TTS)</option>
+            <option value="native">Native (Tacotron 2 on this device)</option>
           </select>
-          <p class="small">Native Pyx uses local Tacotron 2 CPU mode. Cloud Pyx uses the hosted TTS path.</p>
+          <p class="small">Cloud is fastest to start. Native runs locally when you have the Tacotron stack set up.</p>
         </div>
         <div>
           <label for="voiceSelect">Voice</label>
           <select id="voiceSelect"></select>
         </div>
         <div id="cloudInstructionWrap">
-          <label for="styleInstructionInput">Style Instruction (cloud)</label>
+          <label for="styleInstructionInput">Style (cloud)</label>
           <input
             id="styleInstructionInput"
             type="text"
             maxlength="180"
-            placeholder='Examples: "speak happy", "sad and gentle", "energetic and upbeat".'
+            placeholder='Try: happy and upbeat, calm narrator, serious and clear…'
           />
           <div class="hint-row" id="styleHintRow">
             <button type="button" class="hint-chip" data-style="happy and upbeat">Happy</button>
@@ -500,6 +502,8 @@
     </section>
   </main>
 
+  <script src="/js/pyx-handoff.js"></script>
+  <script src="/js/pyx-shell.js"></script>
   <script>
     (function () {
       var AC = window.AudioContext || window.webkitAudioContext;
@@ -2688,6 +2692,54 @@
         hardStop(false);
         try { delete window.__pyxSpeakTerminalAction; } catch (e) {}
       });
+
+      function persistSpeakScript() {
+        try {
+          localStorage.setItem("pyx.speak.lastScript", inputEl.value || "");
+          localStorage.setItem("pyx.speak.lastAt", String(Date.now()));
+        } catch (e) {}
+      }
+      if (inputEl) {
+        inputEl.addEventListener("input", persistSpeakScript);
+      }
+      if (speakBtn) {
+        speakBtn.addEventListener("click", persistSpeakScript, true);
+      }
+
+      if (window.PyxShell) PyxShell.init({ active: "speak" });
+      if (window.PyxHandoff) {
+        PyxHandoff.applyIncoming({
+          app: "speak",
+          onText: function (text, payload) {
+            inputEl.value = text;
+            if (payload.meta && payload.meta.voice && voiceSelect) {
+              try {
+                voiceSelect.value = payload.meta.voice;
+              } catch (e) {}
+            }
+            setStatus("Imported from " + (payload.source || "Studio") + ".", "ok");
+          },
+        });
+        PyxHandoff.touchRecent("speak", "Speak");
+      }
+      var speakSaveGallery = document.getElementById("speakSaveGallery");
+      if (speakSaveGallery && window.PyxHandoff) {
+        speakSaveGallery.addEventListener("click", function () {
+          PyxHandoff.saveGalleryItem({
+            kind: "speak",
+            title: (inputEl.value || "Script").slice(0, 40),
+            preview: (inputEl.value || "").slice(0, 500),
+          });
+          setStatus("Saved to Gallery.", "ok");
+        });
+      }
+      var speakBackTalk = document.getElementById("speakBackTalk");
+      if (speakBackTalk && window.PyxHandoff) {
+        speakBackTalk.addEventListener("click", function (e) {
+          e.preventDefault();
+          PyxHandoff.sendTo("talk", (inputEl.value || "").slice(0, 2000), "speak");
+        });
+      }
 
       init();
     })();
