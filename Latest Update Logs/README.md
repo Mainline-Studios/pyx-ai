@@ -1,0 +1,35 @@
+# Latest Update Logs
+
+Human-readable release notes for Pyx web and API deploys.
+
+## Naming
+
+| File | Meaning |
+|------|---------|
+| `{version} {Nickname} LATEST.md` | Current release (only one at a time) |
+| `{version} {Nickname}.md` | Older releases (remove `LATEST` from the filename when superseded) |
+
+Examples:
+
+- `1.0 Schoolhouse LATEST.md` — live now
+- `1.1 Riverside.md` — after 1.1 ships, rename 1.0 file to `1.0 Schoolhouse.md` and add the new LATEST file
+
+## When to update
+
+On every **deploy** or meaningful **release commit**:
+
+1. Rename the previous `* LATEST.md` → drop the word `LATEST` from the filename.
+2. Add a new markdown file for the version going out with `LATEST` in the name.
+3. Commit the log folder with your deploy or release commit.
+4. Push to GitHub.
+
+## Version line
+
+Start each log with:
+
+```markdown
+# Pyx {version} — {Nickname}
+**Status:** LATEST · **Date:** YYYY-MM-DD
+```
+
+Remove **LATEST** from the status line when archiving an old file.
