@@ -10,83 +10,28 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/brand/pyx-brand.css" />
+  <link rel="stylesheet" href="/brand/pyx-cosmos.css" />
   <style>
+    /* Talk layout — tokens & base UI in /brand/pyx-cosmos.css */
     :root {
-      --bg: #030712;
-      --bg-mesh:
-        radial-gradient(ellipse 140% 90% at 50% 115%, rgba(14, 165, 233, 0.22), transparent 58%),
-        radial-gradient(1100px 600px at 8% -8%, rgba(99, 102, 241, 0.28), transparent 52%),
-        radial-gradient(900px 520px at 96% 8%, rgba(168, 85, 247, 0.14), transparent 48%),
-        var(--bg);
-      --surface: rgba(15, 23, 42, 0.5);
-      --surface-2: rgba(15, 23, 42, 0.38);
-      --border: rgba(148, 163, 184, 0.16);
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-      --primary: #38bdf8;
-      --primary-hover: #7dd3fc;
-      --accent: #a78bfa;
       --user-bg: linear-gradient(135deg, #6366f1 0%, #8b5cf6 45%, #0ea5e9 100%);
       --user-fg: #fff;
       --bot-bg: rgba(30, 41, 59, 0.72);
       --bot-border: rgba(148, 163, 184, 0.14);
       --bad-bg: rgba(127, 29, 29, 0.38);
       --bad-border: rgba(248, 113, 113, 0.38);
-      --shadow: 0 24px 80px -24px rgba(0, 0, 0, 0.75);
-      --radius: 16px;
+      --radius: var(--pyx-radius-sm);
       --radius-sm: 12px;
-      --font: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     }
 
-    *, *::before, *::after { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: var(--font);
-      font-size: 15px;
-      line-height: 1.55;
-      color: var(--text);
-      background: var(--bg-mesh);
-      -webkit-font-smoothing: antialiased;
-      transition: background 0.35s ease;
-    }
-    body.talk-cosmos--plain {
-      --bg-mesh:
-        radial-gradient(900px 500px at 50% -10%, rgba(99, 102, 241, 0.08), transparent 45%),
-        var(--bg);
-    }
-
-    .visually-hidden {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-
-    .talk-shell {
+    .talk-shell,
+    .pyx-shell {
       display: grid;
       grid-template-columns: 268px minmax(0, 1fr) 312px;
       gap: 0;
       min-height: 100vh;
       max-width: 1680px;
       margin: 0 auto;
-    }
-    .talk-sidebar {
-      padding: 26px 16px 22px;
-      border-right: 1px solid rgba(148, 163, 184, 0.08);
-      background: linear-gradient(180deg, rgba(2, 8, 26, 0.72) 0%, rgba(2, 6, 23, 0.42) 100%);
-      backdrop-filter: blur(20px) saturate(140%);
-      -webkit-backdrop-filter: blur(20px) saturate(140%);
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-      box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.03);
     }
     .talk-sidebar--rail {
       border-right: none;
@@ -2266,11 +2211,11 @@
 
   </style>
 </head>
-<body class="talk-cosmos">
-  <div class="talk-shell">
-    <aside class="talk-sidebar talk-sidebar--nav" aria-label="Navigation">
-      <a class="talk-logo" href="/" title="Pyx home">
-        <span class="talk-logo-star" aria-hidden="true">✦</span>
+<body class="pyx-cosmos talk-cosmos">
+  <div class="talk-shell pyx-shell">
+    <aside class="talk-sidebar pyx-sidebar talk-sidebar--nav" aria-label="Navigation">
+      <a class="talk-logo pyx-logo" href="/" title="Pyx home">
+        <span class="talk-logo-star pyx-logo-star" aria-hidden="true">✦</span>
         <span class="talk-logo-text">Pyx</span>
       </a>
       <nav class="talk-nav">
@@ -3114,9 +3059,12 @@
       if (spaceToggleEl) {
         if (localStorage.getItem("pyx.talk.spaceView") === "0") spaceToggleEl.checked = false;
         document.body.classList.toggle("talk-cosmos--plain", !spaceToggleEl.checked);
+        document.body.classList.toggle("pyx-cosmos--plain", !spaceToggleEl.checked);
         spaceToggleEl.addEventListener("change", function () {
           localStorage.setItem("pyx.talk.spaceView", spaceToggleEl.checked ? "1" : "0");
-          document.body.classList.toggle("talk-cosmos--plain", !spaceToggleEl.checked);
+          var plain = !spaceToggleEl.checked;
+          document.body.classList.toggle("talk-cosmos--plain", plain);
+          document.body.classList.toggle("pyx-cosmos--plain", plain);
         });
       }
 

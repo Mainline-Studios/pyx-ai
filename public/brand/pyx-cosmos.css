@@ -1,0 +1,872 @@
+/**
+ * Pyx Cosmos — shared UI design system (glassmorphism, dark cosmos theme).
+ * Use on any Pyx web app:
+ *   <link rel="stylesheet" href="/brand/pyx-cosmos.css" />
+ *   <body class="pyx-cosmos">
+ */
+:root {
+  /* Core palette */
+  --pyx-bg: #030712;
+  --pyx-bg-deep: #020617;
+  --pyx-surface: rgba(15, 23, 42, 0.52);
+  --pyx-surface-2: rgba(15, 23, 42, 0.38);
+  --pyx-surface-solid: #0f172a;
+  --pyx-border: rgba(148, 163, 184, 0.16);
+  --pyx-border-strong: rgba(125, 211, 252, 0.22);
+  --pyx-text: #f1f5f9;
+  --pyx-text-soft: #cbd5e1;
+  --pyx-muted: #94a3b8;
+  --pyx-primary: #38bdf8;
+  --pyx-primary-hover: #7dd3fc;
+  --pyx-accent: #a78bfa;
+  --pyx-accent-2: #c4b5fd;
+  --pyx-gold: #fbbf24;
+  --pyx-success: #4ade80;
+  --pyx-danger: #f87171;
+  --pyx-live: #f87171;
+
+  /* Gradients */
+  --pyx-gradient-brand: linear-gradient(135deg, #6366f1 0%, #8b5cf6 42%, #0ea5e9 100%);
+  --pyx-gradient-hero: linear-gradient(
+    100deg,
+    #ffffff 8%,
+    #bae6fd 38%,
+    #ddd6fe 68%,
+    #fde68a 95%
+  );
+  --pyx-gradient-glow-blue: radial-gradient(
+    ellipse 120% 80% at 50% 120%,
+    rgba(14, 165, 233, 0.35),
+    transparent 58%
+  );
+  --pyx-bg-mesh:
+    radial-gradient(ellipse 140% 90% at 50% 115%, rgba(14, 165, 233, 0.22), transparent 58%),
+    radial-gradient(1100px 600px at 8% -8%, rgba(99, 102, 241, 0.28), transparent 52%),
+    radial-gradient(900px 520px at 96% 8%, rgba(168, 85, 247, 0.14), transparent 48%),
+    var(--pyx-bg);
+
+  /* Shape & type */
+  --pyx-radius: 20px;
+  --pyx-radius-sm: 14px;
+  --pyx-radius-pill: 999px;
+  --pyx-shadow: 0 24px 80px -24px rgba(0, 0, 0, 0.75);
+  --pyx-shadow-glow: 0 0 40px rgba(56, 189, 248, 0.14);
+  --pyx-font: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+  --pyx-blur: blur(20px) saturate(140%);
+
+  /* Legacy aliases (older pages) */
+  --bg: var(--pyx-bg);
+  --bg2: var(--pyx-surface-solid);
+  --surface: var(--pyx-surface);
+  --surface-2: var(--pyx-surface-2);
+  --panel: var(--pyx-surface);
+  --panel-2: var(--pyx-surface-2);
+  --card: var(--pyx-surface);
+  --card-border: var(--pyx-border);
+  --border: var(--pyx-border);
+  --text: var(--pyx-text);
+  --muted: var(--pyx-muted);
+  --primary: var(--pyx-primary);
+  --primary-hover: var(--pyx-primary-hover);
+  --accent: var(--pyx-accent);
+  --accent-2: var(--pyx-accent-2);
+  --accent2: var(--pyx-primary);
+  --btn: #4f46e5;
+  --btn-hover: #4338ca;
+  --radius: var(--pyx-radius-sm);
+  --shadow: var(--pyx-shadow);
+  --font: var(--pyx-font);
+  --ui-font: var(--pyx-font);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body.pyx-cosmos {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--pyx-font);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--pyx-text);
+  background: var(--pyx-bg-mesh);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.35s ease;
+}
+
+body.pyx-cosmos--plain {
+  --pyx-bg-mesh:
+    radial-gradient(900px 500px at 50% -10%, rgba(99, 102, 241, 0.08), transparent 45%),
+    var(--pyx-bg);
+}
+
+body.pyx-cosmos a {
+  color: var(--pyx-primary-hover);
+}
+
+/* —— Layout —— */
+.pyx-wrap {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 32px 20px 56px;
+}
+
+.pyx-wrap--wide {
+  max-width: 1200px;
+}
+
+.pyx-shell {
+  display: grid;
+  grid-template-columns: 268px minmax(0, 1fr) 312px;
+  gap: 0;
+  min-height: 100vh;
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
+@media (max-width: 1100px) {
+  .pyx-shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* —— Typography —— */
+.pyx-hero-title {
+  margin: 0 0 10px;
+  font-size: clamp(1.65rem, 3.6vw, 2.45rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+}
+
+.pyx-hero-title--gradient {
+  background: var(--pyx-gradient-hero);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 28px rgba(56, 189, 248, 0.25));
+}
+
+.pyx-text-gradient {
+  background: linear-gradient(100deg, #bae6fd 0%, #ddd6fe 50%, #fde68a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.pyx-lede {
+  margin: 0 0 22px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: rgba(186, 230, 253, 0.82);
+  max-width: 48ch;
+  line-height: 1.55;
+}
+
+.pyx-section-label {
+  margin: 14px 0 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pyx-muted);
+}
+
+/* —— Glass surfaces —— */
+.pyx-glass {
+  background: var(--pyx-surface);
+  border: 1px solid var(--pyx-border);
+  border-radius: var(--pyx-radius);
+  backdrop-filter: var(--pyx-blur);
+  -webkit-backdrop-filter: var(--pyx-blur);
+  box-shadow: var(--pyx-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.pyx-glass-card {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.07), rgba(15, 23, 42, 0.42));
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: var(--pyx-radius);
+  padding: 16px 18px;
+  backdrop-filter: var(--pyx-blur);
+  -webkit-backdrop-filter: var(--pyx-blur);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 40px -16px rgba(0, 0, 0, 0.55);
+  transition: transform 0.18s ease, border-color 0.18s, box-shadow 0.18s;
+}
+
+.pyx-glass-card:hover {
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow:
+    0 12px 40px -12px rgba(0, 0, 0, 0.55),
+    0 0 28px rgba(56, 189, 248, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.pyx-glass-card h2,
+.pyx-glass-card h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #f8fafc;
+}
+
+.pyx-glass-card p {
+  margin: 0 0 12px;
+  color: var(--pyx-muted);
+  font-size: 0.9rem;
+}
+
+.pyx-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  box-shadow: var(--pyx-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.06), var(--pyx-shadow-glow);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  background: rgba(4, 10, 28, 0.55);
+}
+
+.pyx-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(
+      ellipse 130% 65% at 50% 118%,
+      rgba(12, 74, 130, 0.95) 0%,
+      rgba(25, 110, 165, 0.55) 28%,
+      rgba(56, 189, 248, 0.15) 52%,
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 95% 42% at 50% 112%,
+      rgba(125, 211, 252, 0.65) 0%,
+      rgba(14, 165, 233, 0.2) 38%,
+      transparent 52%
+    ),
+    radial-gradient(ellipse 80% 50% at 20% 25%, rgba(99, 102, 241, 0.18), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 85% 15%, rgba(168, 85, 247, 0.14), transparent 50%),
+    linear-gradient(165deg, rgba(8, 18, 42, 0.55) 0%, rgba(2, 6, 18, 0.92) 100%);
+}
+
+body.pyx-cosmos--plain .pyx-stage::before {
+  opacity: 0.22;
+  filter: saturate(0.65) blur(1px);
+}
+
+.pyx-stage-inner {
+  position: relative;
+  z-index: 1;
+}
+
+/* —— Sidebar & nav —— */
+.pyx-sidebar {
+  padding: 26px 16px 22px;
+  border-right: 1px solid rgba(148, 163, 184, 0.08);
+  background: linear-gradient(180deg, rgba(2, 8, 26, 0.72) 0%, rgba(2, 6, 23, 0.42) 100%);
+  backdrop-filter: var(--pyx-blur);
+  -webkit-backdrop-filter: var(--pyx-blur);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.03);
+}
+
+.pyx-sidebar--rail {
+  border-right: none;
+  border-left: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.pyx-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--pyx-text);
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.pyx-logo-star {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, rgba(56, 189, 248, 0.45), rgba(167, 139, 250, 0.38));
+  border: 1px solid rgba(186, 230, 253, 0.45);
+  box-shadow: 0 0 28px rgba(56, 189, 248, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  font-size: 1.15rem;
+  color: #f0f9ff;
+}
+
+.pyx-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pyx-nav__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pyx-text-soft);
+  border: 1px solid transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.pyx-nav__link:hover {
+  color: #f8fafc;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.pyx-nav__link.is-active {
+  color: #f0f9ff;
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 28px rgba(56, 189, 248, 0.12);
+}
+
+.pyx-nav__glyph {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.pyx-nav__glyph svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* —— Buttons —— */
+.pyx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: var(--pyx-radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: filter 0.15s, transform 0.1s, box-shadow 0.15s, background 0.15s;
+}
+
+.pyx-btn--primary {
+  color: #0f172a;
+  background: linear-gradient(135deg, #7dd3fc, #a78bfa);
+  box-shadow: 0 4px 22px -4px rgba(56, 189, 248, 0.55);
+}
+
+.pyx-btn--primary:hover {
+  filter: brightness(1.06);
+}
+
+.pyx-btn--ghost {
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.45);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.pyx-btn--ghost:hover {
+  color: #e0f2fe;
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.12);
+}
+
+.pyx-btn--accent {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.55), rgba(14, 165, 233, 0.45));
+  border-color: rgba(165, 243, 252, 0.35);
+  color: #fff;
+}
+
+/* —— Pills & chips —— */
+.pyx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: var(--pyx-radius-pill);
+  text-decoration: none;
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.pyx-pill:hover {
+  color: #e0f2fe;
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+.pyx-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 11px;
+  border-radius: var(--pyx-radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e8f0;
+  background: rgba(30, 41, 59, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.pyx-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 11px;
+  border-radius: var(--pyx-radius-pill);
+}
+
+.pyx-badge--live {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  box-shadow: 0 0 20px rgba(248, 113, 113, 0.2);
+}
+
+.pyx-badge--pro {
+  font-size: 0.58rem;
+  color: #fde68a;
+  padding: 3px 8px;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.35), rgba(217, 119, 6, 0.22));
+}
+
+/* —— Form controls —— */
+.pyx-input,
+.pyx-select,
+.pyx-textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--pyx-text);
+  background: rgba(2, 6, 23, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: var(--pyx-radius-sm);
+  padding: 10px 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.pyx-input:focus,
+.pyx-select:focus,
+.pyx-textarea:focus {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+}
+
+.pyx-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  width: 100%;
+}
+
+.pyx-composer-inner {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 6px 8px 6px 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: rgba(15, 23, 42, 0.55);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.08), 0 0 28px rgba(56, 189, 248, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.pyx-composer-inner:focus-within {
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25), 0 0 32px rgba(56, 189, 248, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* —— Action cards (home grid) —— */
+.pyx-action-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .pyx-action-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .pyx-action-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pyx-action-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.07), rgba(15, 23, 42, 0.38));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  transition: transform 0.18s ease, border-color 0.18s, box-shadow 0.18s;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.pyx-action-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.55), 0 0 28px rgba(56, 189, 248, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.pyx-action-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #f8fafc;
+}
+
+.pyx-action-desc {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.95);
+  line-height: 1.35;
+}
+
+/* —— Profile / status footer —— */
+.pyx-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: #86efac;
+  padding: 6px 10px;
+  border-radius: var(--pyx-radius-pill);
+  background: rgba(22, 101, 52, 0.28);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+}
+
+.pyx-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--pyx-success);
+  box-shadow: 0 0 10px var(--pyx-success);
+}
+
+/* —— Grid utilities —— */
+.pyx-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+}
+
+.pyx-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Map legacy class names used across apps */
+body.pyx-cosmos .card {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.07), rgba(15, 23, 42, 0.42));
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: var(--pyx-radius);
+  padding: 16px;
+  backdrop-filter: var(--pyx-blur);
+  -webkit-backdrop-filter: var(--pyx-blur);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 40px -16px rgba(0, 0, 0, 0.55);
+}
+
+body.pyx-cosmos .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.84rem;
+  border-radius: 12px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #fff;
+  border: 1px solid rgba(196, 181, 253, 0.35);
+  transition: filter 0.15s, box-shadow 0.15s;
+}
+
+body.pyx-cosmos .btn:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 0 24px rgba(99, 102, 241, 0.35);
+}
+
+body.pyx-cosmos .btn.secondary {
+  background: rgba(15, 23, 42, 0.55);
+  color: #dbeafe;
+  border-color: rgba(147, 197, 253, 0.28);
+}
+
+body.pyx-cosmos .wrap {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 32px 20px 56px;
+}
+
+body.pyx-cosmos .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* —— Talk app aliases (same visuals, shared tokens) —— */
+.talk-logo,
+.pyx-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--pyx-text);
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.talk-logo-star,
+.pyx-logo-star {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, rgba(56, 189, 248, 0.45), rgba(167, 139, 250, 0.38));
+  border: 1px solid rgba(186, 230, 253, 0.45);
+  box-shadow: 0 0 28px rgba(56, 189, 248, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  font-size: 1.15rem;
+  color: #f0f9ff;
+}
+
+.talk-sidebar,
+.pyx-sidebar {
+  padding: 26px 16px 22px;
+  border-right: 1px solid rgba(148, 163, 184, 0.08);
+  background: linear-gradient(180deg, rgba(2, 8, 26, 0.72) 0%, rgba(2, 6, 23, 0.42) 100%);
+  backdrop-filter: var(--pyx-blur);
+  -webkit-backdrop-filter: var(--pyx-blur);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.03);
+}
+
+.talk-glass-card,
+.pyx-glass-card--rail {
+  border-radius: var(--pyx-radius);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.06), rgba(15, 23, 42, 0.42));
+  backdrop-filter: var(--pyx-blur);
+  -webkit-backdrop-filter: var(--pyx-blur);
+  padding: 14px 14px 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.talk-action-card,
+.pyx-action-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.07), rgba(15, 23, 42, 0.38));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  transition: transform 0.18s ease, border-color 0.18s, box-shadow 0.18s;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.talk-action-card:hover,
+.pyx-action-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.55), 0 0 28px rgba(56, 189, 248, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.talk-greeting,
+.pyx-hero-title--gradient {
+  margin: 8px 0 10px;
+  font-size: clamp(1.65rem, 3.6vw, 2.45rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  background: var(--pyx-gradient-hero);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 28px rgba(56, 189, 248, 0.25));
+}
+
+.talk-subgreeting,
+.pyx-lede--center {
+  margin: 0 auto 18px;
+  text-align: center;
+  max-width: 46rem;
+}
+
+.talk-stage,
+.pyx-stage {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  box-shadow: var(--pyx-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.06), var(--pyx-shadow-glow);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  min-height: min(78vh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(4, 10, 28, 0.55);
+}
+
+.talk-stage::before,
+.pyx-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(
+      ellipse 130% 65% at 50% 118%,
+      rgba(12, 74, 130, 0.95) 0%,
+      rgba(25, 110, 165, 0.55) 28%,
+      rgba(56, 189, 248, 0.15) 52%,
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 95% 42% at 50% 112%,
+      rgba(125, 211, 252, 0.65) 0%,
+      rgba(14, 165, 233, 0.2) 38%,
+      transparent 52%
+    ),
+    radial-gradient(ellipse 80% 50% at 20% 25%, rgba(99, 102, 241, 0.18), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 85% 15%, rgba(168, 85, 247, 0.14), transparent 50%),
+    linear-gradient(165deg, rgba(8, 18, 42, 0.55) 0%, rgba(2, 6, 18, 0.92) 100%);
+}
+
+body.pyx-cosmos--plain .talk-stage::before,
+body.talk-cosmos--plain .talk-stage::before,
+body.pyx-cosmos--plain .pyx-stage::before {
+  opacity: 0.22;
+  filter: saturate(0.65) blur(1px);
+}
+
+#send,
+.pyx-btn-send {
+  flex: 0 0 auto;
+  padding: 12px 18px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  background: linear-gradient(135deg, #7dd3fc, #a78bfa);
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 22px -4px rgba(56, 189, 248, 0.55);
+  align-self: flex-end;
+  min-height: 52px;
+}
+
+.talk-live-badge,
+.pyx-badge--live {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: var(--pyx-radius-pill);
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  box-shadow: 0 0 20px rgba(248, 113, 113, 0.2);
+}
+
+.talk-status-pill,
+.pyx-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: #86efac;
+  padding: 6px 10px;
+  border-radius: var(--pyx-radius-pill);
+  background: rgba(22, 101, 52, 0.28);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+}
+
+.talk-status-dot,
+.pyx-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--pyx-success);
+  box-shadow: 0 0 10px var(--pyx-success);
+}
+
+.talk-pro-badge,
+.pyx-badge--pro {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fde68a;
+  padding: 3px 8px;
+  border-radius: var(--pyx-radius-pill);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.35), rgba(217, 119, 6, 0.22));
+}
