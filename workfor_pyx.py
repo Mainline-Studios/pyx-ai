@@ -8,15 +8,52 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from flask import Request, Response, redirect, request
+from flask import Request, Response, redirect, request, send_from_directory
 from urllib.parse import quote
 from werkzeug.utils import secure_filename
 
 from workforpyx_mail import send_application_decision
+from workforpyx_storage import DATA_DIR, find_application
 
 ROOT = Path(__file__).resolve().parent
 PUBLIC = ROOT / "public"
 BRIDGE = PUBLIC / "_php_bridge.php"
+RESUME_DIR = DATA_DIR / "resumes"
+
+_RESUME_MIME = {
+    "pdf": "application/pdf",
+    "doc": "application/msword",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "txt": "text/plain; charset=utf-8",
+    "rtf": "application/rtf",
+}
+
+
+def _serve_resume_download(app_id: str) -> Response:
+    app_id = (app_id or "").strip()
+    if not app_id:
+        return Response("Missing application id.", status=400)
+    record = find_application(app_id)
+    if not record or not record.get("resume_stored"):
+        return Response("Resume not found.", status=404)
+    stored = Path(record["resume_stored"]).name
+    path = RESUME_DIR / stored
+    if not path.is_file():
+        return Response("Resume file missing on server.", status=404)
+    ext = path.suffix.lower().lstrip(".")
+    mime = _RESUME_MIME.get(ext, "application/octet-stream")
+    download_name = secure_filename(
+        record.get("resume_original") or stored or "resume.pdf"
+    )
+    if not download_name:
+        download_name = stored
+    return send_from_directory(
+        RESUME_DIR,
+        stored,
+        mimetype=mime,
+        as_attachment=True,
+        download_name=download_name,
+    )
 
 
 def _run_php(script_name: str, req: Request) -> Response:
@@ -106,6 +143,8 @@ def register_workforpyx_routes(app) -> None:
     def dev_workshop_php():
         if request.method == "OPTIONS":
             return "", 204
+        if request.method == "GET" and request.args.get("action") == "resume":
+            return _serve_resume_download((request.args.get("id") or "").strip())
         if request.method == "POST" and request.form.get("action") == "decision":
             app_id = (request.form.get("id") or "").strip()
             status = (request.form.get("status") or "").strip()
