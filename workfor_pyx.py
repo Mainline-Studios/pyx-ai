@@ -86,7 +86,8 @@ def _run_php(script_name: str, req: Request) -> Response:
     finally:
         for p in temp_files:
             try:
-                os.unlink(p)
+                if os.path.isfile(p):
+                    os.unlink(p)
             except OSError:
                 pass
 

@@ -130,16 +130,35 @@ function workforpyx_allowed_resume_ext(string $name): bool
     return in_array($ext, ['pdf', 'doc', 'docx', 'txt', 'rtf'], true);
 }
 
+function workforpyx_move_resume_file(string $tmp, string $dest): bool
+{
+    if ($tmp === '' || !is_file($tmp)) {
+        return false;
+    }
+    if (is_uploaded_file($tmp)) {
+        return move_uploaded_file($tmp, $dest);
+    }
+    // Cloud Run Flask→PHP bridge uses temp files, not HTTP uploads.
+    if (@rename($tmp, $dest)) {
+        return true;
+    }
+    return @copy($tmp, $dest);
+}
+
 function workforpyx_store_resume(array $file, string $app_id): ?string
 {
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
         return null;
     }
-    $orig = (string) ($file['name'] ?? '');
+    $orig = basename((string) ($file['name'] ?? ''));
     if ($orig === '' || !workforpyx_allowed_resume_ext($orig)) {
         return null;
     }
+    $tmp = (string) ($file['tmp_name'] ?? '');
     $size = (int) ($file['size'] ?? 0);
+    if ($size <= 0 && is_file($tmp)) {
+        $size = (int) filesize($tmp);
+    }
     if ($size <= 0 || $size > 30 * 1024 * 1024) {
         return null;
     }
@@ -147,7 +166,7 @@ function workforpyx_store_resume(array $file, string $app_id): ?string
     $safe = preg_replace('/[^a-zA-Z0-9._-]+/', '_', pathinfo($orig, PATHINFO_FILENAME));
     $stored = $app_id . '_' . ($safe ?: 'resume') . '.' . $ext;
     $dest = workforpyx_data_dir() . '/resumes/' . $stored;
-    if (!move_uploaded_file((string) $file['tmp_name'], $dest)) {
+    if (!workforpyx_move_resume_file($tmp, $dest)) {
         return null;
     }
     return $stored;
