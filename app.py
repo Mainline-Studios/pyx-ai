@@ -3120,6 +3120,14 @@ def serve_public(public_path):
     return send_from_directory(str(root), str(rel).replace("\\", "/"))
 
 
+try:
+    from workfor_pyx import register_workforpyx_routes
+
+    register_workforpyx_routes(app)
+except ImportError:
+    pass
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)

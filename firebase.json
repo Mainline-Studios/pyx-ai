@@ -6,7 +6,12 @@
   "hosting": {
     "public": "public",
     "predeploy": ["npm run build:trainer-auth"],
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "**/*.php"
+    ],
     "headers": [
       {
         "source": "/**/*.html",
@@ -100,6 +105,20 @@
       },
       {
         "source": "/api/health",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/workforpyx.php",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/dev-workshop.php",
         "run": {
           "serviceId": "pyxaiapi",
           "region": "us-central1"
