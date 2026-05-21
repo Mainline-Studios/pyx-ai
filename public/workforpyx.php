@@ -37,14 +37,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Tell us why you want to work with Pyx.';
     }
     if (!isset($_FILES['resume']) || ($_FILES['resume']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
-        $errors[] = 'A resume file is required (PDF, Word, or text — max 5 MB).';
+        $errors[] = 'A resume file is required (PDF, Word, or text).';
     }
 
     if (!$errors) {
         $id = workforpyx_new_id();
         $resume_stored = workforpyx_store_resume($_FILES['resume'], $id);
         if (!$resume_stored) {
-            $errors[] = 'Could not save your resume. Use PDF, DOC, DOCX, TXT, or RTF under 5 MB.';
+            $errors[] = 'Could not save your resume. Use PDF, DOC, DOCX, TXT, or RTF (file too large or wrong type).';
         } else {
             $apps = workforpyx_load_applications();
             $apps[] = [
@@ -260,7 +260,7 @@ $form = $_POST;
             value="<?php echo workforpyx_escape($form['location'] ?? ''); ?>">
 
           <label class="req" for="resume">Resume file</label>
-          <p class="hint">PDF, Word, or text — max 5 MB. Required for all roles.</p>
+          <p class="hint">PDF, Word, or text. Required for all roles.</p>
           <input id="resume" name="resume" type="file" accept=".pdf,.doc,.docx,.txt,.rtf" required>
         </div>
 

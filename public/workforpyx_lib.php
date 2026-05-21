@@ -140,7 +140,7 @@ function workforpyx_store_resume(array $file, string $app_id): ?string
         return null;
     }
     $size = (int) ($file['size'] ?? 0);
-    if ($size <= 0 || $size > 5 * 1024 * 1024) {
+    if ($size <= 0 || $size > 30 * 1024 * 1024) {
         return null;
     }
     $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
