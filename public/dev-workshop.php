@@ -7,7 +7,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/workforpyx_lib.php';
 
 $tracks = workforpyx_tracks();
-$flash = '';
+$flash = (string) ($_GET['flash'] ?? '');
 $view_id = trim((string) ($_GET['id'] ?? ''));
 $action = (string) ($_GET['action'] ?? '');
 
@@ -64,10 +64,22 @@ $detail = $view_id !== '' ? workforpyx_find_by_id($view_id) : null;
 function workforpyx_status_label(string $status): string
 {
     return match ($status) {
+        'hired' => 'Hired',
+        'rejected' => 'Rejected',
         'replied' => 'Replied',
         'reviewing' => 'Reviewing',
         'new' => 'New',
         default => ucfirst($status),
+    };
+}
+
+function workforpyx_status_pill_class(string $status): string
+{
+    return match ($status) {
+        'hired' => 'pill--hired',
+        'rejected' => 'pill--rejected',
+        'replied' => 'pill--replied',
+        default => 'pill--new',
     };
 }
 ?>
@@ -146,6 +158,16 @@ function workforpyx_status_label(string $status): string
     }
     .pill--new { background: rgba(56, 189, 248, 0.2); color: #7dd3fc; }
     .pill--replied { background: rgba(52, 211, 153, 0.2); color: #6ee7b7; }
+    .pill--hired { background: rgba(52, 211, 153, 0.28); color: #6ee7b7; }
+    .pill--rejected { background: rgba(248, 113, 113, 0.2); color: #fca5a5; }
+    .decision-box {
+      margin-top: 18px; padding: 14px; border-radius: 12px;
+      border: 1px solid rgba(129, 140, 248, 0.35); background: rgba(15, 23, 42, 0.6);
+    }
+    .decision-box h2 { margin-top: 0; }
+    .decision-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .btn-hired { background: #166534; border-color: #166534; color: #fff; }
+    .btn-rejected { background: #9f1239; border-color: #9f1239; color: #fff; }
     .field { margin-bottom: 12px; }
     .field dt { font-size: 0.72rem; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
     .field dd { margin: 0; white-space: pre-wrap; word-break: break-word; }
@@ -207,6 +229,7 @@ function workforpyx_status_label(string $status): string
       <div class="features" aria-label="Workshop features">
         <span class="feature is-on">Applications inbox</span>
         <span class="feature is-on">Reply notes</span>
+        <span class="feature is-on">Hired / rejected emails</span>
         <span class="feature is-soon">More coming soon</span>
       </div>
 
@@ -242,7 +265,7 @@ function workforpyx_status_label(string $status): string
                     $rid = (string) ($row['id'] ?? '');
                     $active = $rid === $view_id;
                     $st = (string) ($row['status'] ?? 'new');
-                    $pill = $st === 'replied' ? 'pill--replied' : 'pill--new';
+                    $pill = workforpyx_status_pill_class($st);
                     $when = (string) ($row['created'] ?? '');
                     if ($when !== '') {
                         $when = gmdate('Y-m-d H:i', strtotime($when)) . ' UTC';
@@ -314,10 +337,37 @@ function workforpyx_status_label(string $status): string
               <?php endif; ?>
             </dl>
 
+            <div class="decision-box">
+              <h2>Decision email</h2>
+              <p style="font-size:0.85rem;color:var(--muted);margin:0 0 10px;">
+                Sends a branded HTML email to <strong><?php echo workforpyx_escape($detail['email'] ?? ''); ?></strong>
+                from your configured Pyx SMTP address.
+              </p>
+              <?php if (!empty($detail['decision_emailed_at'])): ?>
+                <p style="font-size:0.82rem;color:#6ee7b7;margin:0 0 10px;">
+                  Last emailed: <?php echo workforpyx_escape((string) $detail['decision_emailed_at']); ?>
+                  · Status: <strong><?php echo workforpyx_escape(workforpyx_status_label((string) ($detail['status'] ?? ''))); ?></strong>
+                </p>
+              <?php endif; ?>
+              <form method="post" action="/dev-workshop.php?id=<?php echo urlencode((string) $detail['id']); ?>"
+                onsubmit="return confirm('Send decision email to this applicant?');">
+                <input type="hidden" name="action" value="decision">
+                <input type="hidden" name="id" value="<?php echo workforpyx_escape((string) $detail['id']); ?>">
+                <label for="decision_note" style="font-size:0.85rem;font-weight:600;">Optional note in email</label>
+                <textarea id="decision_note" name="decision_note" rows="3" placeholder="Personal message (optional)…"><?php
+                  echo workforpyx_escape((string) ($detail['decision_note'] ?? ''));
+                ?></textarea>
+                <div class="decision-actions">
+                  <button type="submit" name="status" value="hired" class="btn btn-hired">Mark as hired</button>
+                  <button type="submit" name="status" value="rejected" class="btn btn-rejected">Mark as rejected</button>
+                </div>
+              </form>
+            </div>
+
             <div class="replies">
               <h2 style="margin-top:0;">Replies (internal)</h2>
               <p style="font-size:0.82rem;color:var(--muted);margin:0 0 10px;">
-                Saved here for your team. Copy your reply and email the applicant manually.
+                Internal notes only — decision emails go out via the buttons above.
               </p>
               <?php
               $replies = $detail['replies'] ?? [];

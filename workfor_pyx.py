@@ -8,8 +8,11 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from flask import Request, Response, request
+from flask import Request, Response, redirect, request
+from urllib.parse import quote
 from werkzeug.utils import secure_filename
+
+from workforpyx_mail import send_application_decision
 
 ROOT = Path(__file__).resolve().parent
 PUBLIC = ROOT / "public"
@@ -103,6 +106,17 @@ def register_workforpyx_routes(app) -> None:
     def dev_workshop_php():
         if request.method == "OPTIONS":
             return "", 204
+        if request.method == "POST" and request.form.get("action") == "decision":
+            app_id = (request.form.get("id") or "").strip()
+            status = (request.form.get("status") or "").strip()
+            note = (request.form.get("decision_note") or "").strip()
+            result = send_application_decision(app_id, status, note)
+            if result.get("ok"):
+                msg = f"ok:Email sent to {result.get('email')} ({status})."
+            else:
+                msg = "err:" + (result.get("error") or "Could not send email.")
+            target = f"/dev-workshop.php?id={quote(app_id)}&flash={quote(msg)}"
+            return redirect(target)
         return _run_php("dev-workshop.php", request)
 
     @app.route("/workforpyx_lib.php", methods=["GET"])

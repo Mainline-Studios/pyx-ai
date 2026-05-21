@@ -11,6 +11,8 @@ __pycache__/
 *.pyo
 *.pyd
 .DS_Store
+.env
+TRAINER_GATE_PASSWORD.txt
 dist/
 build/
 public/downloads/*.dmg

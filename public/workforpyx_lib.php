@@ -116,7 +116,30 @@ function workforpyx_add_reply(string $id, string $body, string $from = 'dev'): b
             'from' => $from,
             'body' => $body,
         ];
-        $app['status'] = 'replied';
+        if (!in_array($app['status'] ?? '', ['hired', 'rejected'], true)) {
+            $app['status'] = 'replied';
+        }
+        $found = true;
+        break;
+    }
+    unset($app);
+    return $found && workforpyx_save_applications($apps);
+}
+
+function workforpyx_update_status(string $id, string $status, string $note = ''): bool
+{
+    if (!in_array($status, ['hired', 'rejected'], true)) {
+        return false;
+    }
+    $apps = workforpyx_load_applications();
+    $found = false;
+    foreach ($apps as &$app) {
+        if (($app['id'] ?? '') !== $id) {
+            continue;
+        }
+        $app['status'] = $status;
+        $app['decision_at'] = gmdate('c');
+        $app['decision_note'] = $note;
         $found = true;
         break;
     }
