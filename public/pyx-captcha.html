@@ -88,6 +88,19 @@
     .cap-colors button[data-c="yellow"] { border-color: #eab308; }
     .cap-colors button[data-c="green"] { border-color: #22c55e; }
     .cap-colors button[data-c="off"] { border-color: #64748b; }
+    .cap-not-signal {
+      grid-column: 1 / -1;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 7px 6px;
+      border-radius: 6px;
+      border: 1px solid #c084fc;
+      background: rgba(192, 132, 252, 0.12);
+      color: #e9d5ff;
+      cursor: pointer;
+    }
+    .cap-not-signal:disabled { opacity: 0.45; cursor: wait; }
     .cap-status {
       margin: 8px 0 0;
       font-size: 0.72rem;

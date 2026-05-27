@@ -209,9 +209,10 @@ def register_workforpyx_routes(app) -> None:
             data = request.get_json(silent=True) or {}
             query = str(data.get("query") or "").strip()
             try:
-                max_n = int(data.get("max") or 12)
+                max_n = int(data.get("max") or 50)
             except (TypeError, ValueError):
-                max_n = 12
+                max_n = 50
+            max_n = max(1, min(max_n, 50))
             images, err = publish_images_for_training(query, max_results=max_n)
             if err:
                 return jsonify({"ok": False, "error": err}), 400

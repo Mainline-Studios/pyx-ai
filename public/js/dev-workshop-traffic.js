@@ -6,16 +6,28 @@
   "use strict";
 
   var API = "/api/dev-workshop/traffic";
-  var COLORS = ["red", "yellow", "green", "off", "unknown"];
+  var SIGNAL_COLORS = ["red", "yellow", "green", "off"];
+  var COLORS = ["red", "yellow", "green", "off", "not_traffic_light", "unknown"];
   var HEX = {
     red: "#ef4444",
     yellow: "#eab308",
     green: "#22c55e",
     off: "#64748b",
     unknown: "#94a3b8",
+    not_traffic_light: "#c084fc",
+  };
+  var COLOR_LABELS = {
+    red: "Red",
+    yellow: "Yellow",
+    green: "Green",
+    off: "Off",
+    unknown: "Unknown",
+    not_traffic_light: "Not a traffic light",
   };
   var FEATURE_W = 120;
   var FEATURE_H = 90;
+
+  var WEB_SEARCH_PLAYLIST_SIZE = 50;
 
   var WEB_PRESETS = [
     "green traffic light",
@@ -72,15 +84,186 @@
   }
 
   function api(path, body) {
-    return fetch(API + path, {
-      method: body ? "POST" : "GET",
-      headers: body ? { "Content-Type": "application/json" } : {},
-      body: body ? JSON.stringify(body) : undefined,
-    }).then(function (r) {
-      return r.json().then(function (j) {
+    var opts = { method: body ? "POST" : "GET", cache: "no-store" };
+    if (body) {
+      opts.headers = { "Content-Type": "application/json" };
+      opts.body = JSON.stringify(body);
+    }
+    return fetch(API + path, opts).then(function (r) {
+      return r.text().then(function (text) {
+        var j = {};
+        if (text) {
+          try {
+            j = JSON.parse(text);
+          } catch (e) {
+            return {
+              ok: false,
+              status: r.status,
+              data: {
+                ok: false,
+                error: "Server returned non-JSON (HTTP " + r.status + ")",
+              },
+            };
+          }
+        }
         return { ok: r.ok, status: r.status, data: j };
       });
     });
+  }
+
+  function statsFromSamples(samples) {
+    var st = {
+      red: 0,
+      yellow: 0,
+      green: 0,
+      off: 0,
+      unknown: 0,
+      not_traffic_light: 0,
+    };
+    (samples || []).forEach(function (s) {
+      var c = String((s && s.color) || "unknown").toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(st, c)) st[c] += 1;
+      else st.unknown += 1;
+    });
+    return st;
+  }
+
+  function colorDisplayName(c) {
+    return COLOR_LABELS[c] || String(c || "unknown");
+  }
+
+  function isSignalColor(c) {
+    return SIGNAL_COLORS.indexOf(c) >= 0;
+  }
+
+  function isSignalPixel(r, g, b) {
+    if (r > 165 && g < 115 && b < 115) return true;
+    if (g > 145 && r < 150 && b < 130) return true;
+    if (r > 145 && g > 125 && b < 95) return true;
+    return (r + g + b) / 3 > 175;
+  }
+
+  /** Normalized box {x0,y0,x1,y1} in 0–1 coords on feature canvas, or null. */
+  function findSignalBox(drawable) {
+    var c = document.createElement("canvas");
+    c.width = FEATURE_W;
+    c.height = FEATURE_H;
+    var ctx = c.getContext("2d");
+    ctx.drawImage(drawable, 0, 0, FEATURE_W, FEATURE_H);
+    var img = ctx.getImageData(0, 0, FEATURE_W, FEATURE_H);
+    var d = img.data;
+    var topH = Math.floor(FEATURE_H * 0.55);
+    var minX = FEATURE_W;
+    var minY = FEATURE_H;
+    var maxX = 0;
+    var maxY = 0;
+    var hits = 0;
+    var y;
+    var x;
+    var i;
+    var r;
+    var g;
+    var b;
+    for (y = 0; y < topH; y++) {
+      for (x = 0; x < FEATURE_W; x++) {
+        i = (y * FEATURE_W + x) * 4;
+        r = d[i];
+        g = d[i + 1];
+        b = d[i + 2];
+        if (!isSignalPixel(r, g, b)) continue;
+        hits++;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+    if (hits < 10) return null;
+    var padX = Math.max(4, Math.round((maxX - minX) * 0.15));
+    var padY = Math.max(4, Math.round((maxY - minY) * 0.2));
+    minX = Math.max(0, minX - padX);
+    minY = Math.max(0, minY - padY);
+    maxX = Math.min(FEATURE_W - 1, maxX + padX);
+    maxY = Math.min(FEATURE_H - 1, maxY + padY);
+    return {
+      x0: minX / FEATURE_W,
+      y0: minY / FEATURE_H,
+      x1: (maxX + 1) / FEATURE_W,
+      y1: (maxY + 1) / FEATURE_H,
+    };
+  }
+
+  function syncOverlayCanvas(canvas, host) {
+    if (!canvas || !host) return;
+    var w = host.clientWidth || host.videoWidth || FEATURE_W;
+    var h = host.clientHeight || host.videoHeight || FEATURE_H;
+    if (w < 2 || h < 2) return;
+    canvas.width = w;
+    canvas.height = h;
+  }
+
+  function drawBoxOnCanvas(canvas, boxNorm, strokeHex, opts) {
+    opts = opts || {};
+    if (!canvas || !boxNorm) return;
+    var ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var x = boxNorm.x0 * canvas.width;
+    var y = boxNorm.y0 * canvas.height;
+    var w = (boxNorm.x1 - boxNorm.x0) * canvas.width;
+    var h = (boxNorm.y1 - boxNorm.y0) * canvas.height;
+    if (w < 4 || h < 4) return;
+    var dashed = !!opts.dashed;
+    var fill = strokeHex + (opts.fillAlpha || "40");
+    ctx.lineWidth = opts.lineWidth || 3;
+    ctx.strokeStyle = strokeHex;
+    if (dashed) ctx.setLineDash([10, 7]);
+    else ctx.setLineDash([]);
+    ctx.fillStyle = fill;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    ctx.setLineDash([]);
+  }
+
+  function clearOverlayCanvas(canvas) {
+    if (!canvas) return;
+    var ctx = canvas.getContext("2d");
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  function renderTrainingStats(x) {
+    var el = $("trafficStats");
+    if (!el) return;
+    if (!x || !x.data) {
+      el.textContent = "Could not load training stats (no response).";
+      return;
+    }
+    if (!x.ok || x.data.ok === false) {
+      el.textContent =
+        "Could not load training stats: " +
+        ((x.data && x.data.error) || "HTTP " + (x.status || "?"));
+      return;
+    }
+    var st = x.data.stats;
+    if (!st && x.data.samples) st = statsFromSamples(x.data.samples);
+    if (!st) {
+      el.textContent = "No training stats yet — label images below.";
+      return;
+    }
+    el.textContent =
+      "Training set — red: " +
+      (st.red || 0) +
+      ", yellow: " +
+      (st.yellow || 0) +
+      ", green: " +
+      (st.green || 0) +
+      ", off: " +
+      (st.off || 0) +
+      ", not a signal: " +
+      (st.not_traffic_light || 0) +
+      ", unknown: " +
+      (st.unknown || 0) +
+      " — your saved labels are kept when you add new classes";
   }
 
   /** Shared feature extraction (still image + live video frames). */
@@ -209,11 +392,17 @@
       if (liveLabel && opts.live) liveLabel.textContent = data && data.error ? data.error : "—";
       return;
     }
-    var text =
-      (data.traffic_light_detected ? "Signal: " : "Guess: ") +
-      String(data.color || "unknown").toUpperCase() +
-      " · " +
-      (data.hex || "");
+    var c = data.color || "unknown";
+    var text;
+    if (c === "not_traffic_light") {
+      text = "Not a traffic light · " + (data.hex || HEX.not_traffic_light);
+    } else {
+      text =
+        (data.traffic_light_detected ? "Signal: " : "Guess: ") +
+        colorDisplayName(c).toUpperCase() +
+        " · " +
+        (data.hex || "");
+    }
     var metaText =
       "Confidence " +
       Math.round((data.confidence || 0) * 100) +
@@ -228,8 +417,21 @@
       if (label) label.textContent = text;
       if (meta) meta.textContent = metaText;
     }
-    if (liveSwatch) liveSwatch.style.background = data.hex || HEX.unknown;
+    if (liveSwatch) {
+      liveSwatch.style.background =
+        c === "not_traffic_light" ? HEX.not_traffic_light : data.hex || HEX.unknown;
+    }
     if (liveLabel) liveLabel.textContent = text;
+    if (opts.overlayBox && opts.overlayHost && opts.overlayCanvas) {
+      syncOverlayCanvas(opts.overlayCanvas, opts.overlayHost);
+      var stroke =
+        c === "not_traffic_light" || !data.traffic_light_detected
+          ? HEX.not_traffic_light
+          : data.hex || HEX.unknown;
+      drawBoxOnCanvas(opts.overlayCanvas, opts.overlayBox, stroke, {
+        dashed: c === "not_traffic_light" || !data.traffic_light_detected,
+      });
+    }
     if (!opts.skipBroadcast) {
       broadcastColor(data, { mode: data.mode, frame_id: data.frame_id, source: data.source });
     }
@@ -292,9 +494,32 @@
 
   function setPreview(url) {
     var el = $("trafficPreview");
+    var wrap = $("trafficPreviewWrap");
     if (!el) return;
     el.src = url || "";
-    el.hidden = !url;
+    if (wrap) wrap.hidden = !url;
+    else el.hidden = !url;
+    clearOverlayCanvas($("trafficPreviewOverlay"));
+  }
+
+  function updatePreviewOverlay(drawable, data) {
+    var host = $("trafficPreviewWrap");
+    var canvas = $("trafficPreviewOverlay");
+    if (!host || !canvas || !drawable) return;
+    var box = findSignalBox(drawable);
+    if (!data || !data.ok || !box) {
+      clearOverlayCanvas(canvas);
+      return;
+    }
+    syncOverlayCanvas(canvas, host);
+    var c = data.color || "unknown";
+    var stroke =
+      c === "not_traffic_light" || !data.traffic_light_detected
+        ? HEX.not_traffic_light
+        : data.hex || HEX.unknown;
+    drawBoxOnCanvas(canvas, box, stroke, {
+      dashed: c === "not_traffic_light" || !data.traffic_light_detected,
+    });
   }
 
   function currentUrl() {
@@ -309,8 +534,10 @@
     }
     setPreview(url);
     log("Loading image…");
+    var analyzedImg = null;
     loadImage(url)
       .then(function (img) {
+        analyzedImg = img;
         var features = extractFeatures(img);
         return analyzeFeaturesOnServer(features, {
           mode: "image",
@@ -324,7 +551,8 @@
           return;
         }
         setResult(data);
-        log("Analyzed: " + data.color + " " + data.hex);
+        updatePreviewOverlay(analyzedImg, data);
+        log("Analyzed: " + colorDisplayName(data.color) + " " + data.hex);
       })
       .catch(function () {
         log("Client load failed — trying server fetch…", true);
@@ -406,22 +634,9 @@
   }
 
   function refreshStats() {
-    return api("/samples", null).then(function (x) {
+    return api("/samples").then(renderTrainingStats).catch(function (e) {
       var el = $("trafficStats");
-      if (!el || !x.data || !x.data.stats) return;
-      var st = x.data.stats;
-      el.textContent =
-        "Training set — red: " +
-        (st.red || 0) +
-        ", yellow: " +
-        (st.yellow || 0) +
-        ", green: " +
-        (st.green || 0) +
-        ", off: " +
-        (st.off || 0) +
-        ", unknown: " +
-        (st.unknown || 0) +
-        " (label more greens/reds for best results)";
+      if (el) el.textContent = "Could not load training stats: " + (e.message || String(e));
     });
   }
 
@@ -433,9 +648,14 @@
       return;
     }
     var grid = $("trafficWebGrid");
-    if (grid) grid.innerHTML = '<p class="traffic-muted">Searching and caching images…</p>';
-    log("Searching web for: " + q);
-    api("/search-images", { query: q, max: 14 })
+    if (grid) {
+      grid.innerHTML =
+        '<p class="traffic-muted">Building playlist of ' +
+        WEB_SEARCH_PLAYLIST_SIZE +
+        " images (search + download)…</p>";
+    }
+    log("Searching web for: " + q + " (playlist ×" + WEB_SEARCH_PLAYLIST_SIZE + ")");
+    api("/search-images", { query: q, max: WEB_SEARCH_PLAYLIST_SIZE })
       .then(function (x) {
         if (!x.ok || !x.data.ok) {
           if (grid) {
@@ -447,31 +667,58 @@
           log((x.data && x.data.error) || "Search failed", true);
           return;
         }
-        renderWebGrid(x.data.images || []);
-        log("Loaded " + (x.data.count || 0) + " images — label each card.");
+        var images = x.data.images || [];
+        renderWebGrid(images, q);
+        log(
+          "Playlist ready: " +
+            (x.data.count || images.length) +
+            " / " +
+            WEB_SEARCH_PLAYLIST_SIZE +
+            " images — label each card."
+        );
       })
       .catch(function (e) {
+        if (grid) {
+          grid.innerHTML =
+            '<p class="traffic-muted">' + escapeHtml(e.message || String(e)) + "</p>";
+        }
         log(e.message || String(e), true);
       });
   }
 
-  function renderWebGrid(images) {
+  function renderWebGrid(images, queryLabel) {
     var grid = $("trafficWebGrid");
     if (!grid) return;
     if (!images.length) {
       grid.innerHTML = '<p class="traffic-muted">No images returned.</p>';
       return;
     }
-    grid.innerHTML = images
-      .map(function (img) {
+    var head =
+      '<div class="traffic-playlist-head">' +
+      '<strong>Image playlist</strong> · ' +
+      images.length +
+      " of " +
+      WEB_SEARCH_PLAYLIST_SIZE +
+      (queryLabel ? " · “" + escapeHtml(queryLabel) + "”" : "") +
+      "</div>";
+    grid.innerHTML =
+      head +
+      images
+      .map(function (img, idx) {
         var url = img.public_url || img.thumbnail_url || "";
+        var n = idx + 1;
         return (
           '<article class="traffic-web-card" data-public-url="' +
           escapeAttr(url) +
+          '" data-playlist-index="' +
+          n +
           '">' +
+          '<span class="traffic-web-card__num" aria-hidden="true">' +
+          n +
+          "</span>" +
           '<img src="' +
           escapeAttr(url) +
-          '" alt="" loading="lazy" crossorigin="anonymous" />' +
+          '" alt="" loading="lazy" crossorigin="anonymous" onerror="this.closest(\'.traffic-web-card\')?.classList.add(\'is-broken\')" />' +
           '<div class="traffic-web-card__body">' +
           '<p class="traffic-web-card__title">' +
           escapeHtml(img.title || img.query || "Image") +
@@ -481,6 +728,7 @@
           '<button type="button" class="btn btn-xs" data-label="yellow" style="border-color:#eab308">Yellow</button>' +
           '<button type="button" class="btn btn-xs" data-label="green" style="border-color:#22c55e">Green</button>' +
           '<button type="button" class="btn btn-xs" data-label="off">Off</button>' +
+          '<button type="button" class="btn btn-xs" data-label="not_traffic_light" style="border-color:#c084fc">Not a signal</button>' +
           '<button type="button" class="btn btn-xs" data-label="unknown">Skip</button>' +
           "</div></div></article>"
         );
@@ -526,7 +774,6 @@
         }
         log("Saved as " + color + " — re-test on Test image tab.");
         refreshSamples();
-        refreshStats();
       })
       .catch(function (e) {
         log(e.message || String(e), true);
@@ -559,7 +806,7 @@
   function formatSavedOptionLabel(s) {
     var id = (s.id || "").slice(-8);
     var when = (s.created || "").slice(0, 10);
-    return (s.color || "unknown") + " · " + id + (when ? " · " + when : "");
+    return colorDisplayName(s.color || "unknown") + " · " + id + (when ? " · " + when : "");
   }
 
   function renderSavedPreview(sampleId) {
@@ -598,12 +845,13 @@
   }
 
   function refreshSamples() {
-    return api("/samples", null).then(function (x) {
+    return api("/samples")
+      .then(function (x) {
+      renderTrainingStats(x);
       var select = $("trafficSavedSelect");
       var summary = $("trafficSavedSummary");
       var samples = (x.data && x.data.samples) || [];
       savedSamplesCache = samples.slice().reverse();
-      refreshStats();
       if (summary) {
         summary.textContent = "Saved samples (" + samples.length + ")";
       }
@@ -626,7 +874,13 @@
         })
         .join("");
       renderSavedPreview(savedSamplesCache[0].id);
-    });
+    })
+      .catch(function (e) {
+        renderTrainingStats({
+          ok: false,
+          data: { ok: false, error: e.message || String(e) },
+        });
+      });
   }
 
   function escapeHtml(s) {
@@ -686,6 +940,7 @@
     if (video) video.srcObject = null;
     var wrap = $("trafficLiveWrap");
     if (wrap) wrap.hidden = true;
+    clearOverlayCanvas($("trafficLiveOverlay"));
     var cam = $("trafficLiveCamera");
     var stop = $("trafficLiveStop");
     if (cam) cam.disabled = false;
@@ -702,14 +957,24 @@
     liveState.inFlight = true;
     liveState.frameSeq += 1;
     var frameId = "f" + liveState.frameSeq;
+    var box = findSignalBox(video);
     var features = extractFeaturesFromCanvasSource(video);
+    var wrap = $("trafficLiveWrap");
+    var overlay = $("trafficLiveOverlay");
     analyzeFeaturesOnServer(features, {
       mode: "frame",
       source: liveState.source,
       frame_id: frameId,
     })
       .then(function (data) {
-        setResult(data, { live: true, liveOnly: false });
+        setResult(data, {
+          live: true,
+          liveOnly: false,
+          overlayBox: box,
+          overlayHost: wrap,
+          overlayCanvas: overlay,
+        });
+        if (!box && overlay) clearOverlayCanvas(overlay);
         if (data.ok) {
           maybeEmitLive(
             Object.assign({}, data, { frame_id: frameId, source: liveState.source })
@@ -755,6 +1020,7 @@
       .then(function () {
         var wrap = $("trafficLiveWrap");
         if (wrap) wrap.hidden = false;
+        syncOverlayCanvas($("trafficLiveOverlay"), wrap);
         liveState.running = true;
         liveState.frameSeq = 0;
         liveState.lastEmitColor = null;
@@ -789,6 +1055,7 @@
     video.onloadeddata = function () {
       var wrap = $("trafficLiveWrap");
       if (wrap) wrap.hidden = false;
+      syncOverlayCanvas($("trafficLiveOverlay"), wrap);
       video.play();
       liveState.running = true;
       liveState.frameSeq = 0;
@@ -917,6 +1184,11 @@
     if (/[?&]input=live/.test(location.search)) setInputMode("live");
     else if (/[?&]input=test/.test(location.search)) setInputMode("image");
     else setInputMode("trainWeb");
+
+    global.addEventListener("resize", function () {
+      if (!liveState.running) return;
+      syncOverlayCanvas($("trafficLiveOverlay"), $("trafficLiveWrap"));
+    });
   }
 
   global.PyxDevWorkshopTraffic = {

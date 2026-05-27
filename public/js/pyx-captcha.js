@@ -9,6 +9,14 @@
   var FEATURE_W = 120;
   var FEATURE_H = 90;
   var COLORS = ["red", "yellow", "green", "off"];
+  var NOT_SIGNAL = "not_traffic_light";
+  var HEX = {
+    red: "#ef4444",
+    yellow: "#eab308",
+    green: "#22c55e",
+    off: "#64748b",
+    not_traffic_light: "#c084fc",
+  };
 
   var state = {
     challengeId: null,
@@ -144,7 +152,7 @@
     state.busy = busy;
     var root = $("capRoot");
     if (!root) return;
-    root.querySelectorAll(".cap-colors button").forEach(function (btn) {
+    root.querySelectorAll(".cap-colors button, .cap-not-signal").forEach(function (btn) {
       btn.disabled = busy;
     });
     var next = $("capNext");
@@ -171,18 +179,23 @@
       escapeHtml(ch.public_url) +
       '" alt="Traffic signal" crossorigin="anonymous" /></div>' +
       '<div class="cap-side">' +
-      '<p class="cap-prompt">Which light is on?</p>' +
+      '<p class="cap-prompt">Which light is on — or is this not a traffic light?</p>' +
       '<div class="cap-colors" id="capColors">' +
       COLORS.map(function (c) {
         return (
           '<button type="button" data-c="' +
           c +
+          '" style="border-color:' +
+          (HEX[c] || "#64748b") +
           '">' +
           c.charAt(0).toUpperCase() +
           c.slice(1) +
           "</button>"
         );
       }).join("") +
+      '<button type="button" class="cap-not-signal" data-c="' +
+      NOT_SIGNAL +
+      '">This is not a traffic light</button>' +
       "</div>" +
       '<p class="cap-status" id="capStatus"></p>' +
       '<button type="button" class="cap-next" id="capNext">Next challenge</button>' +
@@ -267,9 +280,9 @@
         } else {
           setStatus(
             "Pyx saw " +
-              (d.pyx_color || "?") +
+              (d.pyx_color === NOT_SIGNAL ? "not a traffic light" : d.pyx_color || "?") +
               " — training with your " +
-              color +
+              (color === NOT_SIGNAL ? "not a traffic light" : color) +
               ". One more…",
             "warn"
           );

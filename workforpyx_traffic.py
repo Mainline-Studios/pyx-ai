@@ -8,9 +8,12 @@ import re
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+TRAFFIC_IMAGE_SEARCH_MAX = 50
 
 import numpy as np
 
@@ -29,7 +32,10 @@ COLOR_HEX = {
     "green": "#22c55e",
     "off": "#64748b",
     "unknown": "#94a3b8",
+    "not_traffic_light": "#c084fc",
 }
+SIGNAL_COLORS = frozenset({"red", "yellow", "green", "off"})
+TRAINABLE_COLORS = frozenset(COLOR_HEX.keys()) - {"unknown"}
 
 
 def _now_iso() -> str:
@@ -181,20 +187,46 @@ def _fetch_image_bytes(url: str) -> bytes:
         return resp.read()
 
 
+def _ddg_request_headers(*, json_api: bool = False) -> dict[str, str]:
+    h = {
+        "User-Agent": _traffic_user_agent(),
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://duckduckgo.com/",
+    }
+    if json_api:
+        h.update(
+            {
+                "Accept": "application/json, text/javascript, */*; q=0.01",
+                "X-Requested-With": "XMLHttpRequest",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-origin",
+            }
+        )
+    else:
+        h["Accept"] = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8"
+    return h
+
+
 def _ddg_vqd(query: str) -> str | None:
-    enc = urllib.parse.quote(query)
-    init_url = f"https://duckduckgo.com/?q={enc}&iax=images&ia=images"
+    """DuckDuckGo image search token (POST + HTML parse; GET alone often 403s on i.js)."""
+    body = urllib.parse.urlencode({"q": query}).encode("utf-8")
     req = urllib.request.Request(
-        init_url,
+        "https://duckduckgo.com/",
+        data=body,
+        method="POST",
         headers={
-            "User-Agent": _traffic_user_agent(),
-            "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
-            "Referer": "https://duckduckgo.com/",
+            **_ddg_request_headers(),
+            "Content-Type": "application/x-www-form-urlencoded",
         },
     )
-    with urllib.request.urlopen(req, timeout=22) as resp:
-        html = resp.read().decode("utf-8", errors="replace")
+    try:
+        with urllib.request.urlopen(req, timeout=22) as resp:
+            html = resp.read().decode("utf-8", errors="replace")
+    except Exception:
+        return None
     for pat in (
+        r"vqd=([\d-]+)&",
         r"vqd=([\d-]+)",
         r"vqd['\"]\s*:\s*['\"]([\d-]+)['\"]",
         r"vqd\\\":([\d-]+)",
@@ -205,45 +237,11 @@ def _ddg_vqd(query: str) -> str | None:
     return None
 
 
-def search_web_images(query: str, *, max_results: int = 12) -> tuple[list[dict[str, Any]], str | None]:
-    """DuckDuckGo image search (no API key). Returns (items, error)."""
-    query = (query or "").strip()[:300]
-    if not query:
-        return [], "empty query"
-    max_results = max(1, min(int(max_results), 24))
-    vqd = _ddg_vqd(query)
-    if not vqd:
-        return [], "image search unavailable (could not get search token)"
-    params = urllib.parse.urlencode(
-        {
-            "l": "us-en",
-            "o": "json",
-            "q": query,
-            "vqd": vqd,
-            "f": ",,,",
-            "p": "1",
-        }
-    )
-    api_url = f"https://duckduckgo.com/i.js?{params}"
-    req = urllib.request.Request(
-        api_url,
-        headers={
-            "User-Agent": _traffic_user_agent(),
-            "Accept": "application/json,text/javascript,*/*",
-            "Referer": "https://duckduckgo.com/",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=22) as resp:
-            raw = resp.read().decode("utf-8", errors="replace")
-    except Exception as e:
-        return [], str(e)[:300]
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError:
-        return [], "image search returned invalid JSON"
+def _parse_ddg_image_rows(rows: Any) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    for row in payload.get("results") or []:
+    if not isinstance(rows, list):
+        return out
+    for row in rows:
         if not isinstance(row, dict):
             continue
         img = (row.get("image") or row.get("thumbnail") or "").strip()
@@ -258,52 +256,125 @@ def search_web_images(query: str, *, max_results: int = 12) -> tuple[list[dict[s
                 "source": (row.get("source") or "")[:120],
             }
         )
-        if len(out) >= max_results:
+    return out
+
+
+def search_web_images(query: str, *, max_results: int = 50) -> tuple[list[dict[str, Any]], str | None]:
+    """DuckDuckGo image search (no API key). Returns (items, error)."""
+    query = (query or "").strip()[:300]
+    if not query:
+        return [], "empty query"
+    want = max(1, min(int(max_results), TRAFFIC_IMAGE_SEARCH_MAX))
+    vqd = _ddg_vqd(query)
+    if not vqd:
+        return [], "image search unavailable (could not get search token)"
+    out: list[dict[str, Any]] = []
+    seen_urls: set[str] = set()
+    offset = 0
+    pages = 0
+    while len(out) < want and pages < 4:
+        params = urllib.parse.urlencode(
+            {
+                "l": "us-en",
+                "o": "json",
+                "q": query,
+                "vqd": vqd,
+                "f": ",,,",
+                "p": "-1",
+                "s": str(offset),
+            }
+        )
+        api_url = f"https://duckduckgo.com/i.js?{params}"
+        req = urllib.request.Request(api_url, headers=_ddg_request_headers(json_api=True))
+        try:
+            with urllib.request.urlopen(req, timeout=28) as resp:
+                raw = resp.read().decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as e:
+            if pages == 0:
+                return [], f"image search blocked (HTTP {e.code})"
             break
+        except Exception as e:
+            if pages == 0:
+                return [], str(e)[:300]
+            break
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            if pages == 0:
+                return [], "image search returned invalid JSON"
+            break
+        batch = _parse_ddg_image_rows(payload.get("results"))
+        if not batch:
+            break
+        for row in batch:
+            url = row["image_url"]
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
+            out.append(row)
+            if len(out) >= want:
+                break
+        pages += 1
+        offset += 100
     if not out:
         return [], "no images found for that query"
-    return out, None
+    return out[:want], None
+
+
+def _cache_one_training_image(row: dict[str, Any], query: str) -> dict[str, Any] | None:
+    src = row.get("image_url") or ""
+    try:
+        data = _fetch_image_bytes(src)
+    except Exception:
+        return None
+    if len(data) < 500:
+        return None
+    ext = _guess_image_ext(data)
+    fid = _new_id() + ext
+    path = IMAGE_CACHE_DIR / fid
+    path.write_bytes(data)
+    public_path = f"/api/dev-workshop/traffic/img/{fid}"
+    return {
+        "id": fid,
+        "public_url": public_path,
+        "source_url": src,
+        "thumbnail_url": public_path,
+        "page_url": row.get("page_url") or "",
+        "title": row.get("title") or "",
+        "query": query,
+        "cached_at": _now_iso(),
+    }
 
 
 def publish_images_for_training(
-    query: str, *, max_results: int = 12
+    query: str, *, max_results: int = 50
 ) -> tuple[list[dict[str, Any]], str | None]:
     """
     Search the web, download images to server cache, return public proxy URLs for the trainer UI.
     """
-    items, err = search_web_images(query, max_results=max_results)
+    want = max(1, min(int(max_results), TRAFFIC_IMAGE_SEARCH_MAX))
+    # Fetch extra candidates — many hosts block hotlink downloads.
+    search_n = min(TRAFFIC_IMAGE_SEARCH_MAX * 2, max(want + 20, want))
+    items, err = search_web_images(query, max_results=search_n)
     if err:
         return [], err
     IMAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     published: list[dict[str, Any]] = []
-    for row in items:
-        src = row["image_url"]
-        try:
-            data = _fetch_image_bytes(src)
-        except Exception:
-            continue
-        if len(data) < 500:
-            continue
-        ext = _guess_image_ext(data)
-        fid = _new_id() + ext
-        path = IMAGE_CACHE_DIR / fid
-        path.write_bytes(data)
-        public_path = f"/api/dev-workshop/traffic/img/{fid}"
-        published.append(
-            {
-                "id": fid,
-                "public_url": public_path,
-                "source_url": src,
-                "thumbnail_url": public_path,
-                "page_url": row.get("page_url") or "",
-                "title": row.get("title") or "",
-                "query": query,
-                "cached_at": _now_iso(),
-            }
-        )
+    workers = min(12, max(4, want // 4))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {pool.submit(_cache_one_training_image, row, query): row for row in items}
+        for fut in as_completed(futures):
+            if len(published) >= want:
+                break
+            try:
+                row = fut.result()
+            except Exception:
+                continue
+            if row:
+                published.append(row)
     if not published:
         return [], "could not download any images (blocked or hotlink protected)"
-    return published, None
+    return published[:want], None
 
 
 def sample_stats(samples: list[dict]) -> dict[str, int]:
@@ -323,7 +394,7 @@ def heuristic_classify(features: list[float]) -> tuple[str, float, bool]:
     signal = ratio_r + ratio_y + ratio_g
     detected = signal > 0.006 or bright_top > 0.28 or max(mean_r, mean_g, mean_b) > 0.25
     if not detected:
-        return "unknown", 0.35, False
+        return "not_traffic_light", 0.52, False
 
     # Dominant channel (works when the lit bulb fills much of the crop)
     if mean_g >= mean_r and mean_g >= mean_b and mean_g > 0.22:
@@ -397,8 +468,10 @@ def add_training_sample(
     dev: str = "dev",
 ) -> dict[str, Any]:
     color = (color or "").strip().lower()
-    if color not in COLOR_HEX:
-        raise ValueError("color must be red, yellow, green, off, or unknown")
+    if color not in TRAINABLE_COLORS:
+        raise ValueError(
+            "color must be red, yellow, green, off, not_traffic_light, or unknown"
+        )
     feats = _normalize_features(features)
     if not feats:
         raise ValueError("features must be a list of 8 numbers")
@@ -432,11 +505,23 @@ def delete_sample(sample_id: str) -> bool:
     return True
 
 
+def _captcha_colors_agree(pyx_color: str, user_color: str) -> bool:
+    pyx_color = (pyx_color or "").strip().lower()
+    user_color = (user_color or "").strip().lower()
+    if user_color == "not_traffic_light":
+        return pyx_color == "not_traffic_light"
+    if pyx_color == "not_traffic_light":
+        return False
+    return pyx_color == user_color
+
+
 def traffic_capabilities() -> dict[str, Any]:
     """Contract for clients building live video later."""
     return {
         "protocol_version": TRAFFIC_PROTOCOL_VERSION,
         "feature_dim": FEATURE_DIM,
+        "label_colors": sorted(TRAINABLE_COLORS),
+        "signal_colors": sorted(SIGNAL_COLORS),
         "analyze_modes": sorted(ANALYZE_MODES),
         "live_video": {
             "status": "preview",
@@ -477,17 +562,43 @@ def analyze_features(
         return {"ok": False, "error": "features must be a list of 8 numbers"}
 
     samples = list_samples()
+    ntl_samples = [s for s in samples if s.get("color") == "not_traffic_light"]
+    sig_samples = [
+        s
+        for s in samples
+        if str(s.get("color") or "") in SIGNAL_COLORS or s.get("color") == "unknown"
+    ]
+
     method = "heuristic"
     color, confidence, detected = heuristic_classify(feats)
-    knn = knn_classify(feats, samples)
-    if knn:
-        k_color, k_conf = knn
-        min_conf = 0.38 if len(samples) < 3 else 0.42
-        if k_conf >= min_conf or k_conf > confidence:
-            color, confidence = k_color, k_conf
-            method = "knn"
 
-    detected = detected or (confidence > 0.5 and color != "unknown")
+    ntl_knn = knn_classify(feats, ntl_samples) if ntl_samples else None
+    sig_knn = knn_classify(feats, sig_samples) if sig_samples else None
+    min_conf = 0.38 if len(samples) < 3 else 0.42
+
+    if sig_knn:
+        k_color, k_conf = sig_knn
+        if k_color in SIGNAL_COLORS and k_conf >= min_conf:
+            if k_conf >= confidence or detected:
+                color, confidence, method = k_color, k_conf, "knn"
+                detected = True
+
+    if ntl_knn:
+        nk_color, nk_conf = ntl_knn
+        sk_conf = sig_knn[1] if sig_knn else 0.0
+        if nk_conf >= min_conf and (
+            nk_conf >= sk_conf + 0.04 or not detected or color == "not_traffic_light"
+        ):
+            if nk_conf >= confidence - 0.02:
+                color, confidence, method = nk_color, nk_conf, "knn"
+                detected = False
+
+    if color == "not_traffic_light":
+        detected = False
+    elif color in SIGNAL_COLORS:
+        detected = detected or confidence > 0.45
+    else:
+        detected = detected or (confidence > 0.5 and color not in ("unknown",))
     hex_color = COLOR_HEX.get(color, COLOR_HEX["unknown"])
     out: dict[str, Any] = {
         "ok": True,
@@ -654,8 +765,10 @@ def submit_captcha(
         raise ValueError("Unknown or expired captcha challenge")
     image_url = str(row.get("image_url") or row.get("public_url") or "")
     user_color = (color or "").strip().lower()
-    if user_color not in COLOR_HEX:
-        raise ValueError("color must be red, yellow, green, or off")
+    if user_color not in TRAINABLE_COLORS:
+        raise ValueError(
+            "color must be red, yellow, green, off, not_traffic_light, or unknown"
+        )
 
     feats = _normalize_features(features) if features is not None else None
     if feats is None:
@@ -681,7 +794,7 @@ def submit_captcha(
         feats,
         dev="captcha",
     )
-    agreed = pyx_color == user_color
+    agreed = _captcha_colors_agree(pyx_color, user_color)
     out: dict[str, Any] = {
         "ok": True,
         "trained": True,

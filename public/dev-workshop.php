@@ -397,7 +397,8 @@ function workforpyx_status_pill_class(string $status): string
       border-color: rgba(56, 189, 248, 0.5);
       background: rgba(14, 165, 233, 0.12);
     }
-    .traffic-live-wrap {
+    .traffic-live-wrap,
+    .traffic-preview-wrap {
       position: relative;
       border-radius: 12px;
       overflow: hidden;
@@ -405,21 +406,52 @@ function workforpyx_status_pill_class(string $status): string
       background: #020617;
       margin: 10px 0;
     }
-    #trafficLiveVideo {
+    #trafficLiveVideo,
+    #trafficPreview {
       width: 100%;
       max-height: 280px;
       display: block;
       object-fit: contain;
+      vertical-align: middle;
+    }
+    .traffic-live-overlay,
+    .traffic-preview-overlay {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .traffic-live-hud {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 8px 10px;
+      background: linear-gradient(transparent, rgba(2, 6, 23, 0.92));
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     .traffic-live-swatch {
-      height: 48px;
-      border-top: 1px solid var(--border);
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      flex-shrink: 0;
+      background: #334155;
     }
     .traffic-live-label {
-      padding: 8px 12px;
-      font-size: 0.88rem;
+      font-size: 0.82rem;
       font-weight: 700;
       margin: 0;
+      color: #f1f5f9;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    }
+    .traffic-train-btns .btn-not-signal {
+      border-color: #c084fc !important;
+      color: #e9d5ff;
     }
     .traffic-live-controls {
       display: flex;
@@ -491,6 +523,12 @@ function workforpyx_status_pill_class(string $status): string
       color: #cbd5e1;
       cursor: pointer;
     }
+    .traffic-playlist-head {
+      grid-column: 1 / -1;
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      margin-bottom: 4px;
+    }
     .traffic-web-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -498,10 +536,25 @@ function workforpyx_status_pill_class(string $status): string
       margin-top: 12px;
     }
     .traffic-web-card {
+      position: relative;
       border: 1px solid var(--border);
       border-radius: 10px;
       overflow: hidden;
       background: #0f172a;
+    }
+    .traffic-web-card.is-broken { opacity: 0.35; }
+    .traffic-web-card__num {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      z-index: 1;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.88);
+      color: #e2e8f0;
+      border: 1px solid var(--border);
     }
     .traffic-web-card img {
       width: 100%;
@@ -559,8 +612,9 @@ function workforpyx_status_pill_class(string $status): string
       <section class="panel" id="tab-traffic">
         <h2>Traffic light analyzer</h2>
         <p class="traffic-muted" style="margin:0 0 14px;">
-          <strong>Train from web</strong> — Pyx searches for traffic-light photos, hosts them on this site, and you label each one.
-          The model learns from your labels (not guesses alone). Then analyze or use live preview.
+          <strong>Train from web</strong> — label signals (red / yellow / green / off) or
+          <strong>not a traffic light</strong>. Your existing saved samples stay in the model.
+          Live preview draws a box on the signal and tints it with the color Pyx sees.
         </p>
         <p class="traffic-stats" id="trafficStats">Loading training stats…</p>
         <div class="traffic-input-tabs">
@@ -592,7 +646,10 @@ function workforpyx_status_pill_class(string $status): string
               <button type="button" class="btn btn-primary" id="trafficAnalyzeBtn">Analyze</button>
               <button type="button" class="btn" id="trafficSendBtn">Send color</button>
             </div>
-            <img id="trafficPreview" alt="Preview" hidden />
+            <div class="traffic-preview-wrap" id="trafficPreviewWrap" hidden>
+              <img id="trafficPreview" alt="Preview" />
+              <canvas id="trafficPreviewOverlay" class="traffic-preview-overlay" aria-hidden="true"></canvas>
+            </div>
             <div class="traffic-starters" id="trafficStarters"></div>
             <div class="traffic-swatch" id="trafficSwatch" aria-hidden="true"></div>
             <p class="traffic-result-label" id="trafficResultLabel">No analysis yet</p>
@@ -606,7 +663,8 @@ function workforpyx_status_pill_class(string $status): string
             <div id="trafficPanelLive" hidden>
               <h3 style="margin:0 0 8px;font-size:1rem;">Live video (preview)</h3>
               <p class="traffic-muted" style="margin:0 0 10px;font-size:0.85rem;">
-                Point your camera at a signal or load a clip. Frames run through the same analyzer as still images (~5 fps default).
+                Point your camera at a signal. Pyx boxes the light and the box fills with the color it sees
+                (purple dashed = not a traffic light).
               </p>
               <div class="traffic-live-controls">
                 <button type="button" class="btn btn-primary" id="trafficLiveCamera">Start camera</button>
@@ -619,8 +677,11 @@ function workforpyx_status_pill_class(string $status): string
               </div>
               <div class="traffic-live-wrap" id="trafficLiveWrap" hidden>
                 <video id="trafficLiveVideo" playsinline muted autoplay></video>
-                <div class="traffic-live-swatch" id="trafficLiveSwatch"></div>
-                <p class="traffic-live-label" id="trafficLiveLabel">Waiting for frames…</p>
+                <canvas id="trafficLiveOverlay" class="traffic-live-overlay" aria-hidden="true"></canvas>
+                <div class="traffic-live-hud">
+                  <span class="traffic-live-swatch" id="trafficLiveSwatch" aria-hidden="true"></span>
+                  <p class="traffic-live-label" id="trafficLiveLabel">Waiting for frames…</p>
+                </div>
               </div>
               <p class="traffic-muted" id="trafficLiveStat" style="font-size:0.78rem;margin:8px 0 0;"></p>
               <p class="traffic-muted" style="font-size:0.82rem;margin:12px 0 6px;">Train from current live frame:</p>
@@ -629,6 +690,7 @@ function workforpyx_status_pill_class(string $status): string
                 <button type="button" class="btn btn-xs" id="trafficLiveTrain_yellow" style="border-color:#eab308">Yellow</button>
                 <button type="button" class="btn btn-xs" id="trafficLiveTrain_green" style="border-color:#22c55e">Green</button>
                 <button type="button" class="btn btn-xs" id="trafficLiveTrain_off">Off</button>
+                <button type="button" class="btn btn-xs btn-not-signal" id="trafficLiveTrain_not_traffic_light">Not a signal</button>
                 <button type="button" class="btn btn-xs" id="trafficLiveTrain_unknown">Unknown</button>
               </div>
             </div>
@@ -643,6 +705,7 @@ function workforpyx_status_pill_class(string $status): string
               <button type="button" class="btn btn-xs" id="trafficTrain_yellow" style="border-color:#eab308">Yellow</button>
               <button type="button" class="btn btn-xs" id="trafficTrain_green" style="border-color:#22c55e">Green</button>
               <button type="button" class="btn btn-xs" id="trafficTrain_off">Off</button>
+              <button type="button" class="btn btn-xs btn-not-signal" id="trafficTrain_not_traffic_light">Not a signal</button>
               <button type="button" class="btn btn-xs" id="trafficTrain_unknown">Unknown</button>
             </div>
             <details class="traffic-saved-details" id="trafficSavedDetails">
@@ -850,7 +913,7 @@ function workforpyx_status_pill_class(string $status): string
       function showWorkshop() {
         gate.hidden = true;
         workshop.hidden = false;
-        if (window.PyxDevWorkshopTraffic && /[?&]tab=traffic/.test(location.search)) {
+        if (window.PyxDevWorkshopTraffic && document.getElementById("tab-traffic")) {
           PyxDevWorkshopTraffic.init();
         }
       }
