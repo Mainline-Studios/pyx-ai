@@ -33,6 +33,7 @@ from Pyx_ai_analyze import analyze_code, analyze_three_js, __version__ as analyz
 from werkzeug.exceptions import HTTPException
 
 import pyx13_preview
+import pyx_write
 
 try:
     from Pyx_ai_code import (
@@ -2279,6 +2280,52 @@ def code_chat():
     if us is not None:
         out["score"] = us
     return jsonify(out)
+
+
+@app.route("/write/compose", methods=["POST", "OPTIONS"])
+@app.route("/api/write/compose", methods=["POST", "OPTIONS"])
+def write_compose():
+    """Pyx Write: GPT-OSS composes instrumental score JSON for browser playback."""
+    if request.method == "OPTIONS":
+        return "", 204
+    if request.method != "POST":
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.get_json(silent=True) or {}
+    prompt = data.get("prompt") or data.get("q") or ""
+    if not isinstance(prompt, str) or not prompt.strip():
+        return jsonify({"error": '"prompt" must be a non-empty string'}), 400
+    style = data.get("style", "")
+    if style is not None and not isinstance(style, str):
+        return jsonify({"error": '"style" must be a string'}), 400
+    instruments = data.get("instruments")
+    if instruments is not None and not isinstance(instruments, list):
+        return jsonify({"error": '"instruments" must be an array of strings'}), 400
+    try:
+        bars = int(data.get("bars", 16))
+    except (TypeError, ValueError):
+        return jsonify({"error": '"bars" must be a number'}), 400
+    try:
+        score, model_used = pyx_write.compose_instrumental(
+            prompt=prompt.strip(),
+            style=(style or "").strip(),
+            instruments=instruments,
+            bars=bars,
+        )
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 503
+    except Exception as e:
+        app.logger.exception("write_compose failed")
+        return jsonify({"ok": False, "error": str(e)}), 502
+    return jsonify(
+        {
+            "ok": True,
+            "score": score,
+            "model": model_used,
+            "engine": "pyx-write-symbolic",
+        }
+    )
 
 
 @app.route("/pixel_art", methods=["POST", "OPTIONS"])

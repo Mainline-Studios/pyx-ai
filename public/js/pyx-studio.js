@@ -73,6 +73,20 @@
     }
   }
 
+  function readWriteRecent() {
+    try {
+      var p = localStorage.getItem("pyx.write.lastPrompt");
+      if (!p) return null;
+      return {
+        label: truncateLine(p, 48),
+        href: "/pyx-write.html",
+        at: parseInt(localStorage.getItem("pyx.write.lastAt") || "0", 10) || null,
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
   function readSpeakRecent() {
     try {
       var s = localStorage.getItem("pyx.speak.lastScript");
@@ -100,9 +114,11 @@
     var code = readCodeRecent();
     var pyxel = readPyxelRecent();
     var speak = readSpeakRecent();
+    var write = readWriteRecent();
     if (workspace) items.push({ app: "Workspace", item: workspace });
     if (talk) items.push({ app: "Talk", item: talk });
     if (code) items.push({ app: "Code", item: code });
+    if (write) items.push({ app: "Write", item: write });
     if (pyxel) items.push({ app: "Pyxel", item: pyxel });
     if (speak) items.push({ app: "Speak", item: speak });
     items.sort(function (a, b) {

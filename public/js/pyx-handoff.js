@@ -15,6 +15,7 @@
     workspace: "/pyx-workspace.html",
     talk: "/pyx-talk.html",
     code: "/pyx-code.html",
+    write: "/pyx-write.html",
     pyxel: "/pyxel-image.html",
     speak: "/pyx-speak.html",
     gallery: "/pyx-gallery.html",
@@ -208,6 +209,8 @@
     if (/essay|research|report|thesis|homework|study guide|data pack|outline|fill in the blank|workspace/.test(t))
       return "workspace";
     if (/code|javascript|python|function|debug/.test(t)) return "code";
+    if (/music|compose|instrumental|beat|melody|soundtrack|song|midi|bpm/.test(t))
+      return "write";
     if (/pixel|pyxel|art|sprite|10x10/.test(t)) return "pyxel";
     if (/speak|voice|tts|read aloud|narrat/.test(t)) return "speak";
     return "talk";

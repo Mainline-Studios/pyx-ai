@@ -1048,17 +1048,25 @@
       });
   }
 
-  function startLiveFile() {
+  function openLiveFilePicker() {
     var inp = $("trafficLiveFile");
-    if (!inp || !inp.files || !inp.files[0]) {
-      log("Choose a video file first.", true);
+    if (!inp) {
+      log("File picker unavailable.", true);
       return;
     }
+    inp.value = "";
+    inp.click();
+  }
+
+  function startLiveFile() {
+    var inp = $("trafficLiveFile");
+    if (!inp || !inp.files || !inp.files[0]) return;
     readLiveSettings();
     stopLive();
-    var url = URL.createObjectURL(inp.files[0]);
+    var file = inp.files[0];
+    var url = URL.createObjectURL(file);
     var video = $("trafficLiveVideo");
-    liveState.source = "file:" + inp.files[0].name.slice(0, 40);
+    liveState.source = "file:" + file.name.slice(0, 40);
     if (!video) return;
     video.srcObject = null;
     video.src = url;
@@ -1137,7 +1145,13 @@
     $("trafficLiveCamera") &&
       $("trafficLiveCamera").addEventListener("click", startLiveCamera);
     $("trafficLiveFileBtn") &&
-      $("trafficLiveFileBtn").addEventListener("click", startLiveFile);
+      $("trafficLiveFileBtn").addEventListener("click", openLiveFilePicker);
+    $("trafficLiveFile") &&
+      $("trafficLiveFile").addEventListener("change", function () {
+        if ($("trafficLiveFile").files && $("trafficLiveFile").files[0]) {
+          startLiveFile();
+        }
+      });
     $("trafficLiveStop") && $("trafficLiveStop").addEventListener("click", stopLive);
     $("trafficLiveFps") &&
       $("trafficLiveFps").addEventListener("change", function () {
