@@ -423,6 +423,69 @@ function workforpyx_status_pill_class(string $status): string
       color: #64748b;
       background: #1e293b;
     }
+    .traffic-web-search {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    .traffic-web-search input[type="search"] {
+      flex: 1;
+      min-width: 200px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      font: inherit;
+    }
+    .traffic-web-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .traffic-web-presets button {
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: #cbd5e1;
+      cursor: pointer;
+    }
+    .traffic-web-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .traffic-web-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #0f172a;
+    }
+    .traffic-web-card img {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      display: block;
+      background: #1e293b;
+    }
+    .traffic-web-card__body { padding: 8px 10px 10px; }
+    .traffic-web-card__title {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin: 0 0 8px;
+      line-height: 1.35;
+      max-height: 2.7em;
+      overflow: hidden;
+    }
+    .traffic-web-card__btns { display: flex; flex-wrap: wrap; gap: 4px; }
+    .traffic-stats {
+      font-size: 0.82rem;
+      color: #a5b4fc;
+      margin: 0 0 12px;
+    }
   </style>
 </head>
 <body>
@@ -457,20 +520,33 @@ function workforpyx_status_pill_class(string $status): string
       <section class="panel" id="tab-traffic">
         <h2>Traffic light analyzer</h2>
         <p class="traffic-muted" style="margin:0 0 14px;">
-          <strong>Still images</strong> from the web, or a <strong>live preview</strong> (camera / video file) using the same classifier.
-          Each video frame is analyzed on a timer and can auto-send color updates to games.
+          <strong>Train from web</strong> — Pyx searches for traffic-light photos, hosts them on this site, and you label each one.
+          The model learns from your labels (not guesses alone). Then analyze or use live preview.
         </p>
-        <p class="traffic-roadmap" id="trafficLiveRoadmap">
-          Live video uses the same 8-D features per frame. Full real-time streaming (WebRTC, edge workers) can plug in later
-          without changing training data or the <code>/api/dev-workshop/traffic/frame</code> contract.
-        </p>
+        <p class="traffic-stats" id="trafficStats">Loading training stats…</p>
         <div class="traffic-input-tabs">
-          <button type="button" class="is-active" id="trafficTabImage">Web image</button>
-          <button type="button" id="trafficTabLive">Live video (preview)</button>
+          <button type="button" class="is-active" id="trafficTabTrainWeb">Train from web</button>
+          <button type="button" id="trafficTabImage">Test image</button>
+          <button type="button" id="trafficTabLive">Live video</button>
         </div>
         <div class="traffic-layout">
           <div>
-            <div id="trafficPanelImage">
+            <div id="trafficPanelTrainWeb">
+              <h3 style="margin:0 0 8px;font-size:1rem;">Search &amp; label images</h3>
+              <p class="traffic-muted" style="margin:0 0 10px;font-size:0.85rem;">
+                Images are downloaded to Pyx and shown below (public URLs on this site). Click the color you see on the signal.
+              </p>
+              <div class="traffic-web-search">
+                <input type="search" id="trafficWebQuery" placeholder="e.g. green traffic light close up" value="green traffic light" />
+                <button type="button" class="btn btn-primary" id="trafficWebSearchBtn">Search web</button>
+              </div>
+              <div class="traffic-web-presets" id="trafficWebPresets"></div>
+              <div class="traffic-web-grid" id="trafficWebGrid">
+                <p class="traffic-muted">Search to load training images.</p>
+              </div>
+            </div>
+
+            <div id="trafficPanelImage" hidden>
             <label for="trafficImageUrl" style="font-size:0.85rem;font-weight:600;">Image URL (https)</label>
             <div class="traffic-url-row">
               <input type="url" id="trafficImageUrl" placeholder="https://…/traffic-light.jpg" />
@@ -519,9 +595,9 @@ function workforpyx_status_pill_class(string $status): string
             </div>
           </div>
           <div>
-            <h3 style="margin:0 0 8px;font-size:1rem;">Train dev model</h3>
+            <h3 style="margin:0 0 8px;font-size:1rem;">Saved training set</h3>
             <p class="traffic-muted" style="margin:0 0 8px;">
-              After the image loads, label the active light:
+              Labels you saved (web search, URL, or live frame):
             </p>
             <div class="traffic-train-btns">
               <button type="button" class="btn btn-xs" id="trafficTrain_red" style="border-color:#ef4444">Red</button>

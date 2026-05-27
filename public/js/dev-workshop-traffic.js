@@ -17,6 +17,14 @@
   var FEATURE_W = 120;
   var FEATURE_H = 90;
 
+  var WEB_PRESETS = [
+    "green traffic light",
+    "red traffic light",
+    "yellow traffic light",
+    "traffic light at night",
+    "horizontal traffic signal green",
+  ];
+
   var STARTER_IMAGES = [
     {
       url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Red_traffic_light.jpg/320px-Red_traffic_light.jpg",
@@ -397,14 +405,164 @@
     });
   }
 
+  function refreshStats() {
+    return api("/samples", null).then(function (x) {
+      var el = $("trafficStats");
+      if (!el || !x.data || !x.data.stats) return;
+      var st = x.data.stats;
+      el.textContent =
+        "Training set — red: " +
+        (st.red || 0) +
+        ", yellow: " +
+        (st.yellow || 0) +
+        ", green: " +
+        (st.green || 0) +
+        ", off: " +
+        (st.off || 0) +
+        ", unknown: " +
+        (st.unknown || 0) +
+        " (label more greens/reds for best results)";
+    });
+  }
+
+  function runWebSearch() {
+    var q = ($("trafficWebQuery") && $("trafficWebQuery").value) || "";
+    q = q.trim();
+    if (!q) {
+      log("Enter a search query.", true);
+      return;
+    }
+    var grid = $("trafficWebGrid");
+    if (grid) grid.innerHTML = '<p class="traffic-muted">Searching and caching images…</p>';
+    log("Searching web for: " + q);
+    api("/search-images", { query: q, max: 14 })
+      .then(function (x) {
+        if (!x.ok || !x.data.ok) {
+          if (grid) {
+            grid.innerHTML =
+              '<p class="traffic-muted">' +
+              escapeHtml((x.data && x.data.error) || "Search failed") +
+              "</p>";
+          }
+          log((x.data && x.data.error) || "Search failed", true);
+          return;
+        }
+        renderWebGrid(x.data.images || []);
+        log("Loaded " + (x.data.count || 0) + " images — label each card.");
+      })
+      .catch(function (e) {
+        log(e.message || String(e), true);
+      });
+  }
+
+  function renderWebGrid(images) {
+    var grid = $("trafficWebGrid");
+    if (!grid) return;
+    if (!images.length) {
+      grid.innerHTML = '<p class="traffic-muted">No images returned.</p>';
+      return;
+    }
+    grid.innerHTML = images
+      .map(function (img) {
+        var url = img.public_url || img.thumbnail_url || "";
+        return (
+          '<article class="traffic-web-card" data-public-url="' +
+          escapeAttr(url) +
+          '">' +
+          '<img src="' +
+          escapeAttr(url) +
+          '" alt="" loading="lazy" crossorigin="anonymous" />' +
+          '<div class="traffic-web-card__body">' +
+          '<p class="traffic-web-card__title">' +
+          escapeHtml(img.title || img.query || "Image") +
+          "</p>" +
+          '<div class="traffic-web-card__btns">' +
+          '<button type="button" class="btn btn-xs" data-label="red" style="border-color:#ef4444">Red</button>' +
+          '<button type="button" class="btn btn-xs" data-label="yellow" style="border-color:#eab308">Yellow</button>' +
+          '<button type="button" class="btn btn-xs" data-label="green" style="border-color:#22c55e">Green</button>' +
+          '<button type="button" class="btn btn-xs" data-label="off">Off</button>' +
+          '<button type="button" class="btn btn-xs" data-label="unknown">Skip</button>' +
+          "</div></div></article>"
+        );
+      })
+      .join("");
+    grid.querySelectorAll("[data-label]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var card = btn.closest(".traffic-web-card");
+        var publicUrl = card && card.getAttribute("data-public-url");
+        var color = btn.getAttribute("data-label");
+        if (!publicUrl || !color) return;
+        labelWebImage(publicUrl, color, card, btn);
+      });
+    });
+  }
+
+  function labelWebImage(publicUrl, color, card, btn) {
+    if (color === "unknown") {
+      if (card) card.style.opacity = "0.45";
+      log("Skipped image.");
+      return;
+    }
+    btn.disabled = true;
+    log("Labeling as " + color + "…");
+    loadImage(publicUrl)
+      .then(function (img) {
+        var features = extractFeatures(img);
+        return api("/train", {
+          image_url: publicUrl,
+          color: color,
+          features: features,
+        });
+      })
+      .then(function (x) {
+        if (!x.data.ok) {
+          log(x.data.error || "Train failed", true);
+          btn.disabled = false;
+          return;
+        }
+        if (card) {
+          card.style.boxShadow = "0 0 0 2px " + (HEX[color] || "#fff");
+          card.setAttribute("data-labeled", color);
+        }
+        log("Saved as " + color + " — re-test on Test image tab.");
+        refreshSamples();
+        refreshStats();
+      })
+      .catch(function (e) {
+        log(e.message || String(e), true);
+        btn.disabled = false;
+      });
+  }
+
+  function renderWebPresets() {
+    var el = $("trafficWebPresets");
+    if (!el) return;
+    el.innerHTML = WEB_PRESETS.map(function (q) {
+      return (
+        '<button type="button" data-q="' +
+        escapeAttr(q) +
+        '">' +
+        escapeHtml(q) +
+        "</button>"
+      );
+    }).join("");
+    el.querySelectorAll("button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if ($("trafficWebQuery")) $("trafficWebQuery").value = b.getAttribute("data-q") || "";
+        runWebSearch();
+      });
+    });
+  }
+
   function refreshSamples() {
     return api("/samples", null).then(function (x) {
       var grid = $("trafficTrainGrid");
       if (!grid) return;
       var samples = (x.data && x.data.samples) || [];
+      refreshStats();
       if (!samples.length) {
         grid.innerHTML =
-          '<p class="traffic-muted">No training images yet — analyze a starter, label it, or train from a live frame.</p>';
+          '<p class="traffic-muted">No labels yet — use <strong>Train from web</strong> above.</p>';
         return;
       }
       grid.innerHTML = samples
@@ -412,9 +570,11 @@
         .reverse()
         .map(function (s) {
           var hex = HEX[s.color] || HEX.unknown;
-          var thumb = String(s.image_url || "").indexOf("live:") === 0
-            ? '<div class="traffic-train-card__live">LIVE</div>'
-            : '<img src="' + escapeAttr(s.image_url) + '" alt="" loading="lazy" />';
+          var url = s.image_url || "";
+          var thumb =
+            String(url).indexOf("live:") === 0
+              ? '<div class="traffic-train-card__live">LIVE</div>'
+              : '<img src="' + escapeAttr(url) + '" alt="" loading="lazy" crossorigin="anonymous" />';
           return (
             '<div class="traffic-train-card">' +
             thumb +
@@ -606,42 +766,51 @@
   }
 
   function setInputMode(mode) {
+    var trainPanel = $("trafficPanelTrainWeb");
     var imgPanel = $("trafficPanelImage");
     var livePanel = $("trafficPanelLive");
+    var tabTrain = $("trafficTabTrainWeb");
     var tabImg = $("trafficTabImage");
     var tabLive = $("trafficTabLive");
+    function offTabs() {
+      [tabTrain, tabImg, tabLive].forEach(function (t) {
+        if (t) t.classList.remove("is-active");
+      });
+    }
+    if (trainPanel) trainPanel.hidden = mode !== "trainWeb";
+    if (imgPanel) imgPanel.hidden = mode !== "image";
+    if (livePanel) livePanel.hidden = mode !== "live";
+    offTabs();
     if (mode === "live") {
-      if (imgPanel) imgPanel.hidden = true;
-      if (livePanel) livePanel.hidden = false;
-      if (tabImg) tabImg.classList.remove("is-active");
       if (tabLive) tabLive.classList.add("is-active");
-    } else {
-      if (imgPanel) imgPanel.hidden = false;
-      if (livePanel) livePanel.hidden = true;
+    } else if (mode === "image") {
       if (tabImg) tabImg.classList.add("is-active");
-      if (tabLive) tabLive.classList.remove("is-active");
+      stopLive();
+    } else {
+      if (tabTrain) tabTrain.classList.add("is-active");
       stopLive();
     }
   }
 
   function init() {
     renderStarters();
+    renderWebPresets();
     refreshSamples();
-    api("/capabilities", null).then(function (x) {
-      if (x.data && x.data.live_video) {
-        var note = $("trafficLiveRoadmap");
-        if (note) {
-          note.textContent =
-            "Protocol v" +
-            (x.data.protocol_version || 1) +
-            " — live uses POST /traffic/frame per frame. Server streaming/WebRTC can plug in later without changing the feature format.";
-        }
-      }
-    });
+
+    $("trafficWebSearchBtn") &&
+      $("trafficWebSearchBtn").addEventListener("click", runWebSearch);
+    $("trafficWebQuery") &&
+      $("trafficWebQuery").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") runWebSearch();
+      });
 
     $("trafficAnalyzeBtn") &&
       $("trafficAnalyzeBtn").addEventListener("click", runAnalyze);
     $("trafficSendBtn") && $("trafficSendBtn").addEventListener("click", sendColor);
+    $("trafficTabTrainWeb") &&
+      $("trafficTabTrainWeb").addEventListener("click", function () {
+        setInputMode("trainWeb");
+      });
     $("trafficTabImage") &&
       $("trafficTabImage").addEventListener("click", function () {
         setInputMode("image");
@@ -694,6 +863,8 @@
     }
 
     if (/[?&]input=live/.test(location.search)) setInputMode("live");
+    else if (/[?&]input=test/.test(location.search)) setInputMode("image");
+    else setInputMode("trainWeb");
   }
 
   global.PyxDevWorkshopTraffic = {

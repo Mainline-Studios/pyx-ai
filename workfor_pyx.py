@@ -15,12 +15,15 @@ from werkzeug.utils import secure_filename
 from workforpyx_mail import send_application_decision
 from workforpyx_storage import DATA_DIR, find_application
 from workforpyx_traffic import (
+    IMAGE_CACHE_DIR,
     add_training_sample,
     analyze_features,
     analyze_image,
     delete_sample,
     list_samples,
+    publish_images_for_training,
     record_emit,
+    sample_stats,
     traffic_capabilities,
 )
 
@@ -187,9 +190,44 @@ def register_workforpyx_routes(app) -> None:
     @app.route("/api/dev-workshop/traffic/samples", methods=["GET", "OPTIONS"])
     def traffic_list_samples():
         def run():
-            return jsonify({"ok": True, "samples": list_samples()})
+            samples = list_samples()
+            return jsonify(
+                {
+                    "ok": True,
+                    "samples": samples,
+                    "stats": sample_stats(samples),
+                }
+            )
 
         return _traffic_json(run)
+
+    @app.route("/api/dev-workshop/traffic/search-images", methods=["POST", "OPTIONS"])
+    def traffic_search_images():
+        def run():
+            data = request.get_json(silent=True) or {}
+            query = str(data.get("query") or "").strip()
+            try:
+                max_n = int(data.get("max") or 12)
+            except (TypeError, ValueError):
+                max_n = 12
+            images, err = publish_images_for_training(query, max_results=max_n)
+            if err:
+                return jsonify({"ok": False, "error": err}), 400
+            return jsonify({"ok": True, "query": query, "images": images, "count": len(images)})
+
+        return _traffic_json(run)
+
+    @app.route("/api/dev-workshop/traffic/img/<path:filename>", methods=["GET", "OPTIONS"])
+    def traffic_public_image(filename: str):
+        if request.method == "OPTIONS":
+            return "", 204
+        safe = secure_filename(filename)
+        if not safe or safe != filename.replace("\\", "/").split("/")[-1]:
+            return Response("Not found", status=404)
+        path = IMAGE_CACHE_DIR / safe
+        if not path.is_file():
+            return Response("Not found", status=404)
+        return send_from_directory(IMAGE_CACHE_DIR, safe, max_age=86400)
 
     @app.route(
         "/api/dev-workshop/traffic/samples/<sample_id>",
