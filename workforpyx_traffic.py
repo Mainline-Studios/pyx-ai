@@ -283,7 +283,7 @@ def analyze_features(
 
     samples = list_samples()
     method = "heuristic"
-    color, confidence = heuristic_classify(feats)
+    color, confidence, detected = heuristic_classify(feats)
     knn = knn_classify(feats, samples)
     if knn and len(samples) >= 2:
         k_color, k_conf = knn
@@ -291,7 +291,7 @@ def analyze_features(
             color, confidence = k_color, k_conf
             method = "knn"
 
-    detected = heuristic_classify(feats)[2] or (confidence > 0.5 and color != "unknown")
+    detected = detected or (confidence > 0.5 and color != "unknown")
     hex_color = COLOR_HEX.get(color, COLOR_HEX["unknown"])
     out: dict[str, Any] = {
         "ok": True,
