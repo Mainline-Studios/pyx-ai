@@ -8,6 +8,7 @@
     { id: "studio", label: "Studio", href: "/" },
     { id: "workspace", label: "Workspace", href: "/pyx-workspace.html" },
     { id: "talk", label: "Talk", href: "/pyx-talk.html" },
+    { id: "pyxels", label: "Pyxels", href: "/pyx-pyxels.html" },
     { id: "code", label: "Code", href: "/pyx-code.html" },
     { id: "pyxel", label: "Pyxel", href: "/pyxel-image.html" },
     { id: "speak", label: "Speak", href: "/pyx-speak.html" },
@@ -91,7 +92,14 @@
     mount.innerHTML = "";
     mount.appendChild(bar);
 
-    if (global.PyxHandoff && active !== "studio" && active !== "downloads" && active !== "gallery" && active !== "workspace") {
+    if (
+      global.PyxHandoff &&
+      active !== "studio" &&
+      active !== "downloads" &&
+      active !== "gallery" &&
+      active !== "workspace" &&
+      active !== "pyxels"
+    ) {
       global.PyxHandoff.touchRecent(active, active);
     }
 

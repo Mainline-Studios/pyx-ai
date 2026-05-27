@@ -8,12 +8,21 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from flask import Request, Response, redirect, request, send_from_directory
+from flask import Request, Response, jsonify, redirect, request, send_from_directory
 from urllib.parse import quote
 from werkzeug.utils import secure_filename
 
 from workforpyx_mail import send_application_decision
 from workforpyx_storage import DATA_DIR, find_application
+from workforpyx_traffic import (
+    add_training_sample,
+    analyze_features,
+    analyze_image,
+    delete_sample,
+    list_samples,
+    record_emit,
+    traffic_capabilities,
+)
 
 ROOT = Path(__file__).resolve().parent
 PUBLIC = ROOT / "public"
@@ -161,3 +170,117 @@ def register_workforpyx_routes(app) -> None:
     @app.route("/workforpyx_lib.php", methods=["GET"])
     def block_workforpyx_lib():
         return Response("Not found", status=404)
+
+    def _traffic_json(handler):
+        if request.method == "OPTIONS":
+            return "", 204
+        try:
+            out = handler()
+            if isinstance(out, tuple):
+                return out
+            return out
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)}), 500
+
+    @app.route("/api/dev-workshop/traffic/samples", methods=["GET", "OPTIONS"])
+    def traffic_list_samples():
+        def run():
+            return jsonify({"ok": True, "samples": list_samples()})
+
+        return _traffic_json(run)
+
+    @app.route(
+        "/api/dev-workshop/traffic/samples/<sample_id>",
+        methods=["DELETE", "OPTIONS"],
+    )
+    def traffic_delete_sample(sample_id: str):
+        def run():
+            ok = delete_sample(sample_id)
+            return jsonify({"ok": ok}), (200 if ok else 404)
+
+        return _traffic_json(run)
+
+    @app.route("/api/dev-workshop/traffic/train", methods=["POST", "OPTIONS"])
+    def traffic_train():
+        def run():
+            data = request.get_json(silent=True) or {}
+            sample = add_training_sample(
+                str(data.get("image_url") or ""),
+                str(data.get("color") or ""),
+                data.get("features") or [],
+                dev=str(data.get("dev") or "dev"),
+            )
+            return jsonify({"ok": True, "sample": sample})
+
+        return _traffic_json(run)
+
+    @app.route("/api/dev-workshop/traffic/capabilities", methods=["GET", "OPTIONS"])
+    def traffic_capabilities_route():
+        def run():
+            return jsonify({"ok": True, **traffic_capabilities()})
+
+        return _traffic_json(run)
+
+    def _traffic_analyze_body(data: dict):
+        mode = str(data.get("mode") or "image")
+        source = data.get("source")
+        frame_id = data.get("frame_id")
+        features = data.get("features")
+        if features is not None:
+            return analyze_features(
+                features,
+                mode=mode,
+                source=str(source) if source else None,
+                frame_id=str(frame_id) if frame_id else None,
+                image_url=data.get("image_url"),
+            )
+        return analyze_image(
+            image_url=data.get("image_url"),
+            features=None,
+            mode=mode,
+            source=str(source) if source else None,
+            frame_id=str(frame_id) if frame_id else None,
+        )
+
+    @app.route("/api/dev-workshop/traffic/analyze", methods=["POST", "OPTIONS"])
+    def traffic_analyze():
+        def run():
+            data = request.get_json(silent=True) or {}
+            out = _traffic_analyze_body(data)
+            status = 200 if out.get("ok") else 400
+            return jsonify(out), status
+
+        return _traffic_json(run)
+
+    @app.route("/api/dev-workshop/traffic/frame", methods=["POST", "OPTIONS"])
+    def traffic_analyze_frame():
+        """Live video: one frame’s feature vector (same classifier as still images)."""
+
+        def run():
+            data = request.get_json(silent=True) or {}
+            if not data.get("mode"):
+                data = {**data, "mode": "frame"}
+            out = _traffic_analyze_body(data)
+            status = 200 if out.get("ok") else 400
+            return jsonify(out), status
+
+        return _traffic_json(run)
+
+    @app.route("/api/dev-workshop/traffic/emit", methods=["POST", "OPTIONS"])
+    def traffic_emit():
+        def run():
+            data = request.get_json(silent=True) or {}
+            color = str(data.get("color") or "unknown")
+            hex_val = str(data.get("hex") or "")
+            event = record_emit(
+                color,
+                hex_val,
+                source=str(data.get("source") or "workshop"),
+                mode=data.get("mode"),
+                frame_id=data.get("frame_id"),
+            )
+            return jsonify({"ok": True, "event": event, "color": color, "hex": hex_val})
+
+        return _traffic_json(run)

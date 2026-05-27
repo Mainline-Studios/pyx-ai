@@ -10,6 +10,10 @@ $tracks = workforpyx_tracks();
 $flash = (string) ($_GET['flash'] ?? '');
 $view_id = trim((string) ($_GET['id'] ?? ''));
 $action = (string) ($_GET['action'] ?? '');
+$tab = (string) ($_GET['tab'] ?? 'apps');
+if ($tab !== 'traffic') {
+    $tab = 'apps';
+}
 
 // Resume download (staff session checked in browser before page load; file served here)
 if ($action === 'resume' && $view_id !== '') {
@@ -207,6 +211,218 @@ function workforpyx_status_pill_class(string $status): string
     .feature.is-on { border-color: var(--accent); color: #7dd3fc; }
     .feature.is-soon { opacity: 0.5; }
     #gate { text-align: center; padding: 48px 20px; }
+    .workshop-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .workshop-tabs a {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+    .workshop-tabs a.is-active {
+      color: #e0f2fe;
+      border-color: rgba(56, 189, 248, 0.55);
+      background: rgba(14, 165, 233, 0.15);
+    }
+    .traffic-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 800px) {
+      .traffic-layout { grid-template-columns: 1fr; }
+    }
+    .traffic-swatch {
+      width: 100%;
+      height: 120px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      background: #334155;
+      margin: 12px 0;
+    }
+    .traffic-result-label { font-size: 1.1rem; font-weight: 700; margin: 0; }
+    .traffic-result-meta { font-size: 0.82rem; color: var(--muted); margin: 4px 0 0; }
+    .traffic-url-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .traffic-url-row input {
+      flex: 1;
+      min-width: 200px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      font: inherit;
+    }
+    #trafficPreview {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-top: 8px;
+    }
+    .traffic-starters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .traffic-starter {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 6px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      cursor: pointer;
+      max-width: 100px;
+      font: inherit;
+      color: var(--muted);
+      font-size: 0.7rem;
+    }
+    .traffic-starter img {
+      width: 88px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+    .traffic-train-btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+    .btn-xs { padding: 5px 10px; font-size: 0.78rem; }
+    .traffic-train-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .traffic-train-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #0f172a;
+    }
+    .traffic-train-card img {
+      width: 100%;
+      height: 80px;
+      object-fit: cover;
+      display: block;
+    }
+    .traffic-train-card__body {
+      padding: 6px 8px;
+      font-size: 0.78rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .traffic-signal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+    .traffic-muted { color: var(--muted); font-size: 0.88rem; }
+    #trafficLog {
+      max-height: 160px;
+      overflow: auto;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 12px;
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+    .traffic-input-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .traffic-input-tabs button {
+      font: inherit;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .traffic-input-tabs button.is-active {
+      color: #e0f2fe;
+      border-color: rgba(56, 189, 248, 0.5);
+      background: rgba(14, 165, 233, 0.12);
+    }
+    .traffic-live-wrap {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #020617;
+      margin: 10px 0;
+    }
+    #trafficLiveVideo {
+      width: 100%;
+      max-height: 280px;
+      display: block;
+      object-fit: contain;
+    }
+    .traffic-live-swatch {
+      height: 48px;
+      border-top: 1px solid var(--border);
+    }
+    .traffic-live-label {
+      padding: 8px 12px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      margin: 0;
+    }
+    .traffic-live-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 10px 0;
+    }
+    .traffic-live-controls label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .traffic-live-controls input[type="number"] {
+      width: 4rem;
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      font: inherit;
+    }
+    .traffic-roadmap {
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px dashed rgba(56, 189, 248, 0.35);
+      background: rgba(14, 165, 233, 0.06);
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .traffic-train-card__live {
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #64748b;
+      background: #1e293b;
+    }
   </style>
 </head>
 <body>
@@ -226,12 +442,100 @@ function workforpyx_status_pill_class(string $status): string
       </div>
       <p class="sub">Staff tools for Pyx — same password as trainer sign-in. More features can plug in here later.</p>
 
+      <nav class="workshop-tabs" aria-label="Workshop sections">
+        <a href="/dev-workshop.php?tab=apps" class="<?php echo $tab === 'apps' ? 'is-active' : ''; ?>">Applications</a>
+        <a href="/dev-workshop.php?tab=traffic" class="<?php echo $tab === 'traffic' ? 'is-active' : ''; ?>">Traffic lights</a>
+      </nav>
+
       <div class="features" aria-label="Workshop features">
-        <span class="feature is-on">Applications inbox</span>
-        <span class="feature is-on">Reply notes</span>
-        <span class="feature is-on">Hired / rejected emails</span>
-        <span class="feature is-soon">More coming soon</span>
+        <span class="feature <?php echo $tab === 'apps' ? 'is-on' : 'is-soon'; ?>">Applications inbox</span>
+        <span class="feature <?php echo $tab === 'apps' ? 'is-on' : 'is-soon'; ?>">Hired / rejected emails</span>
+        <span class="feature <?php echo $tab === 'traffic' ? 'is-on' : 'is-soon'; ?>">Traffic light analyzer</span>
       </div>
+
+      <?php if ($tab === 'traffic'): ?>
+      <section class="panel" id="tab-traffic">
+        <h2>Traffic light analyzer</h2>
+        <p class="traffic-muted" style="margin:0 0 14px;">
+          <strong>Still images</strong> from the web, or a <strong>live preview</strong> (camera / video file) using the same classifier.
+          Each video frame is analyzed on a timer and can auto-send color updates to games.
+        </p>
+        <p class="traffic-roadmap" id="trafficLiveRoadmap">
+          Live video uses the same 8-D features per frame. Full real-time streaming (WebRTC, edge workers) can plug in later
+          without changing training data or the <code>/api/dev-workshop/traffic/frame</code> contract.
+        </p>
+        <div class="traffic-input-tabs">
+          <button type="button" class="is-active" id="trafficTabImage">Web image</button>
+          <button type="button" id="trafficTabLive">Live video (preview)</button>
+        </div>
+        <div class="traffic-layout">
+          <div>
+            <div id="trafficPanelImage">
+            <label for="trafficImageUrl" style="font-size:0.85rem;font-weight:600;">Image URL (https)</label>
+            <div class="traffic-url-row">
+              <input type="url" id="trafficImageUrl" placeholder="https://…/traffic-light.jpg" />
+              <button type="button" class="btn btn-primary" id="trafficAnalyzeBtn">Analyze</button>
+              <button type="button" class="btn" id="trafficSendBtn">Send color</button>
+            </div>
+            <img id="trafficPreview" alt="Preview" hidden />
+            <div class="traffic-starters" id="trafficStarters"></div>
+            <div class="traffic-swatch" id="trafficSwatch" aria-hidden="true"></div>
+            <p class="traffic-result-label" id="trafficResultLabel">No analysis yet</p>
+            <p class="traffic-result-meta" id="trafficResultMeta"></p>
+            <p class="traffic-muted" style="font-size:0.78rem;margin-top:10px;">
+              Integrate: listen for <code>pyx-traffic-color</code> on <code>window</code>, or
+              <code>postMessage({ type: 'pyx-traffic-color', hex, color, mode, frame_id })</code>.
+            </p>
+            </div>
+
+            <div id="trafficPanelLive" hidden>
+              <h3 style="margin:0 0 8px;font-size:1rem;">Live video (preview)</h3>
+              <p class="traffic-muted" style="margin:0 0 10px;font-size:0.85rem;">
+                Point your camera at a signal or load a clip. Frames run through the same analyzer as still images (~5 fps default).
+              </p>
+              <div class="traffic-live-controls">
+                <button type="button" class="btn btn-primary" id="trafficLiveCamera">Start camera</button>
+                <input type="file" id="trafficLiveFile" accept="video/*,image/*" hidden />
+                <button type="button" class="btn" id="trafficLiveFileBtn">Use video file</button>
+                <button type="button" class="btn btn-ghost" id="trafficLiveStop" disabled>Stop</button>
+                <label>FPS cap <input type="number" id="trafficLiveFps" min="1" max="15" value="5" /></label>
+                <label>Hold ms <input type="number" id="trafficLiveHold" min="0" max="3000" value="400" title="Min time before re-emitting same color" /></label>
+                <label><input type="checkbox" id="trafficLiveAutoEmit" checked /> Auto-send color</label>
+              </div>
+              <div class="traffic-live-wrap" id="trafficLiveWrap" hidden>
+                <video id="trafficLiveVideo" playsinline muted autoplay></video>
+                <div class="traffic-live-swatch" id="trafficLiveSwatch"></div>
+                <p class="traffic-live-label" id="trafficLiveLabel">Waiting for frames…</p>
+              </div>
+              <p class="traffic-muted" id="trafficLiveStat" style="font-size:0.78rem;margin:8px 0 0;"></p>
+              <p class="traffic-muted" style="font-size:0.82rem;margin:12px 0 6px;">Train from current live frame:</p>
+              <div class="traffic-train-btns">
+                <button type="button" class="btn btn-xs" id="trafficLiveTrain_red" style="border-color:#ef4444">Red</button>
+                <button type="button" class="btn btn-xs" id="trafficLiveTrain_yellow" style="border-color:#eab308">Yellow</button>
+                <button type="button" class="btn btn-xs" id="trafficLiveTrain_green" style="border-color:#22c55e">Green</button>
+                <button type="button" class="btn btn-xs" id="trafficLiveTrain_off">Off</button>
+                <button type="button" class="btn btn-xs" id="trafficLiveTrain_unknown">Unknown</button>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h3 style="margin:0 0 8px;font-size:1rem;">Train dev model</h3>
+            <p class="traffic-muted" style="margin:0 0 8px;">
+              After the image loads, label the active light:
+            </p>
+            <div class="traffic-train-btns">
+              <button type="button" class="btn btn-xs" id="trafficTrain_red" style="border-color:#ef4444">Red</button>
+              <button type="button" class="btn btn-xs" id="trafficTrain_yellow" style="border-color:#eab308">Yellow</button>
+              <button type="button" class="btn btn-xs" id="trafficTrain_green" style="border-color:#22c55e">Green</button>
+              <button type="button" class="btn btn-xs" id="trafficTrain_off">Off</button>
+              <button type="button" class="btn btn-xs" id="trafficTrain_unknown">Unknown</button>
+            </div>
+            <div id="trafficTrainGrid" class="traffic-train-grid"></div>
+            <div id="trafficLog"></div>
+          </div>
+        </div>
+      </section>
+      <?php else: ?>
 
       <?php
       if ($flash !== '') {
@@ -392,9 +696,12 @@ function workforpyx_status_pill_class(string $status): string
           <?php endif; ?>
         </div>
       </div>
+
+      <?php endif; ?>
     </div>
   </div>
 
+  <script src="/js/dev-workshop-traffic.js"></script>
   <script>
     (function () {
       var SESSION_KEY = "pyx_trainer_pw_ok";
@@ -403,6 +710,9 @@ function workforpyx_status_pill_class(string $status): string
       function showWorkshop() {
         gate.hidden = true;
         workshop.hidden = false;
+        if (window.PyxDevWorkshopTraffic && /[?&]tab=traffic/.test(location.search)) {
+          PyxDevWorkshopTraffic.init();
+        }
       }
       try {
         if (sessionStorage.getItem(SESSION_KEY) === "1") {
