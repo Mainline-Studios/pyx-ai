@@ -33,6 +33,7 @@ COLOR_HEX = {
     "off": "#64748b",
     "unknown": "#94a3b8",
     "not_traffic_light": "#c084fc",
+    "na": "#f59e0b",
 }
 SIGNAL_COLORS = frozenset({"red", "yellow", "green", "off"})
 TRAINABLE_COLORS = frozenset(COLOR_HEX.keys()) - {"unknown"}
@@ -470,7 +471,7 @@ def add_training_sample(
     color = (color or "").strip().lower()
     if color not in TRAINABLE_COLORS:
         raise ValueError(
-            "color must be red, yellow, green, off, not_traffic_light, or unknown"
+            "color must be red, yellow, green, off, not_traffic_light, na, or unknown"
         )
     feats = _normalize_features(features)
     if not feats:
@@ -505,12 +506,21 @@ def delete_sample(sample_id: str) -> bool:
     return True
 
 
+def _multi_signal_lit(features: list[float]) -> bool:
+    """True when 2+ signal colors appear lit (all on, or mixed signals)."""
+    _, _, _, ratio_r, ratio_y, ratio_g, bright_top, _ = features
+    lit = sum(1 for r in (ratio_r, ratio_y, ratio_g) if r > 0.009)
+    return lit >= 2 and bright_top > 0.2
+
+
 def _captcha_colors_agree(pyx_color: str, user_color: str) -> bool:
     pyx_color = (pyx_color or "").strip().lower()
     user_color = (user_color or "").strip().lower()
     if user_color == "not_traffic_light":
         return pyx_color == "not_traffic_light"
-    if pyx_color == "not_traffic_light":
+    if user_color == "na":
+        return pyx_color == "na"
+    if pyx_color in ("not_traffic_light", "na"):
         return False
     return pyx_color == user_color
 
@@ -563,6 +573,7 @@ def analyze_features(
 
     samples = list_samples()
     ntl_samples = [s for s in samples if s.get("color") == "not_traffic_light"]
+    na_samples = [s for s in samples if s.get("color") == "na"]
     sig_samples = [
         s
         for s in samples
@@ -573,14 +584,31 @@ def analyze_features(
     color, confidence, detected = heuristic_classify(feats)
 
     ntl_knn = knn_classify(feats, ntl_samples) if ntl_samples else None
+    na_knn = knn_classify(feats, na_samples) if na_samples else None
     sig_knn = knn_classify(feats, sig_samples) if sig_samples else None
     min_conf = 0.38 if len(samples) < 3 else 0.42
 
-    if sig_knn:
+    if _multi_signal_lit(feats):
+        color, confidence, method = "na", max(confidence, 0.58), "multi_signal"
+        detected = True
+
+    if sig_knn and color != "na":
         k_color, k_conf = sig_knn
         if k_color in SIGNAL_COLORS and k_conf >= min_conf:
             if k_conf >= confidence or detected:
                 color, confidence, method = k_color, k_conf, "knn"
+                detected = True
+
+    if na_knn and color != "not_traffic_light":
+        ak_color, ak_conf = na_knn
+        sk_conf = sig_knn[1] if sig_knn else 0.0
+        if ak_conf >= min_conf and (
+            ak_conf >= sk_conf + 0.03
+            or color == "na"
+            or _multi_signal_lit(feats)
+        ):
+            if ak_conf >= confidence - 0.02:
+                color, confidence, method = ak_color, ak_conf, "knn"
                 detected = True
 
     if ntl_knn:
@@ -595,6 +623,8 @@ def analyze_features(
 
     if color == "not_traffic_light":
         detected = False
+    elif color == "na":
+        detected = True
     elif color in SIGNAL_COLORS:
         detected = detected or confidence > 0.45
     else:
@@ -767,7 +797,7 @@ def submit_captcha(
     user_color = (color or "").strip().lower()
     if user_color not in TRAINABLE_COLORS:
         raise ValueError(
-            "color must be red, yellow, green, off, not_traffic_light, or unknown"
+            "color must be red, yellow, green, off, not_traffic_light, na, or unknown"
         )
 
     feats = _normalize_features(features) if features is not None else None

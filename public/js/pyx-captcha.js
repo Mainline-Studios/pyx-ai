@@ -10,13 +10,21 @@
   var FEATURE_H = 90;
   var COLORS = ["red", "yellow", "green", "off"];
   var NOT_SIGNAL = "not_traffic_light";
+  var NA = "na";
   var HEX = {
     red: "#ef4444",
     yellow: "#eab308",
     green: "#22c55e",
     off: "#64748b",
     not_traffic_light: "#c084fc",
+    na: "#f59e0b",
   };
+
+  function colorLabel(c) {
+    if (c === NOT_SIGNAL) return "not a traffic light";
+    if (c === NA) return "N/A";
+    return c || "?";
+  }
 
   var state = {
     challengeId: null,
@@ -152,7 +160,7 @@
     state.busy = busy;
     var root = $("capRoot");
     if (!root) return;
-    root.querySelectorAll(".cap-colors button, .cap-not-signal").forEach(function (btn) {
+    root.querySelectorAll(".cap-colors button, .cap-not-signal, .cap-na").forEach(function (btn) {
       btn.disabled = busy;
     });
     var next = $("capNext");
@@ -179,7 +187,7 @@
       escapeHtml(ch.public_url) +
       '" alt="Traffic signal" crossorigin="anonymous" /></div>' +
       '<div class="cap-side">' +
-      '<p class="cap-prompt">Which light is on — or is this not a traffic light?</p>' +
+      '<p class="cap-prompt">Which single light is on? Use N/A if all are lit or mixed signals.</p>' +
       '<div class="cap-colors" id="capColors">' +
       COLORS.map(function (c) {
         return (
@@ -196,6 +204,9 @@
       '<button type="button" class="cap-not-signal" data-c="' +
       NOT_SIGNAL +
       '">This is not a traffic light</button>' +
+      '<button type="button" class="cap-na" data-c="' +
+      NA +
+      '">N/A — all lit / mixed signals</button>' +
       "</div>" +
       '<p class="cap-status" id="capStatus"></p>' +
       '<button type="button" class="cap-next" id="capNext">Next challenge</button>' +
@@ -280,9 +291,9 @@
         } else {
           setStatus(
             "Pyx saw " +
-              (d.pyx_color === NOT_SIGNAL ? "not a traffic light" : d.pyx_color || "?") +
+              colorLabel(d.pyx_color) +
               " — training with your " +
-              (color === NOT_SIGNAL ? "not a traffic light" : color) +
+              colorLabel(color) +
               ". One more…",
             "warn"
           );

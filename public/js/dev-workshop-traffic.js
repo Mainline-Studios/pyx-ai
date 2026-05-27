@@ -7,7 +7,7 @@
 
   var API = "/api/dev-workshop/traffic";
   var SIGNAL_COLORS = ["red", "yellow", "green", "off"];
-  var COLORS = ["red", "yellow", "green", "off", "not_traffic_light", "unknown"];
+  var COLORS = ["red", "yellow", "green", "off", "not_traffic_light", "na", "unknown"];
   var HEX = {
     red: "#ef4444",
     yellow: "#eab308",
@@ -15,6 +15,7 @@
     off: "#64748b",
     unknown: "#94a3b8",
     not_traffic_light: "#c084fc",
+    na: "#f59e0b",
   };
   var COLOR_LABELS = {
     red: "Red",
@@ -23,6 +24,7 @@
     off: "Off",
     unknown: "Unknown",
     not_traffic_light: "Not a traffic light",
+    na: "N/A (mixed / all lit)",
   };
   var FEATURE_W = 120;
   var FEATURE_H = 90;
@@ -119,6 +121,7 @@
       off: 0,
       unknown: 0,
       not_traffic_light: 0,
+      na: 0,
     };
     (samples || []).forEach(function (s) {
       var c = String((s && s.color) || "unknown").toLowerCase();
@@ -261,6 +264,8 @@
       (st.off || 0) +
       ", not a signal: " +
       (st.not_traffic_light || 0) +
+      ", N/A: " +
+      (st.na || 0) +
       ", unknown: " +
       (st.unknown || 0) +
       " — your saved labels are kept when you add new classes";
@@ -396,6 +401,8 @@
     var text;
     if (c === "not_traffic_light") {
       text = "Not a traffic light · " + (data.hex || HEX.not_traffic_light);
+    } else if (c === "na") {
+      text = "N/A — mixed or all lights lit · " + (data.hex || HEX.na);
     } else {
       text =
         (data.traffic_light_detected ? "Signal: " : "Guess: ") +
@@ -427,9 +434,12 @@
       var stroke =
         c === "not_traffic_light" || !data.traffic_light_detected
           ? HEX.not_traffic_light
-          : data.hex || HEX.unknown;
+          : c === "na"
+            ? HEX.na
+            : data.hex || HEX.unknown;
       drawBoxOnCanvas(opts.overlayCanvas, opts.overlayBox, stroke, {
-        dashed: c === "not_traffic_light" || !data.traffic_light_detected,
+        dashed:
+          c === "not_traffic_light" || c === "na" || !data.traffic_light_detected,
       });
     }
     if (!opts.skipBroadcast) {
@@ -516,9 +526,11 @@
     var stroke =
       c === "not_traffic_light" || !data.traffic_light_detected
         ? HEX.not_traffic_light
-        : data.hex || HEX.unknown;
+        : c === "na"
+          ? HEX.na
+          : data.hex || HEX.unknown;
     drawBoxOnCanvas(canvas, box, stroke, {
-      dashed: c === "not_traffic_light" || !data.traffic_light_detected,
+      dashed: c === "not_traffic_light" || c === "na" || !data.traffic_light_detected,
     });
   }
 
