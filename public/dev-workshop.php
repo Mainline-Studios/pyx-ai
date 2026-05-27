@@ -296,31 +296,70 @@ function workforpyx_status_pill_class(string $status): string
     }
     .traffic-train-btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
     .btn-xs { padding: 5px 10px; font-size: 0.78rem; }
-    .traffic-train-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 10px;
-      margin-top: 12px;
+    .traffic-saved-details {
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #0f172a;
+      padding: 0 10px 10px;
     }
-    .traffic-train-card {
+    .traffic-saved-details summary {
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 10px 4px;
+      color: #e2e8f0;
+      list-style-position: inside;
+    }
+    .traffic-saved-select {
+      width: 100%;
+      margin: 4px 0 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #1e293b;
+      color: var(--text);
+      font: inherit;
+      font-size: 0.85rem;
+    }
+    .traffic-saved-preview {
       border: 1px solid var(--border);
       border-radius: 8px;
       overflow: hidden;
-      background: #0f172a;
+      background: #1e293b;
     }
-    .traffic-train-card img {
+    .traffic-saved-preview img {
       width: 100%;
-      height: 80px;
+      max-height: 120px;
       object-fit: cover;
       display: block;
     }
-    .traffic-train-card__body {
-      padding: 6px 8px;
+    .traffic-saved-preview__meta {
+      padding: 8px 10px;
       font-size: 0.78rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 6px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .traffic-captcha-footer {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .traffic-captcha-footer h3 {
+      margin: 0 0 6px;
+      font-size: 1rem;
+    }
+    .traffic-captcha-iframe {
+      width: 100%;
+      max-width: 420px;
+      height: 220px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #020617;
+      display: block;
     }
     .traffic-signal-dot {
       width: 10px;
@@ -606,10 +645,35 @@ function workforpyx_status_pill_class(string $status): string
               <button type="button" class="btn btn-xs" id="trafficTrain_off">Off</button>
               <button type="button" class="btn btn-xs" id="trafficTrain_unknown">Unknown</button>
             </div>
-            <div id="trafficTrainGrid" class="traffic-train-grid"></div>
+            <details class="traffic-saved-details" id="trafficSavedDetails">
+              <summary id="trafficSavedSummary">Saved samples (0)</summary>
+              <p class="traffic-muted" style="margin:0 0 8px;font-size:0.8rem;">Pick a sample to preview; delete removes it from training.</p>
+              <select id="trafficSavedSelect" class="traffic-saved-select" aria-label="Saved training samples">
+                <option value="">— No saved samples —</option>
+              </select>
+              <div id="trafficSavedPreview" class="traffic-saved-preview" hidden>
+                <img id="trafficSavedPreviewImg" alt="" />
+                <div class="traffic-saved-preview__meta">
+                  <span id="trafficSavedPreviewLabel"></span>
+                  <button type="button" class="btn btn-ghost btn-xs" id="trafficSavedDelete">Delete</button>
+                </div>
+              </div>
+            </details>
             <div id="trafficLog"></div>
           </div>
         </div>
+        <footer class="traffic-captcha-footer">
+          <h3>PyxCaptcha</h3>
+          <p class="traffic-muted" style="margin:0 0 10px;font-size:0.85rem;">
+            Compact captcha trainer — your label always teaches Pyx, even when Pyx disagrees.
+          </p>
+          <iframe
+            src="/pyx-captcha.html"
+            title="PyxCaptcha"
+            class="traffic-captcha-iframe"
+            loading="lazy"
+          ></iframe>
+        </footer>
       </section>
       <?php else: ?>
 

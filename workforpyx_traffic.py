@@ -449,6 +449,8 @@ def traffic_capabilities() -> dict[str, Any]:
                 "capabilities": "/api/dev-workshop/traffic/capabilities",
                 "search_images": "/api/dev-workshop/traffic/search-images",
                 "public_image": "/api/dev-workshop/traffic/img/{id}",
+                "captcha_challenge": "/api/dev-workshop/traffic/captcha/challenge",
+                "captcha_submit": "/api/dev-workshop/traffic/captcha/submit",
             },
             "notes": (
                 "Extract features in the browser from each video frame (canvas), POST features "
@@ -537,6 +539,169 @@ def analyze_image(
         frame_id=frame_id,
         image_url=url,
     )
+
+
+CAPTCHA_PENDING_PATH = DATA_DIR / "traffic_captcha_pending.json"
+
+
+def _load_captcha_pending() -> dict[str, Any]:
+    if not CAPTCHA_PENDING_PATH.is_file():
+        return {}
+    try:
+        data = json.loads(CAPTCHA_PENDING_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_captcha_pending(pending: dict[str, Any]) -> None:
+    CAPTCHA_PENDING_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CAPTCHA_PENDING_PATH.write_text(
+        json.dumps(pending, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _new_captcha_id() -> str:
+    import secrets
+
+    return "cap_" + secrets.token_hex(8)
+
+
+def list_cached_image_files() -> list[Path]:
+    if not IMAGE_CACHE_DIR.is_dir():
+        return []
+    out: list[Path] = []
+    for path in IMAGE_CACHE_DIR.iterdir():
+        if not path.is_file():
+            continue
+        if path.suffix.lower() in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+            out.append(path)
+    return out
+
+
+def pick_random_cached_public_url() -> tuple[str, str] | None:
+    """Return (challenge_image_url for training, public_url path) or None."""
+    files = list_cached_image_files()
+    if not files:
+        return None
+    import random
+
+    chosen = random.choice(files)
+    fid = chosen.name
+    public_path = f"/api/dev-workshop/traffic/img/{fid}"
+    return public_path, public_path
+
+
+def create_captcha_challenge(*, hint: str | None = None) -> dict[str, Any]:
+    picked = pick_random_cached_public_url()
+    if not picked:
+        raise ValueError(
+            "No cached traffic images yet. Use Train from web in the workshop first."
+        )
+    image_url, public_url = picked
+    challenge_id = _new_captcha_id()
+    pending = _load_captcha_pending()
+    pending[challenge_id] = {
+        "image_url": image_url,
+        "public_url": public_url,
+        "created": _now_iso(),
+    }
+    # Drop challenges older than 24h
+    cutoff = datetime.now(timezone.utc).timestamp() - 86400
+    for cid, row in list(pending.items()):
+        if not isinstance(row, dict):
+            pending.pop(cid, None)
+            continue
+        try:
+            created = datetime.fromisoformat(
+                str(row.get("created", "")).replace("Z", "+00:00")
+            )
+            if created.timestamp() < cutoff:
+                pending.pop(cid, None)
+        except ValueError:
+            pass
+    _save_captcha_pending(pending)
+    out: dict[str, Any] = {
+        "challenge_id": challenge_id,
+        "public_url": public_url,
+        "image_url": image_url,
+    }
+    if hint:
+        out["hint"] = hint[:200]
+    return out
+
+
+def _consume_captcha_challenge(challenge_id: str) -> dict[str, Any] | None:
+    challenge_id = (challenge_id or "").strip()
+    if not challenge_id:
+        return None
+    pending = _load_captcha_pending()
+    row = pending.pop(challenge_id, None)
+    if row:
+        _save_captcha_pending(pending)
+    return row if isinstance(row, dict) else None
+
+
+def submit_captcha(
+    challenge_id: str,
+    color: str,
+    features: list[float] | None = None,
+) -> dict[str, Any]:
+    """Analyze, always train with user label; return agreement + optional next challenge."""
+    row = _consume_captcha_challenge(challenge_id)
+    if not row:
+        raise ValueError("Unknown or expired captcha challenge")
+    image_url = str(row.get("image_url") or row.get("public_url") or "")
+    user_color = (color or "").strip().lower()
+    if user_color not in COLOR_HEX:
+        raise ValueError("color must be red, yellow, green, or off")
+
+    feats = _normalize_features(features) if features is not None else None
+    if feats is None:
+        try:
+            raw = _fetch_image_bytes(image_url)
+            feats = _features_from_image_bytes(raw)
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    analysis = analyze_features(
+        feats,
+        mode="image",
+        source="captcha",
+        image_url=image_url,
+    )
+    if not analysis.get("ok"):
+        return analysis
+
+    pyx_color = str(analysis.get("color") or "unknown")
+    sample = add_training_sample(
+        image_url,
+        user_color,
+        feats,
+        dev="captcha",
+    )
+    agreed = pyx_color == user_color
+    out: dict[str, Any] = {
+        "ok": True,
+        "trained": True,
+        "sample_id": sample.get("id"),
+        "pyx_color": pyx_color,
+        "pyx_hex": COLOR_HEX.get(pyx_color, COLOR_HEX["unknown"]),
+        "user_color": user_color,
+        "user_hex": COLOR_HEX.get(user_color, COLOR_HEX["unknown"]),
+        "agreed": agreed,
+        "confidence": analysis.get("confidence"),
+        "method": analysis.get("method"),
+    }
+    if not agreed:
+        try:
+            out["next_challenge"] = create_captcha_challenge(
+                hint="Pyx disagreed — try this signal"
+            )
+        except ValueError as e:
+            out["next_challenge_error"] = str(e)
+    return out
 
 
 def record_emit(

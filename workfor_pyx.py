@@ -19,11 +19,13 @@ from workforpyx_traffic import (
     add_training_sample,
     analyze_features,
     analyze_image,
+    create_captcha_challenge,
     delete_sample,
     list_samples,
     publish_images_for_training,
     record_emit,
     sample_stats,
+    submit_captcha,
     traffic_capabilities,
 )
 
@@ -320,5 +322,28 @@ def register_workforpyx_routes(app) -> None:
                 frame_id=data.get("frame_id"),
             )
             return jsonify({"ok": True, "event": event, "color": color, "hex": hex_val})
+
+        return _traffic_json(run)
+
+    @app.route("/api/dev-workshop/traffic/captcha/challenge", methods=["GET", "OPTIONS"])
+    def traffic_captcha_challenge():
+        def run():
+            hint = request.args.get("hint")
+            challenge = create_captcha_challenge(hint=hint)
+            return jsonify({"ok": True, **challenge})
+
+        return _traffic_json(run)
+
+    @app.route("/api/dev-workshop/traffic/captcha/submit", methods=["POST", "OPTIONS"])
+    def traffic_captcha_submit():
+        def run():
+            data = request.get_json(silent=True) or {}
+            out = submit_captcha(
+                str(data.get("challenge_id") or ""),
+                str(data.get("color") or ""),
+                data.get("features"),
+            )
+            status = 200 if out.get("ok") else 400
+            return jsonify(out), status
 
         return _traffic_json(run)

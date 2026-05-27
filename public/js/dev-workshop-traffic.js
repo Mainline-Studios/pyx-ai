@@ -554,42 +554,78 @@
     });
   }
 
+  var savedSamplesCache = [];
+
+  function formatSavedOptionLabel(s) {
+    var id = (s.id || "").slice(-8);
+    var when = (s.created || "").slice(0, 10);
+    return (s.color || "unknown") + " · " + id + (when ? " · " + when : "");
+  }
+
+  function renderSavedPreview(sampleId) {
+    var preview = $("trafficSavedPreview");
+    var img = $("trafficSavedPreviewImg");
+    var label = $("trafficSavedPreviewLabel");
+    if (!preview || !img || !label) return;
+    var s = savedSamplesCache.find(function (row) {
+      return row.id === sampleId;
+    });
+    if (!s) {
+      preview.hidden = true;
+      return;
+    }
+    var hex = HEX[s.color] || HEX.unknown;
+    var url = s.image_url || "";
+    if (String(url).indexOf("live:") === 0) {
+      img.removeAttribute("src");
+      img.alt = "Live frame sample";
+      label.innerHTML =
+        '<span class="traffic-signal-dot" style="background:' +
+        hex +
+        '"></span> ' +
+        escapeHtml(s.color) +
+        " (live frame)";
+    } else {
+      img.src = url;
+      img.alt = s.color + " traffic light";
+      label.innerHTML =
+        '<span class="traffic-signal-dot" style="background:' +
+        hex +
+        '"></span> ' +
+        escapeHtml(s.color);
+    }
+    preview.hidden = false;
+  }
+
   function refreshSamples() {
     return api("/samples", null).then(function (x) {
-      var grid = $("trafficTrainGrid");
-      if (!grid) return;
+      var select = $("trafficSavedSelect");
+      var summary = $("trafficSavedSummary");
       var samples = (x.data && x.data.samples) || [];
+      savedSamplesCache = samples.slice().reverse();
       refreshStats();
+      if (summary) {
+        summary.textContent = "Saved samples (" + samples.length + ")";
+      }
+      if (!select) return;
       if (!samples.length) {
-        grid.innerHTML =
-          '<p class="traffic-muted">No labels yet — use <strong>Train from web</strong> above.</p>';
+        select.innerHTML = '<option value="">— No saved samples —</option>';
+        var previewEmpty = $("trafficSavedPreview");
+        if (previewEmpty) previewEmpty.hidden = true;
         return;
       }
-      grid.innerHTML = samples
-        .slice()
-        .reverse()
+      select.innerHTML = savedSamplesCache
         .map(function (s) {
-          var hex = HEX[s.color] || HEX.unknown;
-          var url = s.image_url || "";
-          var thumb =
-            String(url).indexOf("live:") === 0
-              ? '<div class="traffic-train-card__live">LIVE</div>'
-              : '<img src="' + escapeAttr(url) + '" alt="" loading="lazy" crossorigin="anonymous" />';
           return (
-            '<div class="traffic-train-card">' +
-            thumb +
-            '<div class="traffic-train-card__body">' +
-            '<span class="traffic-signal-dot" style="background:' +
-            hex +
-            '"></span> ' +
-            escapeHtml(s.color) +
-            '<button type="button" class="btn btn-ghost btn-xs" data-del="' +
+            '<option value="' +
             escapeAttr(s.id) +
-            '">Delete</button>' +
-            "</div></div>"
+            '">' +
+            escapeHtml(formatSavedOptionLabel(s)) +
+            "</option>"
           );
         })
         .join("");
+      renderSavedPreview(savedSamplesCache[0].id);
     });
   }
 
@@ -846,12 +882,22 @@
         });
     });
 
-    var grid = $("trafficTrainGrid");
-    if (grid) {
-      grid.addEventListener("click", function (e) {
-        var del = e.target.closest("[data-del]");
-        if (!del) return;
-        var id = del.getAttribute("data-del");
+    var savedSelect = $("trafficSavedSelect");
+    if (savedSelect) {
+      savedSelect.addEventListener("change", function () {
+        var id = savedSelect.value;
+        if (id) renderSavedPreview(id);
+        else if ($("trafficSavedPreview")) $("trafficSavedPreview").hidden = true;
+      });
+    }
+    var savedDelete = $("trafficSavedDelete");
+    if (savedDelete) {
+      savedDelete.addEventListener("click", function () {
+        var id = savedSelect && savedSelect.value;
+        if (!id) {
+          log("Select a sample to delete.", true);
+          return;
+        }
         fetch(API + "/samples/" + encodeURIComponent(id), { method: "DELETE" })
           .then(function () {
             return refreshSamples();
@@ -861,6 +907,12 @@
           });
       });
     }
+
+    window.addEventListener("message", function (ev) {
+      if (!ev.data || ev.data.type !== "pyx-captcha-done") return;
+      refreshSamples();
+      log("PyxCaptcha round complete (" + (ev.data.agreed ? "agreed" : "retrained") + ")");
+    });
 
     if (/[?&]input=live/.test(location.search)) setInputMode("live");
     else if (/[?&]input=test/.test(location.search)) setInputMode("image");
