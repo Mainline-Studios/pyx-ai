@@ -12,98 +12,192 @@
     h1 { font-size: 1.35em; font-weight: normal; margin: 0 0 0.15em; letter-spacing: 0.02em; }
     .official { margin: 0 0 1.25em; font-size: 0.95em; color: #333; }
     label { display: block; margin-top: 0.5em; }
-    input[type="password"] { font-family: inherit; font-size: 1rem; padding: 4px; width: 100%; max-width: 28em; box-sizing: border-box; border: 1px solid #000; }
-    button { font-family: inherit; font-size: 1rem; margin-top: 0.75em; padding: 4px 12px; }
+    input[type="email"] { font-family: inherit; font-size: 1rem; padding: 4px; width: 100%; max-width: 28em; box-sizing: border-box; border: 1px solid #000; }
+    button { font-family: inherit; font-size: 1rem; margin-top: 0.75em; padding: 4px 12px; cursor: pointer; }
     .err { color: #a00; }
+    .ok2 { color: #070; }
+    .hidden { display: none; }
+    .who { font-weight: bold; }
   </style>
 </head>
 <body>
   <h1>Pyx AI</h1>
   <p class="official"><strong>Official website</strong> — trainer sign-in below.</p>
-  <p><strong>Trainer</strong> — enter the trainer password (one field only).</p>
 
-  <form id="f" action="#" method="get">
-    <label for="pw">Password</label>
-    <input id="pw" type="password" autocomplete="current-password" required />
-    <p><button type="submit">Open trainer</button></p>
-  </form>
-  <p id="msg" class="err" aria-live="polite"></p>
+  <div id="loading"><p>Loading sign-in…</p></div>
+
+  <!-- Not signed in: request a sign-in link by email. -->
+  <div id="requestForm" class="hidden">
+    <p><strong>Trainer</strong> — sign in with your authorized email. We'll send a one-time sign-in link.</p>
+    <form id="f" action="#" method="get">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required />
+      <p><button type="submit">Send sign-in link</button></p>
+    </form>
+  </div>
+
+  <!-- Already signed in with an allowed account. -->
+  <div id="signedIn" class="hidden">
+    <p>Signed in as <span class="who" id="whoEmail"></span>.</p>
+    <p>
+      <button type="button" id="continueBtn">Open trainer</button>
+      <button type="button" id="signOutBtn">Sign out</button>
+    </p>
+  </div>
+
+  <p id="msg" aria-live="polite"></p>
   <p><a href="/">Back to home</a></p>
 
   <h2 style="font-size:1.05em;font-weight:normal;margin:1.5em 0 0.35em;border-bottom:1px solid #ccc;padding-bottom:0.2em;">Staff</h2>
-  <p><a href="/dev-workshop.php"><strong>Dev Workshop</strong></a> — applications, traffic-light analyzer, replies (same password).</p>
+  <p><a href="/dev-workshop.php"><strong>Dev Workshop</strong></a> — applications, traffic-light analyzer, replies (same sign-in).</p>
   <p><a href="/pyx-firebase-trainer.html"><strong>Trainer</strong></a> — AI decide &amp; feedback training.</p>
 
   <h2 style="font-size:1.05em;font-weight:normal;margin:1.5em 0 0.35em;border-bottom:1px solid #ccc;padding-bottom:0.2em;">Public features</h2>
-  <p>No password — <a href="/pyx-talk.html"><strong>Pyx AI Talk</strong></a> (Llama chat).</p>
+  <p>No sign-in — <a href="/pyx-talk.html"><strong>Pyx AI Talk</strong></a> (Llama chat).</p>
   <p><a href="/pyx-code.html"><strong>Pyx AI Code</strong></a> — coding studio (GPT-OSS · Groq).</p>
   <p><a href="/pyxel-image.html"><strong>Pyxel Image generation</strong></a> — 10×10 (100-pixel) art from a prompt.</p>
   <p><a href="/workforpyx.php"><strong>Work with Pyx</strong></a> — apply to help train, code, write, and more (resume required).</p>
 
-  <script>
-    (function () {
-      var EXPECTED_SHA256_HEX = "__EXPECTED_SHA256_HEX__";
-      var TARGET = "/pyx-firebase-trainer.html";
-      var SESSION_KEY = "pyx_trainer_pw_ok";
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth, setPersistence, browserLocalPersistence,
+      sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
+      onAuthStateChanged, signOut
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-      function params() {
-        var q = (location.search || "").replace(/^\?/, "");
-        var out = {};
-        q.split("&").forEach(function (pair) {
-          var i = pair.indexOf("=");
-          if (i < 0) return;
-          out[decodeURIComponent(pair.slice(0, i))] = decodeURIComponent(pair.slice(i + 1));
-        });
-        return out;
+    var firebaseConfig = {
+      apiKey: "AIzaSyB3XVQa49aLpOfRMXI0XNIM_pmP_DisM7A",
+      authDomain: "pyx-ai.firebaseapp.com",
+      projectId: "pyx-ai",
+      storageBucket: "pyx-ai.firebasestorage.app",
+      messagingSenderId: "574247481583",
+      appId: "1:574247481583:web:366a9f3ed9b2e6d4036b1a",
+      measurementId: "G-XW1Z8ZWKCK"
+    };
+
+    // Only these accounts may access trainer/staff tools.
+    var ALLOWED = ["boehmlaird@gmail.com", "bdawgsaweaome@icloud.com"];
+    var SESSION_KEY = "pyx_trainer_pw_ok";
+    var EMAIL_KEY = "pyx_emailForSignIn";
+    var DEFAULT_TARGET = "/pyx-firebase-trainer.html";
+
+    function $(id) { return document.getElementById(id); }
+    function norm(email) { return String(email || "").trim().toLowerCase(); }
+    function allowed(email) { return ALLOWED.indexOf(norm(email)) >= 0; }
+    function setMsg(text, isErr) {
+      var m = $("msg");
+      m.textContent = text || "";
+      m.className = isErr ? "err" : "ok2";
+    }
+    function show(id) { $(id).classList.remove("hidden"); }
+    function hide(id) { $(id).classList.add("hidden"); }
+
+    function safeNext() {
+      try {
+        var n = new URLSearchParams(location.search).get("next");
+        if (n && n.indexOf("/") === 0 && n.indexOf("//") !== 0) return n;
+      } catch (e) {}
+      return DEFAULT_TARGET;
+    }
+    function continueUrl() {
+      var n = safeNext();
+      return location.origin + "/pyx-trainer-auth.html" +
+        (n !== DEFAULT_TARGET ? ("?next=" + encodeURIComponent(n)) : "");
+    }
+    function grantAndGo() {
+      try { sessionStorage.setItem(SESSION_KEY, "1"); } catch (e) {}
+      location.replace(safeNext());
+    }
+
+    var app = initializeApp(firebaseConfig);
+    var auth = getAuth(app);
+    setPersistence(auth, browserLocalPersistence).catch(function () {});
+
+    var completingLink = isSignInWithEmailLink(auth, location.href);
+
+    // Show the signed-in panel (one explicit click to continue, so "Lock" stays meaningful).
+    function showSignedIn(email) {
+      $("whoEmail").textContent = email;
+      hide("loading"); hide("requestForm"); show("signedIn");
+    }
+    function showRequestForm() {
+      hide("loading"); hide("signedIn"); show("requestForm");
+      var el = $("email"); if (el) el.focus();
+    }
+
+    onAuthStateChanged(auth, function (user) {
+      if (completingLink) return; // link completion handles its own UI/redirect
+      if (user && allowed(user.email)) {
+        showSignedIn(user.email);
+      } else if (user && !allowed(user.email)) {
+        signOut(auth).catch(function () {});
+        showRequestForm();
+        setMsg("That account isn't authorized for trainer access.", true);
+      } else {
+        showRequestForm();
       }
+    });
 
-      function bufToHex(buf) {
-        var a = new Uint8Array(buf);
-        var s = "";
-        for (var i = 0; i < a.length; i++) s += a[i].toString(16).padStart(2, "0");
-        return s;
+    $("continueBtn").addEventListener("click", grantAndGo);
+    $("signOutBtn").addEventListener("click", function () {
+      try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+      signOut(auth).then(function () {
+        showRequestForm();
+        setMsg("Signed out.", false);
+      }).catch(function () { showRequestForm(); });
+    });
+
+    // Step 1: request the link.
+    $("f").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var email = norm($("email").value);
+      if (!allowed(email)) {
+        setMsg("This email isn't authorized for trainer access.", true);
+        return;
       }
-
-      document.getElementById("f").addEventListener("submit", function (e) {
-        e.preventDefault();
-        var msg = document.getElementById("msg");
-        var pw = document.getElementById("pw").value;
-        msg.textContent = "";
-        if (!pw) {
-          msg.textContent = "Enter the password.";
-          return;
-        }
-        if (!EXPECTED_SHA256_HEX || EXPECTED_SHA256_HEX.indexOf("__") === 0) {
-          msg.textContent = "Trainer auth page not built. Run: python3 scripts/build_trainer_auth.py";
-          return;
-        }
-        if (!window.crypto || !window.crypto.subtle) {
-          msg.textContent = "This browser needs Web Crypto (use a current browser).";
-          return;
-        }
-        var enc = new TextEncoder();
-        crypto.subtle.digest("SHA-256", enc.encode(pw)).then(function (hash) {
-          if (bufToHex(hash) !== EXPECTED_SHA256_HEX) {
-            msg.textContent = "Wrong password.";
-            return;
-          }
-          try {
-            sessionStorage.setItem(SESSION_KEY, "1");
-          } catch (err) {
-            msg.textContent = "Could not save session (try turning off private browsing).";
-            return;
-          }
-          var next = params().next;
-          if (next && next.indexOf("/") === 0 && next.indexOf("//") !== 0) {
-            location.href = next;
-          } else {
-            location.href = TARGET;
-          }
-        }).catch(function () {
-          msg.textContent = "Verification failed.";
+      setMsg("Sending sign-in link…", false);
+      sendSignInLinkToEmail(auth, email, { url: continueUrl(), handleCodeInApp: true })
+        .then(function () {
+          try { localStorage.setItem(EMAIL_KEY, email); } catch (er) {}
+          setMsg("Check " + email + " for a sign-in link, then open it on this device.", false);
+        })
+        .catch(function (err) {
+          setMsg("Could not send link: " + (err && (err.message || err.code) || "unknown error"), true);
         });
-      });
-    })();
+    });
+
+    // Step 2: complete sign-in when arriving from the email link.
+    if (completingLink) {
+      hide("loading");
+      var email = "";
+      try { email = localStorage.getItem(EMAIL_KEY) || ""; } catch (e) {}
+      if (!email) {
+        email = window.prompt("Confirm the email you used to request the sign-in link:") || "";
+      }
+      if (!allowed(email)) {
+        showRequestForm();
+        setMsg("That email isn't authorized for trainer access.", true);
+      } else {
+        setMsg("Signing you in…", false);
+        signInWithEmailLink(auth, email, location.href)
+          .then(function (res) {
+            try { localStorage.removeItem(EMAIL_KEY); } catch (er) {}
+            if (res && res.user && allowed(res.user.email)) {
+              grantAndGo();
+            } else {
+              return signOut(auth).then(function () {
+                showRequestForm();
+                setMsg("That account isn't authorized for trainer access.", true);
+              });
+            }
+          })
+          .catch(function (err) {
+            showRequestForm();
+            setMsg("Sign-in link invalid or expired — request a new one. (" + (err && err.code || "") + ")", true);
+          });
+      }
+    }
   </script>
 </body>
 </html>
