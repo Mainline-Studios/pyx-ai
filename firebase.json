@@ -10,7 +10,8 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
-      "**/*.php"
+      "**/*.php",
+      "pyx-firebase-trainer.html"
     ],
     "headers": [
       {
@@ -33,6 +34,20 @@
       }
     ],
     "rewrites": [
+      {
+        "source": "/pyx-firebase-trainer.html",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/session/**",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
+      },
       {
         "source": "/api/score",
         "run": {

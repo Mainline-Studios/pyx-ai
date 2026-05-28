@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
 
-from flask import Flask, abort, jsonify, request, Response, send_from_directory, stream_with_context
+from flask import Flask, abort, jsonify, redirect, request, Response, send_from_directory, stream_with_context
 
 from Pyx_ai_moderator import PyxAI, BAN_LINE, censor_letters
 from Pyx_ai_check import check_code, check_three_js, __version__ as check_version
@@ -39,6 +39,14 @@ from pyx_llm_utils import (
     groq_gpt_oss_body_extras,
     groq_oss_token_fields,
     is_gpt_oss_model,
+)
+from pyx_trainer_auth import (
+    SESSION_COOKIE,
+    SESSION_TTL_SECONDS,
+    cookie_email,
+    is_allowed,
+    make_session,
+    verify_firebase_id_token,
 )
 
 try:
@@ -3239,6 +3247,69 @@ def analyze_route():
         return jsonify({"error": str(e)}), 500
 
 
+# Pages that must never be publicly downloadable (server-side trainer/staff gate).
+_GATED_PAGES = {"pyx-firebase-trainer.html"}
+
+
+def _trainer_login_redirect(next_path):
+    resp = redirect("/pyx-trainer-auth.html?next=" + urllib.parse.quote(next_path, safe="/?=&"))
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.route("/api/session/login", methods=["POST", "OPTIONS"])
+def session_login():
+    """Exchange a Firebase ID token (from an allowed account) for a session cookie."""
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(silent=True) or {}
+    id_token = (data.get("idToken") or "").strip()
+    email = verify_firebase_id_token(id_token)
+    if not email or not is_allowed(email):
+        return jsonify({"ok": False, "error": "unauthorized"}), 403
+    resp = jsonify({"ok": True, "email": email.strip().lower()})
+    resp.set_cookie(
+        SESSION_COOKIE,
+        make_session(email),
+        max_age=SESSION_TTL_SECONDS,
+        httponly=True,
+        secure=True,
+        samesite="Lax",
+        path="/",
+    )
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.route("/api/session/logout", methods=["POST", "OPTIONS"])
+def session_logout():
+    if request.method == "OPTIONS":
+        return "", 204
+    resp = jsonify({"ok": True})
+    resp.delete_cookie(SESSION_COOKIE, path="/")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.route("/api/session/status", methods=["GET"])
+def session_status():
+    email = cookie_email(request)
+    resp = jsonify({"ok": bool(email), "email": email} if email else {"ok": False})
+    resp.headers["Cache-Control"] = "no-store"
+    return resp, (200 if email else 401)
+
+
+@app.route("/pyx-firebase-trainer.html", methods=["GET", "HEAD"])
+def serve_trainer_page():
+    """Serve the trainer UI only to an authenticated, allowlisted session."""
+    if not cookie_email(request):
+        return _trainer_login_redirect("/pyx-firebase-trainer.html")
+    root = (Path(__file__).resolve().parent / "public").resolve()
+    resp = send_from_directory(str(root), "pyx-firebase-trainer.html")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 @app.route("/<path:public_path>", methods=["GET", "HEAD"])
 def serve_public(public_path):
     """Serve static assets from ./public (local dev). Registered last so API routes win."""
@@ -3250,7 +3321,11 @@ def serve_public(public_path):
     if not str(candidate).startswith(str(root)) or not candidate.is_file():
         abort(404)
     rel = candidate.relative_to(root)
-    return send_from_directory(str(root), str(rel).replace("\\", "/"))
+    rel_str = str(rel).replace("\\", "/")
+    # Defense in depth: never serve gated pages without a valid session.
+    if rel_str in _GATED_PAGES and not cookie_email(request):
+        return _trainer_login_redirect("/" + rel_str)
+    return send_from_directory(str(root), rel_str)
 
 
 try:

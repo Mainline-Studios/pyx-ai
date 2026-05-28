@@ -72,14 +72,10 @@
 </head>
 <body>
   <script>
+    // This page is delivered only to an authenticated, allowlisted session
+    // (enforced server-side). Mirror the flag so in-page Lock logic still works.
     (function () {
-      try {
-        if (sessionStorage.getItem("pyx_trainer_pw_ok") !== "1") {
-          location.replace("/pyx-trainer-auth.html?next=" + encodeURIComponent(location.pathname + location.search));
-        }
-      } catch (e) {
-        location.replace("/pyx-trainer-auth.html");
-      }
+      try { sessionStorage.setItem("pyx_trainer_pw_ok", "1"); } catch (e) {}
     })();
   </script>
   <div class="wrap">
@@ -139,6 +135,9 @@
       document.getElementById("lockTrainer").addEventListener("click", function () {
         try {
           sessionStorage.removeItem("pyx_trainer_pw_ok");
+        } catch (e) {}
+        try {
+          fetch("/api/session/logout", { method: "POST", credentials: "same-origin", keepalive: true });
         } catch (e) {}
         location.href = "/pyx-trainer-auth.html";
       });

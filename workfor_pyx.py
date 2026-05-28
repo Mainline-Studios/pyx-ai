@@ -12,6 +12,7 @@ from flask import Request, Response, jsonify, redirect, request, send_from_direc
 from urllib.parse import quote
 from werkzeug.utils import secure_filename
 
+from pyx_trainer_auth import cookie_email
 from workforpyx_mail import send_application_decision
 from workforpyx_storage import DATA_DIR, find_application
 from workforpyx_traffic import (
@@ -157,6 +158,11 @@ def register_workforpyx_routes(app) -> None:
     def dev_workshop_php():
         if request.method == "OPTIONS":
             return "", 204
+        # Staff-only: require a valid trainer session before any content/action.
+        if not cookie_email(request):
+            resp = redirect("/pyx-trainer-auth.html?next=/dev-workshop.php")
+            resp.headers["Cache-Control"] = "no-store"
+            return resp
         if request.method == "GET" and request.args.get("action") == "resume":
             return _serve_resume_download((request.args.get("id") or "").strip())
         if request.method == "POST" and request.form.get("action") == "decision":

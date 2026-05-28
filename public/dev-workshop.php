@@ -917,17 +917,15 @@ function workforpyx_status_pill_class(string $status): string
           PyxDevWorkshopTraffic.init();
         }
       }
-      try {
-        if (sessionStorage.getItem(SESSION_KEY) === "1") {
-          showWorkshop();
-        } else {
-          location.replace("/pyx-trainer-auth.html?next=" + encodeURIComponent(location.pathname + location.search));
-        }
-      } catch (e) {
-        location.replace("/pyx-trainer-auth.html");
-      }
+      // This page is delivered only to an authenticated, allowlisted session
+      // (enforced server-side), so just reveal it and mirror the flag.
+      try { sessionStorage.setItem(SESSION_KEY, "1"); } catch (e) {}
+      showWorkshop();
       document.getElementById("lockWorkshop").addEventListener("click", function () {
         try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+        try {
+          fetch("/api/session/logout", { method: "POST", credentials: "same-origin", keepalive: true });
+        } catch (e) {}
         location.href = "/pyx-trainer-auth.html";
       });
     })();
