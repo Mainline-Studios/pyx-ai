@@ -11,7 +11,8 @@ Human-readable release notes for Pyx web and API deploys.
 
 Examples:
 
-- `1.1 Riverside LATEST.md` — live now
+- `1.2 Maestro LATEST.md` — live now
+- `1.1 Riverside.md` — archived
 - `1.05 Schoolhouse Patches.md` — archived after 1.1 ships (drop `LATEST` from the previous file)
 
 ## When to update

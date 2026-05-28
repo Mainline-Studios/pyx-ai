@@ -28,6 +28,11 @@
       background: rgba(244, 114, 182, 0.15); color: #fbcfe8;
       border: 1px solid rgba(244, 114, 182, 0.35);
     }
+    .badge--soon {
+      background: rgba(148, 163, 184, 0.08); color: #94a3b8;
+      border: 1px dashed rgba(148, 163, 184, 0.45);
+      text-transform: none; letter-spacing: 0.02em; font-weight: 700;
+    }
     .panel {
       background: rgba(15, 23, 42, 0.85);
       border: 1px solid rgba(148, 163, 184, 0.25);
@@ -87,24 +92,63 @@
       border: 1px dashed rgba(244, 114, 182, 0.35);
       color: #64748b; font-size: 0.85rem;
     }
+    .write-model-bar {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 14px; padding: 10px 14px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 12px; font-size: 0.88rem;
+    }
+    .write-model-bar label { margin: 0; font-weight: 700; color: #cbd5e1; white-space: nowrap; }
+    .write-model-bar select {
+      flex: 1; font: inherit; font-weight: 600;
+      padding: 8px 12px; border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: #0f172a; color: #f1f5f9;
+    }
+    .write-model-hint { margin: 0; font-size: 0.78rem; color: #64748b; line-height: 1.4; }
+    .write-track-chip--voice {
+      background: rgba(244, 114, 182, 0.22);
+      border-color: rgba(244, 114, 182, 0.55);
+      color: #fce7f3;
+      font-weight: 700;
+    }
+    #writeLyricRow { margin-top: 12px; }
+    .write-lyrics {
+      margin: 0 0 10px; font-size: 0.95rem; line-height: 1.5; color: #fbcfe8;
+      font-style: italic; word-spacing: 0.1em;
+    }
+    .write-lyrics:empty { display: none; }
   </style>
 </head>
 <body class="pyx-cosmos">
   <div data-pyx-shell data-pyx-active="write"></div>
   <div class="page pyx-wrap">
     <header class="hero">
-      <h1>Pyx Write</h1>
+      <h1>Pyx Write <span class="badge" style="vertical-align:middle;font-size:0.55em;">1.0</span></h1>
       <p>
-        Free instrumental music — GPT-OSS composes a multi-track score, then your browser plays it
-        with real synths (piano, bass, drums, pads, and more). No vocals; export the score as JSON.
+        Free AI music — GPT-OSS composes a multi-track score and your browser plays it with real synths.
+        <strong>Write 1.0</strong> adds a synthesized <strong>singing voice</strong> that performs a vowel/syllable
+        melody over the band. No external services; export the score as JSON.
       </p>
       <div class="badge-row">
+        <span class="badge">Write 1.0</span>
+        <span class="badge">Singing voice</span>
         <span class="badge">GPT-OSS</span>
-        <span class="badge">Instrumental</span>
         <span class="badge">Multi-track</span>
         <span class="badge">Browser playback</span>
       </div>
     </header>
+
+    <div class="write-model-bar">
+      <label for="writeModel">Model</label>
+      <select id="writeModel" aria-label="Pyx Write model">
+        <option value="1.0" selected>Pyx Write 1.0 — singing voice + band</option>
+        <option value="0.5">Pyx Write 0.5 — instrumental (best quality)</option>
+        <option value="0.25">Pyx Write 0.25 — Llama 8B (faster, simpler)</option>
+      </select>
+    </div>
+    <p class="write-model-hint" id="writeModelHint">1.0 adds a synthesized singing voice over the backing instruments — GPT-OSS (about 15–45s).</p>
 
     <section class="panel">
       <label for="writePrompt">What should Pyx compose?</label>
@@ -123,10 +167,14 @@
         </div>
         <div style="max-width:120px">
           <label for="writeBars">Bars</label>
-          <input type="number" id="writeBars" min="8" max="24" value="16" />
+          <input type="number" id="writeBars" min="8" max="20" value="16" />
         </div>
       </div>
-      <label style="margin-top:14px">Instruments</label>
+      <div id="writeLyricRow">
+        <label for="writeLyricTheme">Vocal feel (1.0 only)</label>
+        <input type="text" id="writeLyricTheme" placeholder="e.g. soaring and hopeful, gentle ooh/aah hook, playful la-la chorus" />
+      </div>
+      <label style="margin-top:14px">Backing instruments</label>
       <div class="write-instruments" id="writeInstruments"></div>
       <div class="actions">
         <button type="button" class="btn" id="writeComposeBtn">Compose</button>
@@ -138,6 +186,7 @@
 
     <section class="panel">
       <p class="write-meta" id="writeMeta"></p>
+      <p class="write-lyrics" id="writeLyrics"></p>
       <div class="write-tracks" id="writeTracks"></div>
       <div class="viz" id="writeViz">Your piece appears here after Compose — then hit Play.</div>
     </section>

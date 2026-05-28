@@ -219,17 +219,17 @@
       style="display:none; margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.45;
              background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(14, 165, 233, 0.10));
              border: 1px solid rgba(129, 140, 248, 0.4); color: #1f2244;">
-      <strong style="color:#4c3bd8">Pyx 1.0 (cloud)</strong> powers generation on this page.
+      <strong style="color:#4c3bd8">Pyxel 1.0 (cloud)</strong> — GPT-OSS pixel generation on this page.
       <a href="/pyx-download.html"
          style="color:#4338ca; font-weight: 600; text-decoration: none; margin-left: 4px;">Downloads →</a>
     </div>
 
-    <h1>Pyxel</h1>
+    <h1>Pyxel <span style="font-size:0.55em;font-weight:700;color:#6366f1;">1.0</span></h1>
 
     <div class="model-bar">
       <span>Model</span>
       <select id="pyxelModel" aria-label="Pyxel model">
-        <option value="0.5" selected>Pyxel 0.5</option>
+        <option value="1.0" selected>Pyxel 1.0</option>
       </select>
     </div>
 
@@ -279,8 +279,8 @@
           window.__pyxDesktop = true;
           var sel = document.getElementById("pyxelModel");
           if (sel && sel.options[0]) {
-            sel.options[0].value = "1";
-            sel.options[0].textContent = "Pyxel 0.5";
+            sel.options[0].value = "1.0";
+            sel.options[0].textContent = "Pyxel 1.0 (local)";
           }
         }
         fetch("/bootstrap/status", { cache: "no-store" })
@@ -529,7 +529,7 @@
           if (!blob) return;
           var a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
-          a.download = "pyxel-" + ((window.__pyxDesktop) ? "1" : "0.5") + ".png";
+          a.download = "pyxel-1.0" + (window.__pyxDesktop ? "-local" : "") + ".png";
           a.click();
           URL.revokeObjectURL(a.href);
         });

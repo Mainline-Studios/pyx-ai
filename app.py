@@ -34,6 +34,12 @@ from werkzeug.exceptions import HTTPException
 
 import pyx13_preview
 import pyx_write
+from pyx_llm_utils import (
+    choice_message_text,
+    groq_gpt_oss_body_extras,
+    groq_oss_token_fields,
+    is_gpt_oss_model,
+)
 
 try:
     from Pyx_ai_code import (
@@ -635,6 +641,7 @@ def _groq_openai_prepare(
         "max_tokens": max_tokens,
         "temperature": temperature,
     }
+    body.update(groq_gpt_oss_body_extras(model))
     ua = (os.environ.get("PYX_TALK_USER_AGENT") or "").strip() or (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
@@ -737,8 +744,7 @@ def _groq_openai_chat(
     choices = data.get("choices") or []
     if not choices:
         raise ValueError("LLM returned no choices")
-    msg = choices[0].get("message") or {}
-    content = (msg.get("content") or "").strip()
+    content = choice_message_text(choices[0])
     if not content:
         raise ValueError("empty LLM content")
     return content, prep["model"]
@@ -1227,6 +1233,7 @@ def _groq_code_prepare(messages_for_api, language="auto", agent=False):
         "max_tokens": max_tokens,
         "temperature": temperature,
     }
+    body.update(groq_gpt_oss_body_extras(model))
     ua = (os.environ.get("PYX_TALK_USER_AGENT") or "").strip() or (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
@@ -1269,8 +1276,7 @@ def _groq_code_chat(messages_for_api, language="auto", agent=False):
     choices = data.get("choices") or []
     if not choices:
         raise ValueError("LLM returned no choices")
-    msg = choices[0].get("message") or {}
-    content = (msg.get("content") or "").strip()
+    content = choice_message_text(choices[0])
     if not content:
         raise ValueError("empty LLM content")
     return content, prep["model"]
@@ -1325,18 +1331,20 @@ def _groq_pixel_art_completion(user_prompt: str, gen_w: int, gen_h: int):
         return None, None
     n = gen_w * gen_h
     model = (os.environ.get("PYX_PIXEL_MODEL") or "").strip() or "openai/gpt-oss-20b"
-    # Hard ceiling keeps Groq TPM low (pixel_art was the main 502 path). Override with PYX_PIXEL_COMPLETION_CEILING.
+    oss = is_gpt_oss_model(model)
+    default_cap = "1400" if oss else "350"
     try:
-        _cap = int(os.environ.get("PYX_PIXEL_COMPLETION_CEILING", "350"))
+        _cap = int(os.environ.get("PYX_PIXEL_COMPLETION_CEILING", default_cap))
     except ValueError:
-        _cap = 350
+        _cap = int(default_cap)
     _cap = max(64, min(_cap, 8192))
     try:
         max_tokens = int(os.environ.get("PYX_PIXEL_MAX_TOKENS", str(_cap)))
     except ValueError:
         max_tokens = _cap
-    # Tight per-grid estimate; never exceed _cap.
-    ceil_for_grid = min(_cap, max(32, min(n * 3 + 200, _cap)))
+    ceil_for_grid = max(32, min(n * 3 + 200, _cap))
+    if oss:
+        ceil_for_grid = max(ceil_for_grid, min(n * 5 + 400, _cap))
     max_tokens = max(32, min(max_tokens, _cap, ceil_for_grid))
     try:
         temperature = float(os.environ.get("PYX_PIXEL_TEMPERATURE", "0.35"))
@@ -1352,15 +1360,6 @@ def _groq_pixel_art_completion(user_prompt: str, gen_w: int, gen_h: int):
         f"List px1 through px{n} in order (one line per pixel). "
         f"Subject / scene to draw: interpret the user’s request vividly but keep the output strictly to those {n} lines."
     )
-    body = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": (user_prompt or "abstract pattern").strip()[:2000]},
-        ],
-        "max_tokens": max_tokens,
-        "temperature": temperature,
-    }
     ua = (os.environ.get("PYX_TALK_USER_AGENT") or "").strip() or (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
@@ -1372,12 +1371,6 @@ def _groq_pixel_art_completion(user_prompt: str, gen_w: int, gen_h: int):
     }
     if key:
         headers["Authorization"] = "Bearer " + key
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(body).encode("utf-8"),
-        headers=headers,
-        method="POST",
-    )
     timeout_s = 90
     if url_norm != groq_norm:
         timeout_s = 180
@@ -1385,16 +1378,64 @@ def _groq_pixel_art_completion(user_prompt: str, gen_w: int, gen_h: int):
         timeout_s = max(20, min(int(os.environ.get("PYX_PIXEL_TIMEOUT", str(timeout_s))), 300))
     except ValueError:
         pass
-    with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    choices = data.get("choices") or []
-    if not choices:
-        raise ValueError("LLM returned no choices")
-    msg = choices[0].get("message") or {}
-    content = (msg.get("content") or "").strip()
-    if not content:
-        raise ValueError("empty LLM content")
-    return content, model
+
+    def _call(limit: int, oss_extras: dict | None = None) -> tuple[str, str]:
+        body = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": (user_prompt or "abstract pattern").strip()[:2000]},
+            ],
+            "temperature": temperature,
+        }
+        body.update(groq_oss_token_fields(model, limit))
+        if oss_extras is not None:
+            body.update(oss_extras)
+        elif oss:
+            body.update(groq_gpt_oss_body_extras(model))
+            effort = (os.environ.get("PYX_PIXEL_REASONING_EFFORT") or "low").strip().lower()
+            if effort in ("low", "medium", "high"):
+                body["reasoning_effort"] = effort
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(body).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        choices = data.get("choices") or []
+        if not choices:
+            raise ValueError("LLM returned no choices")
+        choice = choices[0]
+        text = choice_message_text(choice)
+        finish = str(choice.get("finish_reason") or "")
+        return text, finish
+
+    def _usable_pixel_text(text: str) -> bool:
+        if not (text or "").strip():
+            return False
+        return bool(_PIXEL_LINE_RE.search(text))
+
+    attempts: list[tuple[int, dict | None]] = [(max_tokens, None)]
+    if oss:
+        retry_cap = min(_cap, max(max_tokens * 2, ceil_for_grid + 200))
+        if retry_cap > max_tokens:
+            attempts.append((retry_cap, None))
+        attempts.append((_cap, groq_gpt_oss_body_extras(model, reasoning_format="")))
+
+    last_finish = ""
+    for limit, oss_extras in attempts:
+        try:
+            text, finish = _call(limit, oss_extras)
+        except ValueError:
+            continue
+        last_finish = finish or last_finish
+        if _usable_pixel_text(text):
+            return text, model
+
+    detail = f" (finish_reason={last_finish})" if last_finish else ""
+    raise ValueError("empty LLM content" + detail)
 
 
 # Optional API key auth: if set, requests must include a valid key
@@ -2304,12 +2345,20 @@ def write_compose():
         bars = int(data.get("bars", 16))
     except (TypeError, ValueError):
         return jsonify({"error": '"bars" must be a number'}), 400
+    write_profile = data.get("write_profile") or data.get("write_model") or data.get("model_profile") or "0.5"
+    if write_profile is not None and not isinstance(write_profile, (str, int, float)):
+        return jsonify({"error": '"write_profile" must be a string (1.0, 0.5, or 0.25)'}), 400
+    lyric_theme = data.get("lyric_theme") or data.get("lyrics") or data.get("vocal_theme") or ""
+    if lyric_theme is not None and not isinstance(lyric_theme, str):
+        return jsonify({"error": '"lyric_theme" must be a string'}), 400
     try:
-        score, model_used = pyx_write.compose_instrumental(
+        score, model_used, profile_meta = pyx_write.compose_instrumental(
             prompt=prompt.strip(),
             style=(style or "").strip(),
             instruments=instruments,
             bars=bars,
+            write_profile=str(write_profile),
+            lyric_theme=(lyric_theme or "").strip(),
         )
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
@@ -2323,7 +2372,9 @@ def write_compose():
             "ok": True,
             "score": score,
             "model": model_used,
-            "engine": "pyx-write-symbolic",
+            "engine": profile_meta["engine"],
+            "version": profile_meta["version"],
+            "write_profile": profile_meta["write_profile"],
         }
     )
 
@@ -2413,6 +2464,8 @@ def pixel_art():
             "gen_w": gw,
             "gen_h": gh,
             "model": model_used or "unknown",
+            "engine": "pyxel-1.0",
+            "version": "1.0",
         }
     )
 
