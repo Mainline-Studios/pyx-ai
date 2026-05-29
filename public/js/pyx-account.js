@@ -17,6 +17,7 @@ import {
   GoogleAuthProvider, signInWithPopup,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut,
   sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
+  RecaptchaVerifier, signInWithPhoneNumber,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, setDoc, deleteDoc, getDoc, getDocs,
@@ -131,6 +132,44 @@ const PyxAccount = {
   },
 
   signOutUser: function () { return signOut(auth); },
+
+  // ---- Phone sign-in with invisible reCAPTCHA ----
+
+  // Creates (once) an invisible reCAPTCHA bound to the given button/element id.
+  setupInvisibleRecaptcha: function (buttonId, onSolved) {
+    if (this._recaptcha) return this._recaptcha;
+    this._recaptcha = new RecaptchaVerifier(auth, buttonId, {
+      size: "invisible",
+      callback: function (response) {
+        // reCAPTCHA solved — signInWithPhoneNumber may now proceed.
+        if (typeof onSolved === "function") onSolved(response);
+      },
+    });
+    return this._recaptcha;
+  },
+
+  // Sends an SMS code. `buttonId` is the element the invisible reCAPTCHA is bound to.
+  // Resolves with a confirmationResult; call confirmPhoneCode(result, code) next.
+  startPhoneSignIn: function (phoneNumber, buttonId) {
+    var verifier = this.setupInvisibleRecaptcha(buttonId);
+    return signInWithPhoneNumber(auth, String(phoneNumber).trim(), verifier);
+  },
+
+  confirmPhoneCode: function (confirmationResult, code) {
+    if (!confirmationResult || typeof confirmationResult.confirm !== "function") {
+      return Promise.reject(new Error("Request an SMS code first"));
+    }
+    return confirmationResult.confirm(String(code).trim()).then(function (res) {
+      return publicUser(res.user);
+    });
+  },
+
+  resetRecaptcha: function () {
+    if (this._recaptcha) {
+      try { this._recaptcha.clear(); } catch (e) {}
+      this._recaptcha = null;
+    }
+  },
 
   // ---- Chats (require sign-in) ----
 
