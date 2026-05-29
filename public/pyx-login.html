@@ -12,8 +12,9 @@
     h2 { font-size: 1.05em; font-weight: normal; margin: 1.4em 0 0.35em; border-bottom: 1px solid #ccc; padding-bottom: 0.2em; }
     .official { margin: 0 0 1.25em; font-size: 0.95em; color: #333; }
     label { display: block; margin-top: 0.5em; }
-    input[type="email"], input[type="password"] { font-family: inherit; font-size: 1rem; padding: 4px; width: 100%; max-width: 28em; box-sizing: border-box; border: 1px solid #000; }
+    input[type="email"], input[type="password"], input[type="tel"], select { font-family: inherit; font-size: 1rem; padding: 4px; width: 100%; max-width: 28em; box-sizing: border-box; border: 1px solid #000; background: #fff; color: #000; }
     button { font-family: inherit; font-size: 1rem; margin-top: 0.6em; padding: 4px 12px; cursor: pointer; }
+    .phone-preview { font-size: 0.9em; color: #333; margin: 0.4em 0; }
     .err { color: #a00; }
     .ok2 { color: #070; }
     .hidden { display: none; }
@@ -48,9 +49,12 @@
     <p><button type="button" id="linkBtn">Email me a sign-in link</button></p>
 
     <h2>Phone number</h2>
-    <p>We'll text you a 6-digit code. Include your country code (e.g. <code>+15551234567</code>).</p>
-    <label for="phone">Phone</label>
-    <input id="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+15551234567" />
+    <p>We'll text you a 6-digit code. Pick your country, then fill in your number.</p>
+    <label for="phoneCountry">Country</label>
+    <select id="phoneCountry"></select>
+    <label for="phoneNational">Phone number</label>
+    <input id="phoneNational" type="tel" autocomplete="tel-national" inputmode="numeric" placeholder="(___) ___-____" />
+    <p class="phone-preview" id="phonePreview">Will send to: —</p>
     <p><button type="button" id="phoneSendBtn">Send SMS code</button></p>
     <div id="phoneCodeRow" class="hidden">
       <label for="phoneCode">SMS code</label>
@@ -113,6 +117,89 @@
         return (err && (err.message || err.code)) || "Something went wrong.";
       }
 
+      // Country dial codes (flag + name + +code). Common set; US default.
+      var COUNTRIES = [
+        { c: "United States", d: "+1", f: "🇺🇸" },
+        { c: "Canada", d: "+1", f: "🇨🇦" },
+        { c: "United Kingdom", d: "+44", f: "🇬🇧" },
+        { c: "Australia", d: "+61", f: "🇦🇺" },
+        { c: "Ireland", d: "+353", f: "🇮🇪" },
+        { c: "New Zealand", d: "+64", f: "🇳🇿" },
+        { c: "India", d: "+91", f: "🇮🇳" },
+        { c: "Mexico", d: "+52", f: "🇲🇽" },
+        { c: "Brazil", d: "+55", f: "🇧🇷" },
+        { c: "Germany", d: "+49", f: "🇩🇪" },
+        { c: "France", d: "+33", f: "🇫🇷" },
+        { c: "Spain", d: "+34", f: "🇪🇸" },
+        { c: "Italy", d: "+39", f: "🇮🇹" },
+        { c: "Netherlands", d: "+31", f: "🇳🇱" },
+        { c: "Sweden", d: "+46", f: "🇸🇪" },
+        { c: "Norway", d: "+47", f: "🇳🇴" },
+        { c: "Denmark", d: "+45", f: "🇩🇰" },
+        { c: "Switzerland", d: "+41", f: "🇨🇭" },
+        { c: "Portugal", d: "+351", f: "🇵🇹" },
+        { c: "Poland", d: "+48", f: "🇵🇱" },
+        { c: "Japan", d: "+81", f: "🇯🇵" },
+        { c: "South Korea", d: "+82", f: "🇰🇷" },
+        { c: "China", d: "+86", f: "🇨🇳" },
+        { c: "Singapore", d: "+65", f: "🇸🇬" },
+        { c: "Hong Kong", d: "+852", f: "🇭🇰" },
+        { c: "United Arab Emirates", d: "+971", f: "🇦🇪" },
+        { c: "South Africa", d: "+27", f: "🇿🇦" },
+        { c: "Nigeria", d: "+234", f: "🇳🇬" },
+        { c: "Argentina", d: "+54", f: "🇦🇷" },
+        { c: "Philippines", d: "+63", f: "🇵🇭" }
+      ];
+
+      function phoneDigits() { return ($("phoneNational").value || "").replace(/\D/g, ""); }
+      function phoneDial() { return $("phoneCountry").value || "+1"; }
+
+      // (___) ___-____ style mask; extra digits append after.
+      function formatNational(raw) {
+        var d = String(raw).replace(/\D/g, "").slice(0, 15);
+        if (!d) return "";
+        if (d.length <= 3) return "(" + d;
+        if (d.length <= 6) return "(" + d.slice(0, 3) + ") " + d.slice(3);
+        if (d.length <= 10) return "(" + d.slice(0, 3) + ") " + d.slice(3, 6) + "-" + d.slice(6);
+        return "(" + d.slice(0, 3) + ") " + d.slice(3, 6) + "-" + d.slice(6, 10) + " " + d.slice(10);
+      }
+
+      function phoneE164() {
+        var digits = phoneDigits();
+        return digits ? phoneDial() + digits : "";
+      }
+
+      function updatePhonePreview() {
+        var prev = $("phonePreview");
+        if (!prev) return;
+        var e = phoneE164();
+        prev.textContent = "Will send to: " + (e || "—");
+      }
+
+      function setupPhoneInput() {
+        var sel = $("phoneCountry");
+        if (sel) {
+          for (var i = 0; i < COUNTRIES.length; i++) {
+            var ct = COUNTRIES[i];
+            var opt = document.createElement("option");
+            opt.value = ct.d;
+            opt.textContent = ct.f + "  " + ct.c + " (" + ct.d + ")";
+            sel.appendChild(opt);
+          }
+          sel.value = "+1";
+          sel.addEventListener("change", updatePhonePreview);
+        }
+        var nat = $("phoneNational");
+        if (nat) {
+          nat.addEventListener("input", function () {
+            nat.value = formatNational(nat.value);
+            updatePhonePreview();
+          });
+        }
+        updatePhonePreview();
+      }
+      setupPhoneInput();
+
       whenReady(function (PA) {
         PA.ready.then(function () {
           // Complete an email magic-link if we arrived from one.
@@ -173,9 +260,9 @@
 
         var phoneConfirmation = null;
         $("phoneSendBtn").addEventListener("click", function () {
-          var phone = ($("phone").value || "").trim();
+          var phone = phoneE164();
           if (!/^\+\d{6,15}$/.test(phone)) {
-            setMsg("Enter your phone in international format, e.g. +15551234567.", true);
+            setMsg("Enter a valid phone number for the selected country.", true);
             return;
           }
           setMsg("Sending SMS code…", false);
