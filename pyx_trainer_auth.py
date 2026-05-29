@@ -25,6 +25,7 @@ from typing import Optional
 ALLOWED_EMAILS = {
     "boehmlaird@gmail.com",
     "bdawgsaweaome@icloud.com",
+    "sofiakarsanbhai@icloud.com",
 }
 
 SESSION_COOKIE = "pyx_session"
