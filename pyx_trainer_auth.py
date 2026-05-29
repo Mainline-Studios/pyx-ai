@@ -28,7 +28,10 @@ ALLOWED_EMAILS = {
     "sofiakarsanbhai@icloud.com",
 }
 
-SESSION_COOKIE = "pyx_session"
+# Must be exactly "__session": Firebase Hosting strips every cookie EXCEPT
+# "__session" when proxying requests to Cloud Run, so the gate only works with
+# this name.
+SESSION_COOKIE = "__session"
 SESSION_TTL_SECONDS = int(os.environ.get("PYX_SESSION_TTL", "43200"))  # 12 hours
 _FIREBASE_PROJECT_ID = os.environ.get(
     "FIREBASE_PROJECT_ID", os.environ.get("GOOGLE_CLOUD_PROJECT", "pyx-ai")
