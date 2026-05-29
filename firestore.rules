@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Per-user profile + saved chats: only the signed-in owner may read/write.
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      match /chats/{chatId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    // Shared chats: anyone with the link can read (read-only viewing). Only the
+    // creator can write, and the stored ownerUid must match the signed-in user.
+    // Viewers who reply fork a copy into their own users/{uid}/chats (above).
+    match /shared/{shareId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if request.auth != null
+                    && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // Everything else stays locked. The backend uses the Admin SDK, which
+    // bypasses these rules (e.g. the `phrases` training collection).
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -3,6 +3,10 @@
     "source": "functions",
     "runtime": "python310"
   },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
   "hosting": {
     "public": "public",
     "predeploy": ["npm run build:trainer-auth"],

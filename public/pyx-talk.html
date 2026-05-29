@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/brand/pyx-brand.css" />
   <link rel="stylesheet" href="/brand/pyx-cosmos.css" />
+  <script type="module" src="/js/pyx-account.js"></script>
   <style>
     /* Talk layout — tokens & base UI in /brand/pyx-cosmos.css */
     :root {
@@ -1763,12 +1764,14 @@
       border-radius: 10px;
       border: none;
       background: rgba(2, 6, 23, 0.35);
-      color: var(--text);
+      /* Fallback colors so the input stays styled even if brand CSS vars fail to load. */
+      color: var(--text, #e6edf7);
+      caret-color: var(--text, #e6edf7);
       transition: box-shadow 0.15s;
       -webkit-appearance: none;
       appearance: none;
     }
-    #composer textarea::placeholder { color: var(--muted); opacity: 0.85; }
+    #composer textarea::placeholder { color: var(--muted, #94a3b8); opacity: 0.85; }
     #composer textarea:focus {
       outline: none;
     }
@@ -2289,6 +2292,59 @@
     }
     .web-opt span strong { font-weight: 600; }
 
+    /* In-chat app event card (was an invisible spacer) */
+    .msg--app-event {
+      border: 1px solid rgba(56, 189, 248, 0.35) !important;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(167, 139, 250, 0.1)) !important;
+      border-radius: 14px;
+      padding: 10px 12px;
+      max-width: min(720px, 92%);
+    }
+    .app-event-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted, #94a3b8);
+      margin-bottom: 6px;
+    }
+    .app-event-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #38bdf8, #a78bfa);
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+    }
+    .app-event-body { color: var(--text, #e6edf7); font-size: 14px; }
+
+    /* Account + share controls in the topbar */
+    .talk-pill-link--account {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.28), rgba(56, 189, 248, 0.22));
+      border-color: rgba(186, 230, 253, 0.4) !important;
+      font-weight: 700;
+    }
+    #talkShareBtn { border: 1px solid rgba(148, 163, 184, 0.25); background: transparent; }
+    #talkShareBtn:hover, .talk-pill-link--account:hover { filter: brightness(1.12); }
+
+    /* Shared (read-only) chat banner */
+    .talk-shared-banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 0 0 12px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(251, 191, 36, 0.4);
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(249, 115, 22, 0.1));
+      color: var(--text, #e6edf7);
+      font-size: 13px;
+    }
+    .talk-shared-banner.is-shown { display: flex; }
+    .talk-shared-banner strong { font-weight: 700; }
   </style>
 </head>
 <body class="pyx-cosmos talk-cosmos">
@@ -2456,6 +2512,8 @@
           <a class="talk-pill-link talk-pill-link--accent" id="getPyx15"
              href="/pyx-download.html"
              title="Pyx 1.3 preview and downloads">Pyx 1.3</a>
+          <button type="button" class="talk-pill-link" id="talkShareBtn" title="Share this chat (read-only link)">Share</button>
+          <a class="talk-pill-link talk-pill-link--account" id="talkAccountBtn" href="/pyx-login.html?next=/pyx-talk.html" title="Sign in to save &amp; sync your chats">Sign in</a>
         </div>
         <span class="talk-badge-orbit" id="headerLineBadge">Pyx 1.0</span>
       </header>
@@ -4589,11 +4647,7 @@
 
       function addAssistantBubbleContent(content) {
         if (typeof content === "string" && content.indexOf(APP_EVENT_PREFIX) === 0) {
-          var spacer = document.createElement("div");
-          spacer.className = "msg msg--app-spacer";
-          spacer.setAttribute("aria-hidden", "true");
-          chatEl.appendChild(spacer);
-          chatEl.scrollTop = chatEl.scrollHeight;
+          addAppEventBubble(content.slice(APP_EVENT_PREFIX.length));
           return;
         }
         var parsed = parsePixelStored(content);
@@ -4602,6 +4656,32 @@
           return;
         }
         addBubble(content, "bot");
+      }
+
+      function addAppEventBubble(markdownText) {
+        var wrap = document.createElement("div");
+        wrap.className = "msg msg--bot msg--app-event";
+        var label = document.createElement("div");
+        label.className = "app-event-label";
+        label.innerHTML = '<span class="app-event-dot" aria-hidden="true"></span>In-chat app';
+        var body = document.createElement("div");
+        body.className = "app-event-body msg--rich";
+        var txt = String(markdownText || "").trim();
+        var html = renderAssistantMarkdown(txt);
+        if (html !== null) {
+          body.innerHTML = html;
+          var links = body.querySelectorAll("a[href]");
+          for (var i = 0; i < links.length; i++) {
+            links[i].setAttribute("target", "_blank");
+            links[i].setAttribute("rel", "noopener noreferrer");
+          }
+        } else {
+          body.textContent = txt;
+        }
+        wrap.appendChild(label);
+        wrap.appendChild(body);
+        chatEl.appendChild(wrap);
+        chatEl.scrollTop = chatEl.scrollHeight;
       }
 
       function appReply(markdownText) {
@@ -5595,6 +5675,256 @@
         };
       }
 
+      // ---- Pyx account: cloud chat sync + sharing ----
+      var pyxAccountUser = null;
+      var pyxChatsUnsub = null;
+      var pyxCloudPushTimer = null;
+      var pyxSharedView = { active: false, data: null };
+
+      function pyxWhenAccount(cb) {
+        if (window.PyxAccount) { cb(window.PyxAccount); return; }
+        window.addEventListener("pyx-account-ready", function () { cb(window.PyxAccount); }, { once: true });
+      }
+
+      function pyxActiveThreadMeta() {
+        var lk = currentLineKey();
+        var tid = getActiveThreadId(lk === "preview" ? "preview" : "cloud");
+        if (!tid) return null;
+        var idx = getThreadIndex();
+        for (var i = 0; i < idx.threads.length; i++) {
+          if (idx.threads[i].id === tid) return idx.threads[i];
+        }
+        return { id: tid, title: "Chat", line: lk, updated: Date.now() };
+      }
+
+      function pyxUpdateAccountUi(user) {
+        var btn = document.getElementById("talkAccountBtn");
+        var nameEl = document.getElementById("talkProfileName");
+        var emailEl = document.getElementById("talkProfileEmail");
+        if (user) {
+          var label = user.displayName || (user.email ? user.email.split("@")[0] : "Account");
+          if (btn) { btn.textContent = label; btn.setAttribute("href", "#"); btn.title = "Signed in as " + (user.email || label) + " — click to sign out"; }
+          if (nameEl) nameEl.textContent = user.displayName || label;
+          if (emailEl) emailEl.textContent = user.email || "";
+        } else {
+          if (btn) { btn.textContent = "Sign in"; btn.setAttribute("href", "/pyx-login.html?next=/pyx-talk.html"); btn.title = "Sign in to save & sync your chats"; }
+          if (nameEl) nameEl.textContent = "You";
+          if (emailEl) emailEl.textContent = "Guest — not signed in";
+        }
+      }
+
+      function pyxMergeCloudChats(chats) {
+        if (!chats || !chats.length) { renderThreadList(); renderConversationRouteList(); return; }
+        var idx = getThreadIndex();
+        var byId = {};
+        for (var i = 0; i < idx.threads.length; i++) byId[idx.threads[i].id] = idx.threads[i];
+        var activeIds = {
+          cloud: getActiveThreadId("cloud"),
+          preview: getActiveThreadId("preview"),
+        };
+        for (var c = 0; c < chats.length; c++) {
+          var ch = chats[c];
+          var line = ch.line === "preview" ? "preview" : "cloud";
+          if (byId[ch.id]) {
+            byId[ch.id].title = ch.title || byId[ch.id].title;
+            byId[ch.id].updated = ch.updatedAt || byId[ch.id].updated;
+          } else {
+            var meta = { id: ch.id, title: ch.title || "Chat", line: line, updated: ch.updatedAt || Date.now() };
+            idx.threads.push(meta);
+            byId[ch.id] = meta;
+          }
+          // Don't clobber the chat the user currently has open in memory.
+          if (ch.id === activeIds[line]) continue;
+          try { localStorage.setItem(messageStoreKey(line, ch.id), JSON.stringify(ch.messages || [])); } catch (e) {}
+        }
+        saveThreadIndex(idx);
+        renderThreadList();
+        renderConversationRouteList();
+      }
+
+      function pyxStartCloudSync() {
+        if (!window.PyxAccount || !pyxAccountUser) return;
+        if (pyxChatsUnsub) { try { pyxChatsUnsub(); } catch (e) {} pyxChatsUnsub = null; }
+        try {
+          pyxChatsUnsub = window.PyxAccount.watchChats(function (chats) {
+            pyxMergeCloudChats(chats);
+          });
+        } catch (e) {}
+        pyxCloudPushActive();
+      }
+
+      function pyxStopCloudSync() {
+        if (pyxChatsUnsub) { try { pyxChatsUnsub(); } catch (e) {} pyxChatsUnsub = null; }
+      }
+
+      function pyxCloudPushActive() {
+        if (!window.PyxAccount || !pyxAccountUser || pyxSharedView.active) return;
+        var meta = pyxActiveThreadMeta();
+        if (!meta) return;
+        try {
+          window.PyxAccount.saveChat({
+            id: meta.id,
+            title: meta.title || "Chat",
+            line: meta.line || currentLineKey(),
+            messages: messages.slice(-MAX_STORE_MESSAGES),
+          }).catch(function () {});
+        } catch (e) {}
+      }
+
+      function pyxCloudPushDebounced() {
+        if (!window.PyxAccount || !pyxAccountUser || pyxSharedView.active) return;
+        if (pyxCloudPushTimer) clearTimeout(pyxCloudPushTimer);
+        pyxCloudPushTimer = setTimeout(pyxCloudPushActive, 900);
+      }
+
+      function pyxShareCurrent() {
+        if (!window.PyxAccount) return;
+        if (!pyxAccountUser) {
+          if (statusEl) statusEl.textContent = "Sign in to share a chat.";
+          location.href = "/pyx-login.html?next=" + encodeURIComponent("/pyx-talk.html");
+          return;
+        }
+        if (!messages.length) { if (statusEl) statusEl.textContent = "Nothing to share yet — send a message first."; return; }
+        var meta = pyxActiveThreadMeta() || { title: "Shared chat", line: currentLineKey() };
+        if (statusEl) statusEl.textContent = "Creating share link…";
+        window.PyxAccount.shareChat({
+          title: meta.title || "Shared chat",
+          line: meta.line || currentLineKey(),
+          messages: messages.slice(-MAX_STORE_MESSAGES),
+        }).then(function (out) {
+          var url = out.url;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function () {
+              if (statusEl) statusEl.textContent = "Share link copied to clipboard.";
+            }).catch(function () {
+              window.prompt("Share this read-only link:", url);
+            });
+          } else {
+            window.prompt("Share this read-only link:", url);
+          }
+        }).catch(function (err) {
+          if (statusEl) statusEl.textContent = "Could not create share link: " + (err && (err.message || err.code) || "error");
+        });
+      }
+
+      function pyxRenderSharedMessages(data) {
+        chatEl.innerHTML = "";
+        messages = [];
+        var list = data.messages || [];
+        for (var i = 0; i < list.length; i++) {
+          var m = list[i];
+          if (!m) continue;
+          if (m.role === "user") {
+            userBubbleFromStoredMessage(m);
+          } else if (m.role === "assistant") {
+            addAssistantBubbleContent(m.content);
+          }
+        }
+        chatEl.scrollTop = 0;
+      }
+
+      function pyxShowSharedBanner(data) {
+        var banner = document.getElementById("talkSharedBanner");
+        if (!banner) {
+          banner = document.createElement("div");
+          banner.id = "talkSharedBanner";
+          banner.className = "talk-shared-banner";
+          var panel = document.querySelector(".talk-chat-panel");
+          if (panel) panel.insertBefore(banner, panel.firstChild);
+        }
+        banner.innerHTML =
+          "<span>👀</span><span>Viewing a <strong>shared chat</strong>" +
+          (data.ownerName ? " by " + escHtml(data.ownerName) : "") +
+          " — read-only. Send a message to save your own editable copy.</span>";
+        banner.classList.add("is-shown");
+      }
+
+      function pyxHideSharedBanner() {
+        var banner = document.getElementById("talkSharedBanner");
+        if (banner) banner.classList.remove("is-shown");
+      }
+
+      function pyxOpenSharedView(shareId) {
+        pyxWhenAccount(function (PA) {
+          PA.getShared(shareId).then(function (data) {
+            if (!data) { if (statusEl) statusEl.textContent = "That shared chat was not found."; return; }
+            pyxSharedView.active = true;
+            pyxSharedView.data = data;
+            pyxRenderSharedMessages(data);
+            pyxShowSharedBanner(data);
+          }).catch(function () {
+            if (statusEl) statusEl.textContent = "Could not load that shared chat.";
+          });
+        });
+      }
+
+      // Returns true if send() may proceed, false if it should stop (e.g. redirecting to sign in).
+      function pyxForkSharedBeforeSend() {
+        if (!pyxSharedView.active) return true;
+        if (!pyxAccountUser) {
+          if (statusEl) statusEl.textContent = "Sign in to reply — it saves your own copy.";
+          var back = location.pathname + location.search;
+          location.href = "/pyx-login.html?next=" + encodeURIComponent(back);
+          return false;
+        }
+        var data = pyxSharedView.data || { messages: [], title: "Shared chat", line: "cloud" };
+        var line = data.line === "preview" ? "preview" : "cloud";
+        var id = line + "-fork-" + pyxRandomId();
+        var idx = getThreadIndex();
+        idx.threads.push({
+          id: id,
+          title: "Copy of " + (data.title || "shared chat"),
+          line: line,
+          updated: Date.now(),
+        });
+        setActiveThreadId(line, id);
+        saveThreadIndex(idx);
+        messages = (data.messages || []).slice();
+        pyxSharedView.active = false;
+        pyxSharedView.data = null;
+        pyxHideSharedBanner();
+        try {
+          var url = new URL(location.href);
+          url.searchParams.delete("shared");
+          history.replaceState(null, "", url.toString());
+        } catch (e) {}
+        persistChat();
+        renderThreadList();
+        renderConversationRouteList();
+        return true;
+      }
+
+      function pyxAccountInit() {
+        var shareBtn = document.getElementById("talkShareBtn");
+        if (shareBtn) shareBtn.addEventListener("click", pyxShareCurrent);
+        var acctBtn = document.getElementById("talkAccountBtn");
+        if (acctBtn) {
+          acctBtn.addEventListener("click", function (e) {
+            if (pyxAccountUser && window.PyxAccount) {
+              e.preventDefault();
+              if (window.confirm("Sign out of " + (pyxAccountUser.email || "your account") + "?")) {
+                window.PyxAccount.signOutUser().catch(function () {});
+              }
+            }
+          });
+        }
+        var sharedId = "";
+        try { sharedId = new URLSearchParams(location.search).get("shared") || ""; } catch (e) {}
+        if (sharedId) pyxOpenSharedView(sharedId);
+
+        pyxWhenAccount(function (PA) {
+          PA.onAuth(function (user) {
+            pyxAccountUser = user;
+            pyxUpdateAccountUi(user);
+            if (user) {
+              pyxStartCloudSync();
+            } else {
+              pyxStopCloudSync();
+            }
+          });
+        });
+      }
+
       function loadChatFromStorage() {
         try {
           var raw = localStorage.getItem(getStorageKey());
@@ -5648,6 +5978,7 @@
         touchActiveThread();
         maybeAutoTitleThread();
         scheduleOrbitRefresh(false);
+        pyxCloudPushDebounced();
       }
 
       function pyxFormatSentStamp(iso) {
@@ -5924,6 +6255,7 @@
         var text = (inputEl.value || "").trim();
         var pendingImages = attachmentQueue.length;
         if (!text && !pendingImages) return;
+        if (pyxSharedView.active && !pyxForkSharedBeforeSend()) return;
         if (getTalkLine() === "preview" && pendingImages) {
           statusEl.textContent =
             "Image attachments use Llama vision on Pyx 1.0 (cloud). Switch lines or remove attachments.";
@@ -6424,6 +6756,7 @@
       }
       refreshTalkPyxelChip();
       window.addEventListener("focus", refreshTalkPyxelChip);
+      pyxAccountInit();
     })();
   </script>
 </body>

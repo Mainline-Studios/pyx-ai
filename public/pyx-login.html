@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pyx AI — Sign in</title>
+  <style>
+    body { font-family: Georgia, "Times New Roman", Times, serif; background: #fff; color: #000; margin: 16px; line-height: 1.45; max-width: 44em; }
+    p { margin: 0.75em 0; }
+    a { color: #00e; }
+    h1 { font-size: 1.35em; font-weight: normal; margin: 0 0 0.15em; letter-spacing: 0.02em; }
+    h2 { font-size: 1.05em; font-weight: normal; margin: 1.4em 0 0.35em; border-bottom: 1px solid #ccc; padding-bottom: 0.2em; }
+    .official { margin: 0 0 1.25em; font-size: 0.95em; color: #333; }
+    label { display: block; margin-top: 0.5em; }
+    input[type="email"], input[type="password"] { font-family: inherit; font-size: 1rem; padding: 4px; width: 100%; max-width: 28em; box-sizing: border-box; border: 1px solid #000; }
+    button { font-family: inherit; font-size: 1rem; margin-top: 0.6em; padding: 4px 12px; cursor: pointer; }
+    .err { color: #a00; }
+    .ok2 { color: #070; }
+    .hidden { display: none; }
+    .who { font-weight: bold; }
+    .row button { margin-right: 0.5em; }
+  </style>
+</head>
+<body>
+  <h1>Pyx AI</h1>
+  <p class="official"><strong>Sign in to your Pyx account</strong> — your chats are saved and synced across devices.</p>
+
+  <div id="loading"><p>Loading sign-in…</p></div>
+
+  <div id="signedOut" class="hidden">
+    <h2>Continue with Google</h2>
+    <p><button type="button" id="googleBtn">Sign in with Google</button></p>
+
+    <h2>Email &amp; password</h2>
+    <form id="pwForm" action="#" method="get">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required />
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="(6+ characters)" />
+      <p class="row">
+        <button type="submit" id="signInBtn">Sign in</button>
+        <button type="button" id="createBtn">Create account</button>
+      </p>
+    </form>
+
+    <h2>Or get a one-time sign-in link</h2>
+    <p>No password needed — we'll email a link to the address above.</p>
+    <p><button type="button" id="linkBtn">Email me a sign-in link</button></p>
+  </div>
+
+  <div id="signedIn" class="hidden">
+    <p>Signed in as <span class="who" id="whoEmail"></span>.</p>
+    <p class="row">
+      <button type="button" id="continueBtn">Continue</button>
+      <button type="button" id="signOutBtn">Sign out</button>
+    </p>
+  </div>
+
+  <p id="msg" aria-live="polite"></p>
+  <p><a href="/pyx-talk.html">Back to Pyx Talk</a> · <a href="/">Studio home</a></p>
+
+  <script type="module" src="/js/pyx-account.js"></script>
+  <script>
+    (function () {
+      function $(id) { return document.getElementById(id); }
+      function setMsg(t, isErr) { var m = $("msg"); m.textContent = t || ""; m.className = isErr ? "err" : "ok2"; }
+      function show(id) { $(id).classList.remove("hidden"); }
+      function hide(id) { $(id).classList.add("hidden"); }
+
+      function safeNext() {
+        try {
+          var n = new URLSearchParams(location.search).get("next");
+          if (n && n.indexOf("/") === 0 && n.indexOf("//") !== 0) return n;
+        } catch (e) {}
+        return "/pyx-talk.html";
+      }
+      function goNext() { location.replace(safeNext()); }
+      function continueUrl() {
+        var n = safeNext();
+        return location.origin + "/pyx-login.html" + (n !== "/pyx-talk.html" ? ("?next=" + encodeURIComponent(n)) : "");
+      }
+
+      function whenReady(fn) {
+        if (window.PyxAccount) { fn(window.PyxAccount); return; }
+        window.addEventListener("pyx-account-ready", function () { fn(window.PyxAccount); }, { once: true });
+      }
+
+      function errText(err) {
+        var code = err && err.code ? err.code : "";
+        if (code === "auth/invalid-credential" || code === "auth/wrong-password") return "Wrong email or password.";
+        if (code === "auth/user-not-found") return "No account with that email — try Create account.";
+        if (code === "auth/email-already-in-use") return "That email already has an account — try Sign in.";
+        if (code === "auth/weak-password") return "Password must be at least 6 characters.";
+        if (code === "auth/invalid-email") return "Enter a valid email address.";
+        if (code === "auth/popup-closed-by-user") return "Google sign-in was cancelled.";
+        if (code === "auth/operation-not-allowed") return "This sign-in method isn't enabled yet in Firebase.";
+        return (err && (err.message || err.code)) || "Something went wrong.";
+      }
+
+      whenReady(function (PA) {
+        PA.ready.then(function () {
+          // Complete an email magic-link if we arrived from one.
+          if (PA.isMagicLink()) {
+            setMsg("Finishing sign-in…", false);
+            PA.completeMagicLink(function () {
+              return window.prompt("Confirm the email you used to request the link:") || "";
+            }).then(function (user) {
+              if (user) goNext();
+            }).catch(function (err) {
+              hide("loading"); show("signedOut");
+              setMsg("Sign-in link invalid or expired: " + errText(err), true);
+            });
+            return;
+          }
+
+          PA.onAuth(function (user) {
+            if (user) {
+              $("whoEmail").textContent = user.email || user.displayName || "your account";
+              hide("loading"); hide("signedOut"); show("signedIn");
+            } else {
+              hide("loading"); hide("signedIn"); show("signedOut");
+              var el = $("email"); if (el) el.focus();
+            }
+          });
+        });
+
+        $("googleBtn").addEventListener("click", function () {
+          setMsg("Opening Google…", false);
+          PA.signInGoogle().then(goNext).catch(function (err) { setMsg(errText(err), true); });
+        });
+
+        $("pwForm").addEventListener("submit", function (e) {
+          e.preventDefault();
+          var email = ($("email").value || "").trim();
+          var pw = $("password").value || "";
+          if (!email || !pw) { setMsg("Enter your email and password.", true); return; }
+          setMsg("Signing in…", false);
+          PA.signInEmailPassword(email, pw).then(goNext).catch(function (err) { setMsg(errText(err), true); });
+        });
+
+        $("createBtn").addEventListener("click", function () {
+          var email = ($("email").value || "").trim();
+          var pw = $("password").value || "";
+          if (!email || pw.length < 6) { setMsg("Enter an email and a password of at least 6 characters.", true); return; }
+          setMsg("Creating your account…", false);
+          PA.registerEmailPassword(email, pw).then(goNext).catch(function (err) { setMsg(errText(err), true); });
+        });
+
+        $("linkBtn").addEventListener("click", function () {
+          var email = ($("email").value || "").trim();
+          if (!email) { setMsg("Enter your email first.", true); return; }
+          setMsg("Sending sign-in link…", false);
+          PA.sendMagicLink(email, continueUrl()).then(function () {
+            setMsg("Check " + email + " for a sign-in link, then open it on this device.", false);
+          }).catch(function (err) { setMsg(errText(err), true); });
+        });
+
+        $("continueBtn").addEventListener("click", goNext);
+        $("signOutBtn").addEventListener("click", function () {
+          PA.signOutUser().then(function () { setMsg("Signed out.", false); }).catch(function () {});
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
