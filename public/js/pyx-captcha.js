@@ -179,7 +179,7 @@
     var hint = ch.hint ? '<span class="cap-badge">' + escapeHtml(ch.hint) + "</span>" : "";
     root.className = "";
     root.innerHTML =
-      '<div class="cap-head"><strong>PyxCaptcha</strong>' +
+      '<div class="cap-head"><strong>Mainline Intelligence Training</strong>' +
       hint +
       "</div>" +
       '<div class="cap-body">' +
@@ -273,7 +273,7 @@
         }
         state.challengeId = null;
         if (d.agreed) {
-          setStatus("Correct — thanks for training Pyx.", "ok");
+          setStatus("Correct — thanks for training Mainline Intelligence.", "ok");
           notifyParent({ agreed: true, color: color });
           showNextButton(true);
           if (d.next_challenge) {
@@ -290,7 +290,7 @@
           }
         } else {
           setStatus(
-            "Pyx saw " +
+            "Mainline Intelligence saw " +
               colorLabel(d.pyx_color) +
               " — training with your " +
               colorLabel(color) +
