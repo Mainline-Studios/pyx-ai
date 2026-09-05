@@ -6,7 +6,7 @@
   "use strict";
 
   var LOCALES = {
-    en: { label: "English", speech: "en-US", tts: "en-US" },
+    en: { label: "English", speech: "en-GB", tts: "en-GB" },
     es: { label: "Español", speech: "es-ES", tts: "es-ES" },
     fr: { label: "Français", speech: "fr-FR", tts: "fr-FR" },
     de: { label: "Deutsch", speech: "de-DE", tts: "de-DE" },
@@ -17,17 +17,17 @@
   var STRINGS = {
     en: {
       name: "Pyx Assistant",
-      greeting: "Hi, I’m Pyx.",
-      hint: "Tap the orb — I’ll keep listening. Type anytime.",
+      greeting: "Hi, I’m Pyx — jokes, math, facts, riddles, the lot. =)",
+      hint: "Tap the orb and keep talking. Type anytime.",
+      warming: "Neural voice is on. Tap the orb or type.",
+      voiceName: "Voice",
       listening: "Listening…",
       listeningHold: "Listening… tap the orb to pause.",
       thinking: "Thinking…",
       speaking: "Speaking…",
       speakingTap: "Speaking… tap the orb to interrupt.",
-      warming: "Warming up on-device voice…",
       paused: "Paused. Tap the orb when you want me back.",
       stayLocal: "This beta stays on-device — no Pyx Talk.",
-      voiceName: "Kokoro voice",
       sttFail: "I missed that. Try again, or type it.",
       placeholder: "Ask Pyx anything",
       send: "Send",

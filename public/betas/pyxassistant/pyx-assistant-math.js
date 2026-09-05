@@ -103,6 +103,7 @@
       .replace(/,/g, "")
       .replace(/×|x\b/g, " times ")
       .replace(/÷/g, " divided by ")
+      .replace(/%\s*of/g, " percentof ")
       .replace(/percent of/g, " percentof ")
       .replace(/%/g, " percent ")
       .replace(/to the power of/g, " ^ ")

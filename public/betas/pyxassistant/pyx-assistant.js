@@ -4,7 +4,7 @@
 (function () {
   "use strict";
 
-  var STORE_KEY = "pyx.assistant.v2";
+  var STORE_KEY = "pyx.assistant.v3";
   var slu = window.PyxAssistantSLU;
   var i18n = window.PyxAssistantI18n;
   var math = window.PyxAssistantMath;
@@ -15,7 +15,7 @@
     theme: "aurora",
     lang: "en",
     voice: true,
-    voiceId: "af_heart",
+    voiceId: "en-GB",
     slack: "",
     discord: "",
     messages: [],
@@ -40,7 +40,9 @@
       if (o.theme) state.theme = o.theme;
       if (o.lang) state.lang = o.lang;
       if (typeof o.voice === "boolean") state.voice = o.voice;
-      if (o.voiceId) state.voiceId = o.voiceId;
+      if (o.voiceId) {
+        state.voiceId = String(o.voiceId).indexOf("af_") === 0 ? "en-GB" : o.voiceId;
+      }
       if (typeof o.slack === "string") state.slack = o.slack;
       if (typeof o.discord === "string") state.discord = o.discord;
       if (Array.isArray(o.messages)) state.messages = o.messages.slice(-40);
@@ -283,6 +285,7 @@
     if (math && math.looksMath(text)) {
       var solved = math.answer(text);
       if (solved) return solved.reply;
+      return "I couldn’t parse that as math. Try 15% of 80, 9 times 8, or 32 F to C.";
     }
     var understood = slu.classify(text);
     var resolved = slu.resolve(understood, { lang: state.lang, t: i18n.t });
@@ -315,8 +318,8 @@
       els.reply.textContent = reply || t("greeting");
       save();
       renderHistory();
-      if (fromVoice || state.session) speak(reply);
-      else setUi("idle");
+      if (state.voice) speak(reply);
+      else setUi(state.session ? "listen" : "idle");
     } finally {
       handleInFlight = false;
     }
@@ -390,14 +393,16 @@
   function paintVoiceOptions() {
     els.mode.innerHTML = "";
     var names = (voice && voice.listVoices && voice.listVoices()) || [
-      "af_heart",
-      "af_bella",
-      "am_michael",
+      { id: "en-GB", label: "Neural British" },
+      { id: "en-US", label: "Neural US" },
+      { id: "en-AU", label: "Neural Australian" },
     ];
-    names.forEach(function (name) {
+    names.forEach(function (item) {
+      var id = typeof item === "string" ? item : item.id;
+      var label = typeof item === "string" ? item.replace(/_/g, " ") : item.label;
       var opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name.replace(/_/g, " ");
+      opt.value = id;
+      opt.textContent = label;
       els.mode.appendChild(opt);
     });
     els.mode.value = state.voiceId;
@@ -551,10 +556,15 @@
   }
 
   async function bootKnowledge() {
-    var res = await fetch("/betas/pyxassistant/kb/pyx-assistant-kb.json", { cache: "force-cache" });
+    var res = await fetch("/betas/pyxassistant/kb/pyx-assistant-kb.json?v=3", { cache: "no-store" });
     var data = await res.json();
     var n = kb.load(data);
-    if (els.kbMeta) els.kbMeta.textContent = n + " local replies";
+    if (els.kbMeta) {
+      els.kbMeta.hidden = false;
+      var line = n.toLocaleString() + " local replies · neural British voice";
+      els.kbMeta.textContent = line;
+      els.kbMeta.setAttribute("data-base", n.toLocaleString() + " local replies");
+    }
     return n;
   }
 
@@ -562,14 +572,18 @@
     voice = window.PyxAssistantVoice;
     if (!voice || !voice.warmup) return;
     state.warming = true;
-    setUi("warm", t("warming"));
-    await voice.warmup(function (msg) {
-      els.status.textContent = msg;
-    });
-    state.warming = false;
     bindVoice();
     paintVoiceOptions();
-    if (!state.messages.length) setUi("idle");
+    voice.warmup(function (msg) {
+      if (els.kbMeta && els.kbMeta.hidden === false) {
+        var base = els.kbMeta.getAttribute("data-base") || els.kbMeta.textContent;
+        els.kbMeta.setAttribute("data-base", base.split(" · ")[0]);
+        els.kbMeta.textContent = els.kbMeta.getAttribute("data-base") + " · " + msg;
+      }
+    }).then(function () {
+      paintVoiceOptions();
+    });
+    state.warming = false;
   }
 
   function init() {

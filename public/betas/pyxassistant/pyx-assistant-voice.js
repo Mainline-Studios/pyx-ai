@@ -1,371 +1,362 @@
 /**
- * Pyx Assistant — on-device Whisper STT + Kokoro TTS + VAD loop.
+ * Pyx Assistant voice — Web Speech STT + Sound of Text neural TTS,
+ * optional on-device Kokoro when it finishes loading.
  */
-import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1";
-import { KokoroTTS } from "https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm";
+(function (root) {
+  "use strict";
 
-env.allowLocalModels = false;
-env.useBrowserCache = true;
+  var SOT_POST = "https://api.soundoftext.com/sounds";
+  var SOT_GET = "https://api.soundoftext.com/sounds/";
 
-const api = {
-  ready: { stt: false, tts: false },
-  status: "idle",
-  voiceId: "af_heart",
-  onStatus: null,
-  onPartial: null,
-  onUtterance: null,
-  onSpeakEnd: null,
-  onError: null,
-};
-
-let asr = null;
-let tts = null;
-let session = false;
-let listening = false;
-let speaking = false;
-let interruptFlag = false;
-let audioCtx = null;
-let mediaStream = null;
-let processor = null;
-let sourceNode = null;
-let speakSource = null;
-let speakCtx = null;
-let pending = [];
-let speechFrames = 0;
-let silenceFrames = 0;
-let collecting = false;
-
-function emit(kind, extra) {
-  api.status = kind;
-  if (typeof api.onStatus === "function") api.onStatus(kind, extra || "");
-}
-
-function resample(input, fromRate, toRate) {
-  if (fromRate === toRate) return input;
-  const ratio = fromRate / toRate;
-  const outLen = Math.max(1, Math.round(input.length / ratio));
-  const out = new Float32Array(outLen);
-  for (let i = 0; i < outLen; i++) {
-    const x = i * ratio;
-    const i0 = Math.floor(x);
-    const i1 = Math.min(i0 + 1, input.length - 1);
-    const f = x - i0;
-    out[i] = input[i0] * (1 - f) + input[i1] * f;
-  }
-  return out;
-}
-
-function rms(buf) {
-  let s = 0;
-  for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
-  return Math.sqrt(s / Math.max(buf.length, 1));
-}
-
-async function ensureCtx() {
-  if (!audioCtx || audioCtx.state === "closed") {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  if (audioCtx.state === "suspended") await audioCtx.resume();
-  return audioCtx;
-}
-
-export async function warmup(onProgress) {
-  const note = onProgress || function () {};
-  try {
-    note("Loading Whisper (on-device STT)…");
-    asr = await pipeline("automatic-speech-recognition", "Xenova/whisper-tiny.en", {
-      dtype: "q8",
-      progress_callback: function (p) {
-        if (p && p.status === "progress" && p.file) {
-          note("Whisper " + Math.round((p.progress || 0)) + "%");
-        }
-      },
-    });
-    api.ready.stt = true;
-    note("Whisper ready.");
-  } catch (e) {
-    api.ready.stt = false;
-    note("Whisper unavailable — type, or I’ll try the browser mic.");
-  }
-  try {
-    note("Loading Kokoro (warmer voice)…");
-    tts = await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
-      dtype: "q8",
-      device: "wasm",
-      progress_callback: function (p) {
-        if (p && p.status === "progress") note("Kokoro " + Math.round((p.progress || 0)) + "%");
-      },
-    });
-    api.ready.tts = true;
-    note("Voice ready.");
-  } catch (e) {
-    api.ready.tts = false;
-    note("Kokoro unavailable — using the system voice.");
-  }
-  emit(api.ready.stt || api.ready.tts ? "ready" : "degraded");
-  return api.ready;
-}
-
-function stopCaptureNodes() {
-  if (processor) {
-    try {
-      processor.disconnect();
-    } catch (e) {}
-    processor.onaudioprocess = null;
-    processor = null;
-  }
-  if (sourceNode) {
-    try {
-      sourceNode.disconnect();
-    } catch (e) {}
-    sourceNode = null;
-  }
-}
-
-export async function stopMic() {
-  listening = false;
-  collecting = false;
-  pending = [];
-  stopCaptureNodes();
-  if (mediaStream) {
-    mediaStream.getTracks().forEach(function (t) {
-      t.stop();
-    });
-    mediaStream = null;
-  }
-}
-
-export function stopSpeak() {
-  interruptFlag = true;
-  speaking = false;
-  if (speakSource) {
-    try {
-      speakSource.stop();
-    } catch (e) {}
-    speakSource = null;
-  }
-  if (window.speechSynthesis) window.speechSynthesis.cancel();
-}
-
-export function isListening() {
-  return listening;
-}
-
-export function isSpeaking() {
-  return speaking;
-}
-
-export function isSession() {
-  return session;
-}
-
-async function transcribe(float32, sampleRate) {
-  if (!asr) return "";
-  const audio16 = resample(float32, sampleRate, 16000);
-  const result = await asr(audio16, { sampling_rate: 16000 });
-  const text = (result && (result.text || result)) || "";
-  return String(text).trim();
-}
-
-function finishUtterance(ctxRate) {
-  if (!pending.length) return;
-  const len = pending.reduce(function (n, a) {
-    return n + a.length;
-  }, 0);
-  const merged = new Float32Array(len);
-  let o = 0;
-  pending.forEach(function (a) {
-    merged.set(a, o);
-    o += a.length;
-  });
-  pending = [];
-  collecting = false;
-  speechFrames = 0;
-  silenceFrames = 0;
-  if (len < ctxRate * 0.28) return;
-  emit("think");
-  transcribe(merged, ctxRate)
-    .then(function (text) {
-      if (!session) return;
-      if (text && typeof api.onUtterance === "function") api.onUtterance(text);
-      else if (session) startListenLoop();
-    })
-    .catch(function (err) {
-      if (typeof api.onError === "function") api.onError(err);
-      if (session) startListenLoop();
-    });
-}
-
-export async function startListenLoop() {
-  if (!session || speaking) return;
-  await ensureCtx();
-  if (!mediaStream) {
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
-    });
-  }
-  stopCaptureNodes();
-  sourceNode = audioCtx.createMediaStreamSource(mediaStream);
-  processor = audioCtx.createScriptProcessor(2048, 1, 1);
-  const rate = audioCtx.sampleRate;
-  const startRms = 0.018;
-  const holdRms = 0.01;
-  listening = true;
-  collecting = false;
-  pending = [];
-  speechFrames = 0;
-  silenceFrames = 0;
-  emit("listen");
-  processor.onaudioprocess = function (ev) {
-    if (!listening || !session || speaking) return;
-    const input = ev.inputBuffer.getChannelData(0);
-    const copy = new Float32Array(input);
-    const level = rms(copy);
-    if (!collecting) {
-      if (level > startRms) {
-        speechFrames += 1;
-        if (speechFrames > 3) {
-          collecting = true;
-          pending.push(copy);
-          if (typeof api.onPartial === "function") api.onPartial("…");
-        }
-      } else {
-        speechFrames = 0;
-      }
-      return;
-    }
-    pending.push(copy);
-    if (level < holdRms) {
-      silenceFrames += 1;
-      if (silenceFrames > 14) finishUtterance(rate);
-    } else {
-      silenceFrames = 0;
-    }
-    if (pending.length > Math.ceil((rate * 12) / 2048)) finishUtterance(rate);
+  var api = {
+    ready: { stt: true, tts: true, kokoro: false },
+    status: "idle",
+    voiceId: "en-GB",
+    onStatus: null,
+    onPartial: null,
+    onUtterance: null,
+    onSpeakEnd: null,
+    onError: null,
   };
-  sourceNode.connect(processor);
-  processor.connect(audioCtx.destination);
-}
 
-export async function startSession() {
-  session = true;
-  interruptFlag = false;
-  await startListenLoop();
-}
+  var session = false;
+  var listening = false;
+  var speaking = false;
+  var interruptFlag = false;
+  var recognition = null;
+  var speakEl = null;
+  var kokoro = null;
+  var restartTimer = 0;
 
-export async function stopSession() {
-  session = false;
-  stopSpeak();
-  await stopMic();
-  emit("idle");
-}
-
-export async function interrupt() {
-  const wasSpeaking = speaking;
-  const wasListening = listening;
-  stopSpeak();
-  if (wasListening && !wasSpeaking) {
-    await stopSession();
-    return "stopped";
+  function emit(kind, extra) {
+    api.status = kind;
+    if (typeof api.onStatus === "function") api.onStatus(kind, extra || "");
   }
-  if (!session) {
-    await startSession();
-    return "started";
-  }
-  listening = false;
-  pending = [];
-  collecting = false;
-  emit("listen");
-  await startListenLoop();
-  return "barge-in";
-}
 
-function playBuffer(float32, sampleRate) {
-  return new Promise(function (resolve, reject) {
-    try {
-      speakCtx = speakCtx && speakCtx.state !== "closed" ? speakCtx : new (window.AudioContext || window.webkitAudioContext)();
-      if (speakCtx.state === "suspended") speakCtx.resume();
-      const buf = speakCtx.createBuffer(1, float32.length, sampleRate);
-      buf.getChannelData(0).set(float32);
-      const src = speakCtx.createBufferSource();
-      src.buffer = buf;
-      src.connect(speakCtx.destination);
-      speakSource = src;
-      src.onended = function () {
-        speakSource = null;
+  function SpeechCtor() {
+    return root.SpeechRecognition || root.webkitSpeechRecognition || null;
+  }
+
+  function listVoices() {
+    var list = [
+      { id: "en-GB", label: "Neural British" },
+      { id: "en-US", label: "Neural US" },
+      { id: "en-AU", label: "Neural Australian" },
+      { id: "en-IN", label: "Neural Indian English" },
+    ];
+    if (api.ready.kokoro) list.push({ id: "af_heart", label: "On-device Kokoro" });
+    return list;
+  }
+
+  function setVoice(id) {
+    api.voiceId = id || "en-GB";
+  }
+
+  function isKokoroVoice(id) {
+    return id && id.indexOf("af_") === 0;
+  }
+
+  function chunkText(text) {
+    var s = String(text || "").replace(/\s+/g, " ").trim();
+    if (!s) return [];
+    if (s.length <= 180) return [s];
+    var parts = [];
+    var buf = "";
+    s.split(/(?<=[.!?])\s+/).forEach(function (sent) {
+      if ((buf + " " + sent).trim().length > 180) {
+        if (buf) parts.push(buf.trim());
+        buf = sent;
+      } else {
+        buf = (buf + " " + sent).trim();
+      }
+    });
+    if (buf) parts.push(buf.trim());
+    return parts.length ? parts : [s.slice(0, 180)];
+  }
+
+  function sleep(ms) {
+    return new Promise(function (r) {
+      setTimeout(r, ms);
+    });
+  }
+
+  async function soundOfTextUrl(text, voice) {
+    var res = await fetch(SOT_POST, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        engine: "Google",
+        data: { text: text, voice: voice || "en-GB" },
+      }),
+    });
+    var j = await res.json();
+    if (!j || !j.success || !j.id) throw new Error("tts create failed");
+    var i;
+    for (i = 0; i < 20; i++) {
+      var g = await fetch(SOT_GET + j.id);
+      var st = await g.json();
+      if (st && st.status === "Done" && st.location) return st.location;
+      if (st && st.status === "Error") throw new Error("tts error");
+      await sleep(250);
+    }
+    throw new Error("tts timeout");
+  }
+
+  function playUrl(url) {
+    return new Promise(function (resolve, reject) {
+      stopSpeakEl();
+      var a = new Audio(url);
+      speakEl = a;
+      a.onended = function () {
+        speakEl = null;
         resolve();
       };
-      src.start();
-    } catch (e) {
-      reject(e);
-    }
-  });
-}
-
-function speakBrowser(text, lang) {
-  return new Promise(function (resolve) {
-    if (!window.speechSynthesis) {
-      resolve();
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = lang || "en-US";
-    u.rate = 1.02;
-    u.onend = resolve;
-    u.onerror = resolve;
-    window.speechSynthesis.speak(u);
-  });
-}
-
-export async function speak(text, lang) {
-  if (!text) return;
-  interruptFlag = false;
-  speaking = true;
-  listening = false;
-  emit("speak");
-  try {
-    if (tts && (!lang || lang === "en" || lang === "en-US")) {
-      const audio = await tts.generate(text, { voice: api.voiceId || "af_heart" });
-      if (interruptFlag) return;
-      const data = audio.audio || audio.data;
-      const sr = audio.sampling_rate || 24000;
-      if (data && data.length) await playBuffer(data, sr);
-    } else {
-      await speakBrowser(text, lang);
-    }
-  } catch (e) {
-    await speakBrowser(text, lang);
-  } finally {
-    speaking = false;
-    speakSource = null;
-    if (typeof api.onSpeakEnd === "function") api.onSpeakEnd(interruptFlag);
-    if (session && !interruptFlag) startListenLoop();
-    else if (!session) emit("idle");
+      a.onerror = function () {
+        speakEl = null;
+        reject(new Error("audio play failed"));
+      };
+      var p = a.play();
+      if (p && p.catch) p.catch(reject);
+    });
   }
-}
 
-export function listVoices() {
-  return ["af_heart", "af_bella", "af_nicole", "am_michael", "bf_emma", "bm_george"];
-}
+  function stopSpeakEl() {
+    if (speakEl) {
+      try {
+        speakEl.pause();
+        speakEl.src = "";
+      } catch (e) {}
+      speakEl = null;
+    }
+    if (root.speechSynthesis) root.speechSynthesis.cancel();
+  }
 
-export function setVoice(id) {
-  api.voiceId = id;
-}
+  function speakBrowser(text, lang) {
+    return new Promise(function (resolve) {
+      if (!root.speechSynthesis) {
+        resolve();
+        return;
+      }
+      root.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = lang || "en-GB";
+      u.rate = 0.96;
+      u.pitch = 1.05;
+      var voices = root.speechSynthesis.getVoices() || [];
+      var prefer = voices.find(function (v) {
+        return /en-GB|Google UK|British/i.test(v.lang + " " + v.name);
+      });
+      if (prefer) u.voice = prefer;
+      u.onend = resolve;
+      u.onerror = resolve;
+      root.speechSynthesis.speak(u);
+    });
+  }
 
-window.PyxAssistantVoice = Object.assign(api, {
-  warmup,
-  startSession,
-  stopSession,
-  interrupt,
-  startListenLoop,
-  stopMic,
-  stopSpeak,
-  speak,
-  listVoices,
-  setVoice,
-  isListening,
-  isSpeaking,
-  isSession,
-});
-window.dispatchEvent(new Event("pyx-voice-ready"));
+  async function speakNeural(text, lang) {
+    var voice = isKokoroVoice(api.voiceId) ? "en-GB" : api.voiceId || "en-GB";
+    if (lang && lang.indexOf("es") === 0) voice = "es-ES";
+    else if (lang && lang.indexOf("fr") === 0) voice = "fr-FR";
+    else if (lang && lang.indexOf("de") === 0) voice = "de-DE";
+    else if (lang && lang.indexOf("ja") === 0) voice = "ja-JP";
+    else if (lang && lang.indexOf("zh") === 0) voice = "zh-CN";
+    var chunks = chunkText(text);
+    var i;
+    for (i = 0; i < chunks.length; i++) {
+      if (interruptFlag) return;
+      var url = await soundOfTextUrl(chunks[i], voice);
+      if (interruptFlag) return;
+      await playUrl(url);
+    }
+  }
+
+  function playBuffer(float32, sampleRate) {
+    return new Promise(function (resolve, reject) {
+      try {
+        var ctx = new (root.AudioContext || root.webkitAudioContext)();
+        var buf = ctx.createBuffer(1, float32.length, sampleRate);
+        buf.getChannelData(0).set(float32);
+        var src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(ctx.destination);
+        speakEl = { pause: function () { try { src.stop(); } catch (e) {} }, src: "" };
+        src.onended = function () {
+          speakEl = null;
+          resolve();
+        };
+        src.start();
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  async function speak(text, lang) {
+    if (!text) return;
+    interruptFlag = false;
+    speaking = true;
+    listening = false;
+    stopListenEngine();
+    emit("speak");
+    try {
+      if (kokoro && isKokoroVoice(api.voiceId)) {
+        var audio = await kokoro.generate(text, { voice: api.voiceId });
+        if (interruptFlag) return;
+        var data = audio.audio || audio.data;
+        var sr = audio.sampling_rate || 24000;
+        if (data && data.length) await playBuffer(data, sr);
+      } else {
+        await speakNeural(text, lang);
+      }
+    } catch (e) {
+      if (!interruptFlag) await speakBrowser(text, lang || "en-GB");
+    } finally {
+      speaking = false;
+      if (typeof api.onSpeakEnd === "function") api.onSpeakEnd(interruptFlag);
+      if (session && !interruptFlag) startListenLoop();
+      else if (!session) emit("idle");
+    }
+  }
+
+  function stopListenEngine() {
+    listening = false;
+    if (recognition) {
+      try {
+        recognition.onend = null;
+        recognition.stop();
+      } catch (e) {}
+    }
+  }
+
+  function startListenLoop() {
+    if (!session || speaking) return;
+    var Ctor = SpeechCtor();
+    if (!Ctor) {
+      emit("listen", "Type below — this browser has no speech recognition.");
+      return Promise.resolve();
+    }
+    stopListenEngine();
+    recognition = new Ctor();
+    recognition.lang = (api.voiceId && api.voiceId.indexOf("en-") === 0 ? api.voiceId : "en-GB");
+    if (recognition.lang.indexOf("af_") === 0) recognition.lang = "en-GB";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    listening = true;
+    emit("listen");
+    recognition.onresult = function (ev) {
+      var i;
+      var finalText = "";
+      var interim = "";
+      for (i = ev.resultIndex; i < ev.results.length; i++) {
+        if (ev.results[i].isFinal) finalText += ev.results[i][0].transcript;
+        else interim += ev.results[i][0].transcript;
+      }
+      if (interim && typeof api.onPartial === "function") api.onPartial(interim);
+      if (finalText && typeof api.onUtterance === "function") {
+        listening = false;
+        api.onUtterance(finalText.trim());
+      }
+    };
+    recognition.onerror = function (ev) {
+      if (ev.error === "not-allowed" && typeof api.onError === "function") api.onError(ev);
+      if (ev.error === "no-speech" && session && !speaking) scheduleRestart();
+    };
+    recognition.onend = function () {
+      if (session && listening && !speaking) scheduleRestart();
+    };
+    try {
+      recognition.start();
+    } catch (e) {
+      scheduleRestart();
+    }
+    return Promise.resolve();
+  }
+
+  function scheduleRestart() {
+    clearTimeout(restartTimer);
+    restartTimer = setTimeout(function () {
+      if (session && !speaking) startListenLoop();
+    }, 280);
+  }
+
+  async function startSession() {
+    session = true;
+    interruptFlag = false;
+    await startListenLoop();
+  }
+
+  async function stopSession() {
+    session = false;
+    clearTimeout(restartTimer);
+    interruptFlag = true;
+    stopSpeak();
+    stopListenEngine();
+    emit("idle");
+  }
+
+  function stopSpeak() {
+    interruptFlag = true;
+    speaking = false;
+    stopSpeakEl();
+  }
+
+  async function interrupt() {
+    var wasSpeaking = speaking;
+    var wasListening = listening;
+    stopSpeak();
+    if (wasListening && !wasSpeaking) {
+      await stopSession();
+      return "stopped";
+    }
+    if (!session) {
+      await startSession();
+      return "started";
+    }
+    emit("listen");
+    await startListenLoop();
+    return "barge-in";
+  }
+
+  async function warmup(onProgress) {
+    var note = onProgress || function () {};
+    note("Voice ready — neural British TTS. Loading on-device Kokoro in the background…");
+    emit("ready");
+    try {
+      var mod = await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm");
+      note("Kokoro downloading…");
+      kokoro = await mod.KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
+        dtype: "q8",
+        device: "wasm",
+      });
+      api.ready.kokoro = true;
+      note("On-device Kokoro is ready — pick it in Settings.");
+    } catch (e) {
+      api.ready.kokoro = false;
+      note("Neural cloud voice is on. Kokoro didn’t load on this device.");
+    }
+    return api.ready;
+  }
+
+  root.PyxAssistantVoice = Object.assign(api, {
+    warmup: warmup,
+    startSession: startSession,
+    stopSession: stopSession,
+    interrupt: interrupt,
+    startListenLoop: startListenLoop,
+    stopMic: stopListenEngine,
+    stopSpeak: stopSpeak,
+    speak: speak,
+    listVoices: listVoices,
+    setVoice: setVoice,
+    isListening: function () {
+      return listening;
+    },
+    isSpeaking: function () {
+      return speaking;
+    },
+    isSession: function () {
+      return session;
+    },
+  });
+  root.dispatchEvent(new Event("pyx-voice-ready"));
+})(typeof window !== "undefined" ? window : globalThis);

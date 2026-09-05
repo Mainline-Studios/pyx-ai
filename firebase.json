@@ -35,6 +35,15 @@
             "value": "public, max-age=300"
           }
         ]
+      },
+      {
+        "source": "/betas/**/*.@(js|css|json)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=0, must-revalidate"
+          }
+        ]
       }
     ],
     "rewrites": [
