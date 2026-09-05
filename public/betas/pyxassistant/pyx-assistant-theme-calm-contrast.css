@@ -1,6 +1,7 @@
 /**
- * Calm Contrast — light field, charcoal mark, quiet S-curve.
- * Loaded beside the main assistant sheet; only applies when data-theme matches.
+ * Calm Contrast — paper field and charcoal type, with the same
+ * background orbs as the other looks. The S-curve mark spins while
+ * Pyx is listening, thinking, or speaking.
  */
 [data-theme="calm-contrast"] {
   --bg: #f3f4f2;
@@ -8,11 +9,11 @@
   --muted: rgba(20, 22, 24, 0.56);
   --glass: rgba(255, 255, 255, 0.82);
   --line: rgba(20, 22, 24, 0.12);
-  --swirl-a: #141618;
-  --swirl-b: #2c3136;
-  --swirl-c: #6b7178;
-  --swirl-d: #e6e7e4;
-  --swirl-e: #ffffff;
+  --swirl-a: #fbcfe8;
+  --swirl-b: #c4b5fd;
+  --swirl-c: #bae6fd;
+  --swirl-d: #a7f3d0;
+  --swirl-e: #fde68a;
   --cc-ring: #141618;
   --cc-paper: #fafaf8;
 }
@@ -23,15 +24,9 @@ html[data-theme="calm-contrast"],
   color: var(--ink);
 }
 
-[data-theme="calm-contrast"] .swirl__canvas {
-  opacity: 0;
-}
-
 [data-theme="calm-contrast"] .swirl__veil {
   background:
-    radial-gradient(circle at 50% 44%, rgba(255, 255, 255, 0.95) 0%, transparent 42%),
-    radial-gradient(ellipse at 50% 80%, rgba(20, 22, 24, 0.06), transparent 55%),
-    var(--bg);
+    radial-gradient(ellipse at 50% 42%, transparent 0%, color-mix(in srgb, var(--bg) 88%, transparent) 74%);
 }
 
 [data-theme="calm-contrast"] .topbar a,
@@ -64,14 +59,6 @@ html[data-theme="calm-contrast"],
   letter-spacing: -0.045em;
 }
 
-[data-theme="calm-contrast"] .orb__glow {
-  inset: -10%;
-  background: radial-gradient(circle at 50% 50%, rgba(20, 22, 24, 0.1), transparent 64%);
-  filter: blur(10px);
-  opacity: 1;
-  animation: none;
-}
-
 [data-theme="calm-contrast"] .orb__core {
   background: var(--cc-paper);
   box-shadow:
@@ -89,6 +76,19 @@ html[data-theme="calm-contrast"],
   animation: none;
 }
 
+[data-theme="calm-contrast"] .orb[data-state="listen"] .orb__core::before,
+[data-theme="calm-contrast"] .orb[data-state="think"] .orb__core::before {
+  animation: ccMarkSpin 3.2s linear infinite;
+}
+
+[data-theme="calm-contrast"] .orb[data-state="speak"] .orb__core::before {
+  animation: ccMarkSpin 1.8s linear infinite;
+}
+
+[data-theme="calm-contrast"] .orb[data-state="speak"] .orb__core {
+  animation: speakPulse 1.4s var(--ease) infinite;
+}
+
 [data-theme="calm-contrast"] .orb__core::after {
   inset: 0;
   background: transparent;
@@ -96,21 +96,12 @@ html[data-theme="calm-contrast"],
 }
 
 [data-theme="calm-contrast"] .orb__ring {
-  inset: -2%;
-  border: 0;
-  box-shadow: none;
+  border-color: rgba(20, 22, 24, 0.08);
+  box-shadow: 0 0 0 8px rgba(20, 22, 24, 0.03);
 }
 
-[data-theme="calm-contrast"] .orb.is-session .orb__ring {
-  box-shadow: 0 0 0 6px rgba(20, 22, 24, 0.06);
-}
-
-[data-theme="calm-contrast"] .orb[data-state="speak"] .orb__core {
-  animation: none;
-}
-
-[data-theme="calm-contrast"] .waves i {
-  background: var(--ink);
+[data-theme="calm-contrast"] .orb[data-state="listen"] .waves {
+  opacity: 0;
 }
 
 [data-theme="calm-contrast"] .field-sim {
@@ -186,4 +177,15 @@ html[data-theme="calm-contrast"],
 [data-theme="calm-contrast"] .toast {
   background: var(--cc-paper);
   color: var(--ink);
+}
+
+@keyframes ccMarkSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="calm-contrast"] .orb__core::before,
+  [data-theme="calm-contrast"] .orb[data-state="speak"] .orb__core {
+    animation: none !important;
+  }
 }
