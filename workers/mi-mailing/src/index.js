@@ -109,6 +109,11 @@ function welcomeHtml(email, { withNewsletter }) {
           <strong style="color:#0d7377;">mci — coming soon</strong><br/>
           mainline conversational intelligence — the industrial evolution of pyx for teams that ship.
         </td></tr>
+        <tr><td style="padding-top:12px;line-height:1.55;color:#1a4a52;font-size:0.95rem;">
+          <strong style="color:#0d7377;">betas — pyx assistant (first public beta)</strong><br/>
+          powered by <strong>marii</strong>. extremely early and still being improved.
+          try it: <a href="https://pyx-ai.web.app/betas/" style="color:#2ec4b6;">pyx-ai.web.app/betas</a>
+        </td></tr>
         ${pdfNote}
         <tr><td style="padding-top:14px;line-height:1.55;color:#0d7377;font-size:0.95rem;font-weight:600;">
           no ads. we pinky-swear. (we've already done enough crimes against your attention span.)
@@ -131,7 +136,9 @@ function welcomeText(email, { withNewsletter }) {
     `latest:\n` +
     `- mi moderator is live (/moderator/check/<text>)\n` +
     `- marii coming soon — realtime / instant intelligence\n` +
-    `- mci coming soon — industrial conversational pyx\n\n` +
+    `- mci coming soon — industrial conversational pyx\n` +
+    `- betas: pyx assistant (first public beta, powered by marii) — extremely early\n` +
+    `  https://pyx-ai.web.app/betas/\n\n` +
     (withNewsletter
       ? `issue 001 pdf is attached (welcome + news).\n\n`
       : "") +
