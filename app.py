@@ -1687,6 +1687,70 @@ def score():
     })
 
 
+def _moderator_threshold(raw, default=700):
+    """Parse threshold as 0–1000 severity units. Default 700 (~BAN_LINE 0.7)."""
+    if raw is None or raw == "":
+        return default
+    try:
+        value = int(float(str(raw).strip()))
+    except (TypeError, ValueError):
+        return default
+    return max(0, min(1000, value))
+
+
+def _moderator_check_payload(text, threshold=700):
+    """MI Moderator response: appropriate + score string on a 0–1000 scale."""
+    s = pyx.score(text)
+    sf = _json_safe_score(s)
+    if sf is None:
+        sf = 0.0
+    score_1000 = int(round(max(0.0, min(1.0, float(sf))) * 1000))
+    appropriate = score_1000 < threshold
+    return {
+        "appropriate": appropriate,
+        "score": str(score_1000),
+    }
+
+
+@app.route("/moderator/check/<path:text>", methods=["GET", "OPTIONS"])
+@app.route("/api/moderator/check/<path:text>", methods=["GET", "OPTIONS"])
+def moderator_check_path(text):
+    """GET /moderator/check/<text>?threshold=700 — MI Moderator word/phrase check."""
+    if request.method == "OPTIONS":
+        return "", 204
+    decoded = urllib.parse.unquote(text or "").strip()
+    if not decoded:
+        return jsonify({"error": "Missing text in path"}), 400
+    if len(decoded) > 1_000_000:
+        return jsonify({"error": "Text too long"}), 413
+    threshold = _moderator_threshold(request.args.get("threshold"))
+    return jsonify(_moderator_check_payload(decoded, threshold=threshold))
+
+
+@app.route("/moderator/check", methods=["GET", "POST", "OPTIONS"])
+@app.route("/api/moderator/check", methods=["GET", "POST", "OPTIONS"])
+def moderator_check():
+    """POST JSON {text, threshold?} or GET ?text=&threshold= for longer strings."""
+    if request.method == "OPTIONS":
+        return "", 204
+    if request.method == "GET":
+        text = request.args.get("text")
+        threshold = _moderator_threshold(request.args.get("threshold"))
+    else:
+        data = request.get_json(silent=True) or {}
+        text = data.get("text")
+        threshold = _moderator_threshold(
+            data.get("threshold", request.args.get("threshold"))
+        )
+    if text is None:
+        return jsonify({"error": "Missing \"text\""}), 400
+    if not isinstance(text, str):
+        return jsonify({"error": "\"text\" must be a string"}), 400
+    if len(text) > 1_000_000:
+        return jsonify({"error": "Text too long"}), 413
+    return jsonify(_moderator_check_payload(text, threshold=threshold))
+
+
 @app.route("/ai-decide", methods=["POST", "OPTIONS"])
 def ai_decide():
     """Same as /score but also trains and writes to Firestore. Use for game AI decisions so Pyx learns."""

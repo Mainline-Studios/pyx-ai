@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mainline Intelligence — the new wave of Pyx</title>
+  <meta name="description" content="Mainline Intelligence is the new wave of Pyx. MI Moderator checks chat and game text with a simple API." />
+  <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Outfit:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg0: #061018;
+      --bg1: #0b1c26;
+      --ink: #e8f4f2;
+      --muted: #8aa8a3;
+      --line: rgba(120, 200, 180, 0.18);
+      --mint: #3dffb5;
+      --cyan: #41d6ff;
+      --warn: #ffb347;
+      --bad: #ff6b6b;
+      --ok: #3dffb5;
+      --panel: rgba(10, 28, 36, 0.72);
+      --glow: 0 0 60px rgba(65, 214, 255, 0.12);
+      --font-display: "Syne", sans-serif;
+      --font-body: "Outfit", sans-serif;
+      --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: var(--font-body);
+      background:
+        radial-gradient(1200px 700px at 12% -10%, rgba(65, 214, 255, 0.18), transparent 55%),
+        radial-gradient(900px 600px at 90% 8%, rgba(61, 255, 181, 0.12), transparent 50%),
+        linear-gradient(165deg, var(--bg0), var(--bg1) 48%, #07141c);
+      overflow-x: hidden;
+    }
+
+    .rail {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(90deg, transparent 0, transparent calc(50% - 1px), rgba(65, 214, 255, 0.06) 50%, transparent calc(50% + 1px), transparent 100%),
+        repeating-linear-gradient(
+          90deg,
+          transparent 0,
+          transparent 79px,
+          rgba(61, 255, 181, 0.035) 80px
+        );
+      mask-image: linear-gradient(180deg, #000 0%, transparent 72%);
+      animation: drift 18s linear infinite;
+    }
+    @keyframes drift {
+      from { transform: translateX(0); }
+      to { transform: translateX(-80px); }
+    }
+
+    .wrap {
+      position: relative;
+      width: min(1080px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 1.25rem 0 4rem;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.92rem;
+    }
+    nav a:hover { color: var(--ink); }
+
+    .hero {
+      min-height: calc(100vh - 5.5rem);
+      display: grid;
+      align-content: center;
+      gap: 1.1rem;
+      padding-bottom: 3rem;
+    }
+
+    .brand {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: clamp(2.6rem, 8vw, 5.4rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+      background: linear-gradient(110deg, #fff 10%, var(--cyan) 48%, var(--mint) 92%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: brandIn 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    }
+    @keyframes brandIn {
+      from { opacity: 0; transform: translateY(18px) scale(0.98); filter: blur(6px); }
+      to { opacity: 1; transform: none; filter: none; }
+    }
+
+    .wave {
+      margin: 0;
+      max-width: 34ch;
+      font-size: clamp(1.15rem, 2.4vw, 1.45rem);
+      font-weight: 500;
+      color: var(--ink);
+      animation: fadeUp 800ms 120ms both;
+    }
+    .lede {
+      margin: 0;
+      max-width: 46ch;
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.55;
+      animation: fadeUp 800ms 220ms both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+      animation: fadeUp 800ms 320ms both;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.85rem 1.25rem;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font: inherit;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary {
+      color: #041018;
+      background: linear-gradient(120deg, var(--mint), var(--cyan));
+      box-shadow: 0 10px 30px rgba(61, 255, 181, 0.18);
+    }
+    .btn-ghost {
+      color: var(--ink);
+      border-color: var(--line);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .signal {
+      width: min(520px, 100%);
+      height: 4px;
+      margin-top: 1.5rem;
+      border-radius: 999px;
+      background: linear-gradient(90deg, transparent, var(--cyan), var(--mint), transparent);
+      background-size: 200% 100%;
+      animation: pulseLine 3.2s ease-in-out infinite;
+    }
+    @keyframes pulseLine {
+      0%, 100% { background-position: 0% 50%; opacity: 0.45; }
+      50% { background-position: 100% 50%; opacity: 1; }
+    }
+
+    section {
+      margin: 4.5rem 0;
+    }
+    section h2 {
+      margin: 0 0 0.55rem;
+      font-family: var(--font-display);
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      letter-spacing: -0.03em;
+    }
+    section > p {
+      margin: 0 0 1.4rem;
+      color: var(--muted);
+      max-width: 58ch;
+      line-height: 1.55;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 1.15rem;
+      box-shadow: var(--glow);
+      backdrop-filter: blur(10px);
+    }
+
+    .try {
+      display: grid;
+      gap: 1rem;
+    }
+    @media (min-width: 820px) {
+      .try { grid-template-columns: 1.1fr 0.9fr; align-items: start; }
+    }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    input[type="text"],
+    input[type="number"],
+    textarea {
+      width: 100%;
+      padding: 0.8rem 0.9rem;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(4, 16, 24, 0.7);
+      color: var(--ink);
+      font: inherit;
+    }
+    textarea { min-height: 110px; resize: vertical; }
+    .threshold-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.75rem;
+      align-items: end;
+      margin-top: 0.85rem;
+    }
+    .threshold-row input[type="number"] { width: 7rem; }
+    .hint {
+      margin: 0.55rem 0 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .result {
+      min-height: 180px;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #c9efe4;
+    }
+    .result.ok { border-color: rgba(61, 255, 181, 0.45); }
+    .result.bad { border-color: rgba(255, 107, 107, 0.45); }
+
+    .endpoint {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      margin: 0 0 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.86rem;
+      color: var(--cyan);
+    }
+    .endpoint code {
+      padding: 0.35rem 0.55rem;
+      border-radius: 8px;
+      background: rgba(65, 214, 255, 0.08);
+      border: 1px solid var(--line);
+      color: var(--ink);
+    }
+
+    .steps {
+      margin: 0;
+      padding-left: 1.15rem;
+      color: var(--ink);
+      line-height: 1.65;
+    }
+    .steps li { margin-bottom: 0.55rem; }
+    .steps code {
+      font-family: var(--font-mono);
+      font-size: 0.86em;
+      color: var(--mint);
+    }
+
+    pre {
+      margin: 1rem 0 0;
+      padding: 1rem;
+      overflow-x: auto;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(4, 16, 24, 0.85);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: #c9efe4;
+    }
+
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.9rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+      justify-content: space-between;
+    }
+    footer a { color: var(--cyan); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="rail" aria-hidden="true"></div>
+  <div class="wrap">
+    <nav>
+      <a href="/mainlineintelligence">Mainline Intelligence</a>
+      <a href="/studio.html">Pyx Studio</a>
+    </nav>
+
+    <header class="hero">
+      <h1 class="brand">Mainline Intelligence</h1>
+      <p class="wave">The new wave of Pyx.</p>
+      <p class="lede">Right now that wave is <strong style="color:var(--ink);font-weight:600">MI Moderator</strong> — a simple check API for games and chat. Pass a word or phrase, get back whether it’s appropriate and a severity score.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#moderator">Try MI Moderator</a>
+        <a class="btn btn-ghost" href="#integrate">Add it to your game</a>
+      </div>
+      <div class="signal" aria-hidden="true"></div>
+    </header>
+
+    <section id="moderator">
+      <h2>MI Moderator</h2>
+      <p>Hit the check endpoint with the text in the path. Response looks like <code style="font-family:var(--font-mono);color:var(--mint)">{"appropriate":false,"score":"700"}</code>. Score is 0–1000; higher means more severe. Default threshold is 700.</p>
+      <p class="endpoint"><span>GET</span> <code>https://pyx-ai.web.app/moderator/check/&lt;text&gt;</code></p>
+
+      <div class="try">
+        <div class="panel">
+          <label for="phrase">Phrase to check</label>
+          <textarea id="phrase" placeholder="Type a word or short message…">hello</textarea>
+          <div class="threshold-row">
+            <div>
+              <label for="threshold">Threshold (block when score ≥ this)</label>
+              <input id="thresholdRange" type="range" min="0" max="1000" value="700" />
+            </div>
+            <div>
+              <label for="threshold">Value</label>
+              <input id="threshold" type="number" min="0" max="1000" value="700" />
+            </div>
+          </div>
+          <p class="hint">Stricter games: lower the threshold. More permissive: raise it.</p>
+          <div class="cta-row" style="margin-top:1rem">
+            <button class="btn btn-primary" type="button" id="runCheck">Check</button>
+          </div>
+        </div>
+        <div class="panel result" id="result" aria-live="polite">// response appears here</div>
+      </div>
+    </section>
+
+    <section id="integrate">
+      <h2>Add it to your game</h2>
+      <p>One GET request. Compare <code style="font-family:var(--font-mono);color:var(--mint)">appropriate</code> (or your own threshold vs <code style="font-family:var(--font-mono);color:var(--mint)">score</code>) before showing chat, names, or custom text.</p>
+      <div class="panel">
+        <ol class="steps">
+          <li>URL-encode the player text and call <code>/moderator/check/&lt;text&gt;</code>.</li>
+          <li>Optional: pass <code>?threshold=700</code> so the API sets <code>appropriate</code> for you.</li>
+          <li>If <code>appropriate</code> is <code>false</code>, block, censor, or ask the player to rephrase.</li>
+          <li>Tune threshold per mode (kids server vs mature lobby).</li>
+        </ol>
+        <pre id="snippet">fetch("https://pyx-ai.web.app/moderator/check/" + encodeURIComponent(text) + "?threshold=700")
+  .then((r) => r.json())
+  .then((data) => {
+    // data → { "appropriate": false, "score": "700" }
+    if (!data.appropriate) {
+      // block or rewrite the message
+    }
+  });</pre>
+      </div>
+    </section>
+
+    <footer>
+      <span>Mainline Intelligence · powered by the Pyx API</span>
+      <span><a href="/studio.html">Open Pyx Studio</a></span>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var phrase = document.getElementById("phrase");
+      var threshold = document.getElementById("threshold");
+      var thresholdRange = document.getElementById("thresholdRange");
+      var result = document.getElementById("result");
+      var runCheck = document.getElementById("runCheck");
+      var snippet = document.getElementById("snippet");
+
+      function syncThreshold(from) {
+        var v = Math.max(0, Math.min(1000, parseInt(from.value, 10) || 0));
+        threshold.value = String(v);
+        thresholdRange.value = String(v);
+        updateSnippet();
+      }
+
+      function updateSnippet() {
+        var t = threshold.value || "700";
+        snippet.textContent =
+          'fetch("https://pyx-ai.web.app/moderator/check/" + encodeURIComponent(text) + "?threshold=' +
+          t +
+          '")\n' +
+          "  .then((r) => r.json())\n" +
+          "  .then((data) => {\n" +
+          '    // data → { "appropriate": false, "score": "700" }\n' +
+          "    if (!data.appropriate) {\n" +
+          "      // block or rewrite the message\n" +
+          "    }\n" +
+          "  });";
+      }
+
+      threshold.addEventListener("input", function () { syncThreshold(threshold); });
+      thresholdRange.addEventListener("input", function () { syncThreshold(thresholdRange); });
+
+      async function check() {
+        var text = (phrase.value || "").trim();
+        var t = threshold.value || "700";
+        if (!text) {
+          result.textContent = '// enter a phrase first';
+          result.className = "panel result";
+          return;
+        }
+        result.textContent = "// checking…";
+        result.className = "panel result";
+        try {
+          var url = "/moderator/check/" + encodeURIComponent(text) + "?threshold=" + encodeURIComponent(t);
+          var res = await fetch(url);
+          var data = await res.json();
+          result.textContent = JSON.stringify(data, null, 2);
+          if (data && data.appropriate === true) result.classList.add("ok");
+          else if (data && data.appropriate === false) result.classList.add("bad");
+        } catch (err) {
+          result.textContent = JSON.stringify({ error: String(err && err.message || err) }, null, 2);
+          result.classList.add("bad");
+        }
+      }
+
+      runCheck.addEventListener("click", check);
+      phrase.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) check();
+      });
+      updateSnippet();
+    })();
+  </script>
+</body>
+</html>

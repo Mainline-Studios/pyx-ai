@@ -60,6 +60,20 @@
         }
       },
       {
+        "source": "/moderator/**",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/moderator/**",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "/api/talk",
         "run": {
           "serviceId": "pyxaiapi",

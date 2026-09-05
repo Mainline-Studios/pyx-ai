@@ -5,7 +5,7 @@
   "use strict";
 
   var NAV = [
-    { id: "studio", label: "Studio", href: "/" },
+    { id: "studio", label: "Studio", href: "/studio.html" },
     { id: "workspace", label: "Workspace", href: "/pyx-workspace.html" },
     { id: "talk", label: "Talk", href: "/pyx-talk.html" },
     { id: "pyxels", label: "Pyxels", href: "/pyx-pyxels.html" },
@@ -62,7 +62,7 @@
 
     var brand = document.createElement("a");
     brand.className = "pyx-studio-bar__brand";
-    brand.href = "/";
+    brand.href = "/studio.html";
     brand.title = "Pyx Studio";
     brand.innerHTML =
       '<img src="/brand/pyx-app-icon.png" alt="" width="28" height="28" /><span>Pyx Studio</span>';
@@ -109,7 +109,8 @@
       footer.id = "pyxStudioFooter";
       footer.className = "pyx-studio-footer wrap pyx-wrap";
       footer.innerHTML =
-        '<a href="/">Pyx Studio</a><span class="sep">·</span>' +
+        '<a href="/studio.html">Pyx Studio</a><span class="sep">·</span>' +
+        '<a href="/mainlineintelligence">Mainline Intelligence</a><span class="sep">·</span>' +
         '<a href="/pyx-workspace.html">Workspace</a><span class="sep">·</span>' +
         '<a href="/workforpyx.php">Work with Pyx</a><span class="sep">·</span>' +
         '<a href="/pyx-trainer-auth.html">Trainer / Dev Workshop</a>';

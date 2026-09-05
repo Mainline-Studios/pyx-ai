@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pyx Studio</title>
+  <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/brand/pyx-brand.css" />
+  <link rel="stylesheet" href="/brand/pyx-cosmos.css" />
+  <style>
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.8rem, 3.2vw, 2.4rem);
+      letter-spacing: -0.02em;
+      background: var(--pyx-gradient-hero);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .studio-lede { margin: 0 0 20px; color: var(--muted); max-width: 62ch; }
+    .studio-search {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .studio-search input {
+      flex: 1;
+      min-width: 200px;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      font: inherit;
+    }
+    .studio-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .studio-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+    .studio-panel h2 {
+      margin: 0 0 10px;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .studio-launch, .studio-continue {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      text-decoration: none;
+      color: inherit;
+      margin-bottom: 8px;
+    }
+    .studio-launch:hover, .studio-continue:hover {
+      border-color: rgba(129, 140, 248, 0.45);
+    }
+    .studio-launch span, .studio-continue__when {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .studio-continue__app {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #a5b4fc;
+    }
+    .studio-muted { margin: 0; color: var(--muted); font-size: 0.9rem; }
+    .studio-recipe { margin-bottom: 12px; }
+    .studio-recipe h3 { margin: 0 0 4px; font-size: 0.95rem; }
+    .studio-recipe p { margin: 0 0 8px; font-size: 0.85rem; color: var(--muted); }
+    .studio-recipe-steps { display: flex; flex-wrap: wrap; gap: 6px; }
+    .studio-recipe-step {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(99, 102, 241, 0.15);
+      color: #c7d2fe;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .studio-recipe-step:hover { border-color: rgba(129, 140, 248, 0.5); }
+    .studio-apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    .studio-app-card {
+      padding: 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--panel);
+    }
+    .studio-app-card h3 { margin: 0 0 6px; font-size: 1rem; }
+    .studio-app-card p { margin: 0 0 10px; font-size: 0.85rem; color: var(--muted); }
+    .studio-app-card .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .studio-coach {
+      margin-bottom: 16px;
+      padding: 14px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(129, 140, 248, 0.4);
+      background: linear-gradient(135deg, rgba(76, 29, 149, 0.25), rgba(14, 165, 233, 0.12));
+    }
+    .studio-coach ol { margin: 8px 0 12px 18px; color: var(--muted); font-size: 0.9rem; }
+    .studio-shortcuts {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.72);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 10000;
+    }
+    .studio-shortcuts[hidden] { display: none; }
+    .studio-shortcuts__box {
+      max-width: 420px;
+      width: 100%;
+      padding: 18px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+    }
+    .studio-shortcuts kbd {
+      font-family: ui-monospace, monospace;
+      font-size: 0.8rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .studio-top-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  </style>
+</head>
+<body class="pyx-cosmos">
+  <div data-pyx-shell data-pyx-active="studio"></div>
+  <main class="wrap pyx-wrap">
+    <h1>Pyx Studio</h1>
+    <p class="studio-lede pyx-lede">
+      Productivity for everybody — research, write, code, pixel art, and voice in one connected Studio.
+      Hop between apps without losing your thread; handoffs carry text, code, and research packs with you.
+    </p>
+
+    <article class="studio-coach" style="display:block;margin-bottom:18px;border-color:rgba(52,211,153,.45);">
+      <strong>Pyx 1.1 Riverside — research flows into writing</strong>
+      <p class="studio-muted" style="margin:8px 0 12px;">
+        Essay helper: save links → build your plan → write your gaps with hints →
+        <strong>Riverside</strong> shows your research river, draft stream, and flow check → finish in Talk.
+      </p>
+      <a class="btn" href="/pyx-workspace.html">Open Workspace</a>
+      <a class="btn secondary" href="/pyx-workspace.html?topic=water%20cycle&amp;tab=riverside">Try Riverside</a>
+    </article>
+
+    <div class="studio-top-actions">
+      <button type="button" class="btn secondary" id="studioShortcutsBtn">Keyboard shortcuts (?)</button>
+      <a class="btn secondary" href="/pyx-gallery.html">Open Gallery</a>
+      <a class="btn secondary" href="/pyx-download.html">Downloads</a>
+    </div>
+
+    <section class="studio-coach" id="studioCoach" hidden>
+      <strong>Welcome to Pyx Studio</strong>
+      <ol>
+        <li>Pick an app below — <strong>Pyx Talk</strong> is a great place to start.</li>
+        <li>On replies, tap <strong>Speak</strong>, <strong>Code</strong>, or <strong>Pyxel</strong> to keep creating.</li>
+        <li>Save favorites in <a href="/pyx-gallery.html">Pyx Gallery</a> and export a portable Pyx pack anytime.</li>
+      </ol>
+      <button type="button" class="btn" id="studioCoachDismiss">Let’s go</button>
+    </section>
+
+    <div class="studio-search">
+      <input type="search" id="studioSearch" placeholder="Ask Pyx anything — we’ll open the right app…" aria-label="Studio search" />
+      <button type="button" class="btn" id="studioSearchBtn">Go</button>
+    </div>
+
+    <div class="studio-grid">
+      <section class="studio-panel">
+        <h2>Continue</h2>
+        <div id="studioContinue"></div>
+      </section>
+      <section class="studio-panel">
+        <h2>Recently opened</h2>
+        <div id="studioRecents"></div>
+      </section>
+      <section class="studio-panel">
+        <h2>Recipes</h2>
+        <div id="studioRecipes"></div>
+      </section>
+    </div>
+
+    <section class="studio-apps" aria-label="Pyx apps">
+      <article class="studio-app-card">
+        <h3>Workspace</h3>
+        <p>Essays and reports — research river, draft stream, flow check, and hint-only coaching.</p>
+        <div class="actions">
+          <a class="btn" href="/pyx-workspace.html">Open Workspace</a>
+        </div>
+      </article>
+      <article class="studio-app-card">
+        <h3>Pyx Talk</h3>
+        <p>Full chat on <strong>Pyx 1.0 (cloud)</strong> or a lightweight <strong>Pyx 1.3 (preview)</strong> demo. Apps and handoffs built in.</p>
+        <div class="actions">
+          <a class="btn" href="/pyx-talk.html">Open Talk</a>
+          <a class="btn secondary" href="/pyx-talk.html?line=preview" title="Lightweight demo — switch back to cloud anytime in Talk">Try 1.3 preview</a>
+        </div>
+      </article>
+      <article class="studio-app-card">
+        <h3>Pyxels</h3>
+        <p>Custom Pyx assistants — like Gemini Gems. Pick a tutor, coder, brainstormer, or write your own instructions.</p>
+        <div class="actions">
+          <a class="btn" href="/pyx-pyxels.html">Pyxel manager</a>
+          <a class="btn secondary" href="/pyx-talk.html">Talk with a Pyxel</a>
+        </div>
+      </article>
+      <article class="studio-app-card">
+        <h3>Pyx Code</h3>
+        <p>Code editor plus an AI assistant, Pyx Check, and smart agent patches.</p>
+        <div class="actions"><a class="btn" href="/pyx-code.html">Open Code</a></div>
+      </article>
+      <article class="studio-app-card">
+        <h3>Pyx Write <span style="font-size:0.75em;font-weight:700;color:#f472b6;">1.0</span></h3>
+        <p>Free AI music — GPT-OSS composes multi-track scores. <strong style="color:#f472b6;font-weight:600;">1.0 adds a synthesized singing voice</strong> over the band; play it in the browser.</p>
+        <div class="actions"><a class="btn" href="/pyx-write.html">Open Write</a></div>
+      </article>
+      <article class="studio-app-card">
+        <h3>Pyxel <span style="font-size:0.75em;font-weight:700;color:#6366f1;">1.0</span></h3>
+        <p>Tiny 10×10 pixel art from a single prompt — GPT-OSS on cloud.</p>
+        <div class="actions"><a class="btn" href="/pyxel-image.html">Open Pyxel</a></div>
+      </article>
+      <article class="studio-app-card">
+        <h3>Pyx Speak</h3>
+        <p>Turn scripts into voice — styles, presets, and playback controls.</p>
+        <div class="actions"><a class="btn" href="/pyx-speak.html">Open Speak</a></div>
+      </article>
+      <article class="studio-app-card">
+        <h3>More</h3>
+        <p>Desktop downloads, artifacts, and trainer tools.</p>
+        <div class="actions">
+          <a class="btn secondary" href="/pyx-talk-app.html">Talk on web + desktop</a>
+          <a class="btn secondary" href="/pyx-artifacts.html">Artifacts</a>
+          <a class="btn secondary" href="/workforpyx.php">Work with Pyx</a>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div class="studio-shortcuts" id="studioShortcuts" hidden>
+    <div class="studio-shortcuts__box">
+      <h2 style="margin-top:0;">Keyboard shortcuts</h2>
+      <ul style="color:var(--muted);font-size:0.9rem;line-height:1.6;">
+        <li><kbd>?</kbd> — show or hide this panel (Pyx Studio)</li>
+        <li>Pyx Talk — <kbd>Enter</kbd> to send</li>
+        <li>Pyx Code — <kbd>Cmd/Ctrl + Enter</kbd> to ask the assistant</li>
+        <li>Pyx Speak — <kbd>Cmd/Ctrl + Enter</kbd> to play your script</li>
+      </ul>
+      <button type="button" class="btn" onclick="document.getElementById('studioShortcuts').hidden=true">Close</button>
+    </div>
+  </div>
+
+  <script src="/js/pyx-handoff.js"></script>
+  <script src="/js/pyx-shell.js"></script>
+  <script src="/js/pyx-studio.js"></script>
+  <script>
+    PyxShell.init({ active: "studio" });
+    PyxStudio.initHub();
+  </script>
+</body>
+</html>
