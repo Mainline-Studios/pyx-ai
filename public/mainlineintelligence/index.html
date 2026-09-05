@@ -4,11 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>mainline intelligence — the new wave of pyx</title>
-  <meta name="description" content="mainline intelligence is the new wave of pyx. mi moderator checks chat and game text with a simple api." />
+  <meta name="description" content="mainline intelligence is coming — the umbrella for breakthrough systems. mi moderator is live. marii and mci coming soon." />
   <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
       --bg: #e8f7f4;
@@ -23,6 +23,7 @@
       --line: rgba(46, 196, 182, 0.28);
       --bad: #e07a7a;
       --font: "Instrument Sans", sans-serif;
+      --display: "Syne", sans-serif;
       --mono: "IBM Plex Mono", ui-monospace, monospace;
     }
 
@@ -81,39 +82,52 @@
       min-height: calc(100vh - 6rem);
       display: grid;
       align-content: center;
-      gap: 0.85rem;
+      gap: 0.75rem;
       padding-bottom: 2.5rem;
+    }
+
+    .eyebrow {
+      margin: 0;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--faint);
+      letter-spacing: 0.02em;
+      animation: fadeUp 800ms 40ms both;
     }
 
     .brand {
       margin: 0;
-      font-size: clamp(2.4rem, 9vw, 4.2rem);
-      font-weight: 700;
-      line-height: 1.02;
-      letter-spacing: -0.05em;
-      color: var(--deep);
-      background: linear-gradient(115deg, var(--deep) 0%, var(--teal) 42%, var(--blue) 100%);
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: clamp(2.5rem, 9vw, 4.6rem);
+      line-height: 0.95;
+      letter-spacing: -0.045em;
+      background: linear-gradient(110deg, var(--deep) 8%, var(--teal) 48%, var(--blue) 92%);
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
-      animation: in 700ms cubic-bezier(0.2, 0.85, 0.2, 1) both;
+      animation: brandIn 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    }
+    @keyframes brandIn {
+      from { opacity: 0; transform: translateY(18px) scale(0.98); filter: blur(6px); }
+      to { opacity: 1; transform: none; filter: none; }
     }
 
     .wave {
-      margin: 0;
-      font-size: clamp(1.05rem, 2.2vw, 1.25rem);
+      margin: 0.15rem 0 0;
+      font-size: clamp(1.05rem, 2.2vw, 1.3rem);
       font-weight: 500;
       color: var(--soft);
-      animation: in 700ms 80ms both;
+      animation: fadeUp 800ms 120ms both;
     }
 
     .lede {
-      margin: 0.2rem 0 0;
-      max-width: 38ch;
+      margin: 0.25rem 0 0;
+      max-width: 42ch;
       color: var(--soft);
       font-size: 1rem;
       line-height: 1.55;
-      animation: in 700ms 140ms both;
+      animation: fadeUp 800ms 200ms both;
     }
     .lede em {
       font-style: normal;
@@ -121,8 +135,8 @@
       font-weight: 600;
     }
 
-    @keyframes in {
-      from { opacity: 0; transform: translateY(10px); }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
       to { opacity: 1; transform: none; }
     }
 
@@ -130,8 +144,8 @@
       display: flex;
       flex-wrap: wrap;
       gap: 1.25rem;
-      margin-top: 0.75rem;
-      animation: in 700ms 200ms both;
+      margin-top: 0.85rem;
+      animation: fadeUp 800ms 280ms both;
     }
     .links a {
       color: var(--deep);
@@ -146,34 +160,66 @@
     }
 
     .wash {
-      width: min(280px, 70%);
-      height: 2px;
-      margin-top: 1.75rem;
+      width: min(320px, 75%);
+      height: 3px;
+      margin-top: 1.6rem;
       border-radius: 999px;
-      background: linear-gradient(90deg, var(--mint), var(--teal), var(--blue), transparent);
-      animation: slide 4s ease-in-out infinite alternate;
+      background: linear-gradient(90deg, transparent, var(--mint), var(--teal), var(--blue), transparent);
+      background-size: 200% 100%;
+      animation: pulseLine 3.2s ease-in-out infinite;
     }
-    @keyframes slide {
-      from { opacity: 0.4; transform: translateX(0); }
-      to { opacity: 1; transform: translateX(24px); }
+    @keyframes pulseLine {
+      0%, 100% { background-position: 0% 50%; opacity: 0.45; }
+      50% { background-position: 100% 50%; opacity: 1; }
     }
 
     section {
-      margin: 3.5rem 0;
+      margin: 3.25rem 0;
     }
     section h2 {
       margin: 0 0 0.4rem;
-      font-size: 1.35rem;
-      font-weight: 600;
+      font-family: var(--display);
+      font-size: clamp(1.35rem, 3vw, 1.7rem);
+      font-weight: 700;
       letter-spacing: -0.03em;
       color: var(--deep);
     }
-    section > p {
-      margin: 0 0 1.25rem;
+    section > p,
+    .block p {
+      margin: 0 0 0.85rem;
       color: var(--soft);
       max-width: 52ch;
       line-height: 1.55;
       font-size: 0.98rem;
+    }
+
+    .soon {
+      display: inline-block;
+      margin: 0 0 0.55rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--teal);
+      letter-spacing: 0.04em;
+    }
+
+    .block {
+      margin: 0 0 2.25rem;
+      padding-left: 0.9rem;
+      border-left: 2px solid var(--line);
+    }
+    .block:last-child { margin-bottom: 0; }
+    .block h3 {
+      margin: 0 0 0.35rem;
+      font-family: var(--display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--deep);
+    }
+    .block .tagline {
+      margin: 0.65rem 0 0;
+      font-weight: 500;
+      color: var(--deep);
     }
 
     .endpoint {
@@ -201,7 +247,8 @@
     }
 
     textarea,
-    input[type="number"] {
+    input[type="number"],
+    input[type="email"] {
       width: 100%;
       padding: 0.7rem 0;
       border: none;
@@ -215,14 +262,15 @@
       transition: border-color 160ms ease;
     }
     textarea:focus,
-    input[type="number"]:focus {
+    input:focus {
       border-bottom-color: var(--teal);
     }
     textarea {
       min-height: 88px;
       resize: vertical;
     }
-    textarea::placeholder { color: var(--faint); }
+    textarea::placeholder,
+    input::placeholder { color: var(--faint); }
 
     input[type="range"] {
       width: 100%;
@@ -244,7 +292,8 @@
       color: var(--faint);
     }
 
-    button.check {
+    button.check,
+    button.waitlist {
       margin-top: 1.1rem;
       padding: 0;
       border: none;
@@ -255,15 +304,17 @@
       cursor: pointer;
       border-bottom: 1px solid rgba(46, 196, 182, 0.5);
       padding-bottom: 1px;
+      text-transform: lowercase;
     }
-    button.check:hover { color: var(--blue); border-color: var(--blue); }
+    button.check:hover,
+    button.waitlist:hover { color: var(--blue); border-color: var(--blue); }
 
     .result {
       min-height: 140px;
       padding: 0.25rem 0;
       font-family: var(--mono);
       font-size: 0.82rem;
-      line-height: 1.5;
+      line-height: 1.55;
       white-space: pre-wrap;
       word-break: break-word;
       color: var(--soft);
@@ -305,6 +356,62 @@
       padding-left: 0.9rem;
     }
 
+    .tool-list {
+      list-style: none;
+      margin: 1.25rem 0 0;
+      padding: 0;
+      display: grid;
+      gap: 0.85rem;
+    }
+    .tool-list li {
+      padding-left: 0.9rem;
+      border-left: 2px solid var(--line);
+    }
+    .tool-list a {
+      color: var(--deep);
+      text-decoration: none;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(46, 196, 182, 0.35);
+    }
+    .tool-list a:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+    }
+    .tool-list span {
+      display: block;
+      margin-top: 0.2rem;
+      font-size: 0.88rem;
+      color: var(--soft);
+      line-height: 1.45;
+      max-width: 48ch;
+    }
+    .tool-list code {
+      font-family: var(--mono);
+      font-size: 0.78em;
+      color: var(--teal);
+      text-transform: none;
+    }
+
+    .dev-mail {
+      margin: 0.85rem 0 0;
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      color: var(--teal);
+      text-transform: none;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(46, 196, 182, 0.4);
+    }
+    .dev-mail:hover { color: var(--blue); border-color: var(--blue); }
+
+    .wait-status {
+      margin: 0.75rem 0 0;
+      font-size: 0.85rem;
+      color: var(--faint);
+      min-height: 1.2em;
+    }
+    .wait-status.ok { color: var(--deep); }
+    .wait-status.bad { color: var(--bad); }
+
     footer {
       margin-top: 3rem;
       padding-top: 1rem;
@@ -332,19 +439,38 @@
     </nav>
 
     <header class="hero">
+      <p class="eyebrow">upcoming ai innovation</p>
       <h1 class="brand">mainline intelligence</h1>
-      <p class="wave">the new wave of pyx.</p>
-      <p class="lede">right now that’s <em>mi moderator</em> — check a word, get back whether it’s ok and a score.</p>
+      <p class="wave">is coming — the new wave of pyx.</p>
+      <p class="lede">mi is our next ai platform — the umbrella for breakthrough systems that push past today’s assistants into realtime, industrial-grade intelligence. same mainline promise: <em>premium experiences, free to reach.</em></p>
       <div class="links">
-        <a href="#moderator">try it</a>
-        <a href="#integrate">add to your game</a>
+        <a href="#moderator">mi moderator</a>
+        <a href="#coming">coming soon</a>
+        <a href="#devs">dev’s corner</a>
       </div>
       <div class="wash" aria-hidden="true"></div>
     </header>
 
+    <section id="coming">
+      <h2>coming soon</h2>
+
+      <div class="block">
+        <span class="soon">coming soon</span>
+        <h3>mainline artificial realtime instant intelligence (marii)</h3>
+        <p>instant when it matters. realtime when the world moves. this is mainline’s leap into ai that keeps up — responses that feel native to the moment, built for creators and players who will not wait on a spinner.</p>
+        <p class="tagline">instant responses. real data. all free.</p>
+      </div>
+
+      <div class="block">
+        <span class="soon">coming soon</span>
+        <h3>mainline conversational intelligence (mci)</h3>
+        <p>the industrial evolution of pyx — conversation engineered for serious work. deeper context, stronger reliability, and studio-grade dialogue for teams and products that need ai they can actually ship with.</p>
+      </div>
+    </section>
+
     <section id="moderator">
       <h2>mi moderator</h2>
-      <p>hit the path with your text. you get something like <code>{"appropriate":false,"score":"700"}</code>. score is 0–1000. default threshold is 700.</p>
+      <p>live now. hit the path with your text. you get something like <code>{"appropriate":false,"score":"700"}</code>. score is 0–1000. default threshold is 700.</p>
       <p class="endpoint">get https://pyx-ai.web.app/moderator/check/&lt;text&gt;</p>
 
       <div class="try">
@@ -378,13 +504,81 @@
         <li>tune the threshold per mode</li>
       </ol>
       <pre id="snippet">fetch("https://pyx-ai.web.app/moderator/check/" + encodeURIComponent(text) + "?threshold=700")
-  .then((r) => r.json())
+  .then(async (r) => {
+    const raw = await r.text();
+    try { return JSON.parse(raw); }
+    catch { throw new Error(r.status + " " + raw.slice(0, 80)); }
+  })
   .then((data) => {
     // { "appropriate": false, "score": "700" }
     if (!data.appropriate) {
       // block or rewrite
     }
   });</pre>
+    </section>
+
+    <section id="devs">
+      <h2>dev’s corner</h2>
+      <p>hooks, trainers, and studio tools for pyx + mi. poke around, wire stuff up, or jump the mci waitlist.</p>
+
+      <ul class="tool-list">
+        <li>
+          <a href="#moderator">mi moderator try-it</a>
+          <span>live word check · <code>/moderator/check/&lt;text&gt;</code></span>
+        </li>
+        <li>
+          <a href="/studio.html">pyx studio</a>
+          <span>talk, code, speak, pyxel, workspace — the full creative stack</span>
+        </li>
+        <li>
+          <a href="/pyx-captcha.html">mainline intelligence training</a>
+          <span>traffic-light captcha that helps train mi</span>
+        </li>
+        <li>
+          <a href="/pyx-trainer-auth.html">trainer / dev workshop</a>
+          <span>sign in for labeling, traffic analyzer, workshop tools</span>
+        </li>
+        <li>
+          <a href="/pyx-talk.html">pyx talk</a>
+          <span>conversational pyx in the browser</span>
+        </li>
+        <li>
+          <a href="/pyx-code.html">pyx code</a>
+          <span>code assist + agent patches</span>
+        </li>
+        <li>
+          <a href="/pyx-speak.html">pyx speak</a>
+          <span>text → voice, including native pyx tacotron</span>
+        </li>
+        <li>
+          <a href="/pyx-download.html">downloads</a>
+          <span>desktop builds and release bits</span>
+        </li>
+        <li>
+          <a href="/api/health"><code>/api/health</code></a>
+          <span>api pulse check</span>
+        </li>
+        <li>
+          <a href="/api/score"><code>/api/score</code></a>
+          <span>legacy score health (post <code>{"text"}</code> for full scores)</span>
+        </li>
+        <li>
+          <a href="https://github.com/Mainline-Studios/pyx-ai" target="_blank" rel="noopener">github · pyx-ai</a>
+          <span>source, issues, and how the stack is wired</span>
+        </li>
+      </ul>
+
+      <div class="block" style="margin-top:2.25rem">
+        <h3>mci waitlist</h3>
+        <p>want early access to mainline conversational intelligence? email us and say what you’re building.</p>
+        <p>
+          <a class="dev-mail" href="mailto:support@pixelplaceofficial.com?subject=mci%20waitlist&body=hey%20mainline%20—%20i'd%20like%20to%20join%20the%20mci%20waitlist.%0A%0Awhat%20i'm%20building%3A%0A">support@pixelplaceofficial.com</a>
+        </p>
+        <label for="devEmail" style="margin-top:1.25rem">or drop your email and we’ll open mail for you</label>
+        <input id="devEmail" type="email" placeholder="you@studio.dev" autocomplete="email" />
+        <button class="waitlist" type="button" id="waitlistBtn">join mci waitlist →</button>
+        <p class="wait-status" id="waitStatus" aria-live="polite"></p>
+      </div>
     </section>
 
     <footer>
@@ -401,6 +595,9 @@
       var result = document.getElementById("result");
       var runCheck = document.getElementById("runCheck");
       var snippet = document.getElementById("snippet");
+      var waitlistBtn = document.getElementById("waitlistBtn");
+      var waitStatus = document.getElementById("waitStatus");
+      var devEmail = document.getElementById("devEmail");
 
       function syncThreshold(from) {
         var v = Math.max(0, Math.min(1000, parseInt(from.value, 10) || 0));
@@ -415,7 +612,11 @@
           'fetch("https://pyx-ai.web.app/moderator/check/" + encodeURIComponent(text) + "?threshold=' +
           t +
           '")\n' +
-          "  .then((r) => r.json())\n" +
+          "  .then(async (r) => {\n" +
+          "    const raw = await r.text();\n" +
+          "    try { return JSON.parse(raw); }\n" +
+          "    catch { throw new Error(r.status + \" \" + raw.slice(0, 80)); }\n" +
+          "  })\n" +
           "  .then((data) => {\n" +
           '    // { "appropriate": false, "score": "700" }\n' +
           "    if (!data.appropriate) {\n" +
@@ -426,6 +627,24 @@
 
       threshold.addEventListener("input", function () { syncThreshold(threshold); });
       thresholdRange.addEventListener("input", function () { syncThreshold(thresholdRange); });
+
+      async function parseJsonResponse(res) {
+        var raw = await res.text();
+        var trimmed = (raw || "").trim();
+        if (!trimmed) {
+          throw new Error("empty response (" + res.status + ")");
+        }
+        if (trimmed.charAt(0) === "<") {
+          throw new Error(
+            "api unavailable right now (got html " + res.status + "). billing/cloud run may be down — try again later."
+          );
+        }
+        try {
+          return JSON.parse(trimmed);
+        } catch (e) {
+          throw new Error("bad json (" + res.status + "): " + trimmed.slice(0, 120));
+        }
+      }
 
       async function check() {
         var text = (phrase.value || "").trim();
@@ -440,10 +659,11 @@
         try {
           var url = "/moderator/check/" + encodeURIComponent(text) + "?threshold=" + encodeURIComponent(t);
           var res = await fetch(url);
-          var data = await res.json();
+          var data = await parseJsonResponse(res);
           result.textContent = JSON.stringify(data, null, 2);
           if (data && data.appropriate === true) result.classList.add("ok");
           else if (data && data.appropriate === false) result.classList.add("bad");
+          else if (data && data.error) result.classList.add("bad");
         } catch (err) {
           result.textContent = JSON.stringify({ error: String(err && err.message || err) }, null, 2);
           result.classList.add("bad");
@@ -454,6 +674,20 @@
       phrase.addEventListener("keydown", function (e) {
         if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) check();
       });
+
+      waitlistBtn.addEventListener("click", function () {
+        var email = (devEmail.value || "").trim();
+        var subject = encodeURIComponent("mci waitlist");
+        var body = encodeURIComponent(
+          "hey mainline — i'd like to join the mci waitlist.\n\n" +
+            (email ? "email: " + email + "\n\n" : "") +
+            "what i'm building:\n"
+        );
+        waitStatus.className = "wait-status ok";
+        waitStatus.textContent = "opening mail to support@pixelplaceofficial.com…";
+        window.location.href = "mailto:support@pixelplaceofficial.com?subject=" + subject + "&body=" + body;
+      });
+
       updateSnippet();
     })();
   </script>
