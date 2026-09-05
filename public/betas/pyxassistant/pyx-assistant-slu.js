@@ -1,0 +1,383 @@
+/**
+ * Pyx Assistant — spoken language understanding (SLU).
+ *
+ * Modular pipeline: normalize → intent + slots → local handler or LLM.
+ * Pattern-based NLU (DeepSpeech / cloud ASR is the speech front-end).
+ */
+(function (root) {
+  "use strict";
+
+  var THEMES = ["aurora", "blush", "mint", "twilight", "peach", "frost"];
+
+  var LANG_ALIASES = {
+    english: "en",
+    en: "en",
+    spanish: "es",
+    español: "es",
+    espanol: "es",
+    es: "es",
+    french: "fr",
+    français: "fr",
+    francais: "fr",
+    fr: "fr",
+    german: "de",
+    deutsch: "de",
+    de: "de",
+    japanese: "ja",
+    日本語: "ja",
+    ja: "ja",
+    chinese: "zh",
+    中文: "zh",
+    mandarin: "zh",
+    zh: "zh",
+  };
+
+  var RULES = [
+    {
+      intent: "greet",
+      re: /^(hi|hello|hey|yo|sup|howdy|hola|bonjour|salut|hallo|guten tag|こんにちは|你好|hey pyx|hi pyx)\b/i,
+    },
+    {
+      intent: "farewell",
+      re: /^(bye|goodbye|good night|see you|adios|ciao|au revoir|tschüss|さようなら|再见)\b/i,
+    },
+    {
+      intent: "identity",
+      re: /\b(who are you|what('?s| is) your name|what are you|quién eres|qui es[- ]tu|wer bist du|あなたは誰|你是谁)\b/i,
+    },
+    {
+      intent: "help",
+      re: /\b(help|what can you do|how do (i|you) use|ayuda|aide|hilfe|ヘルプ|帮助)\b/i,
+    },
+    {
+      intent: "time",
+      re: /\b(what time|what'?s the time|current time|qué hora|quelle heure|wie spät|今何時|几点|now time)\b/i,
+    },
+    {
+      intent: "date",
+      re: /\b(what('?s| is) (the )?date|what day|today'?s date|qué fecha|quelle date|welches datum|今日|几号)\b/i,
+    },
+    {
+      intent: "weather",
+      re: /\b(weather|forecast|temperature|lluvia|météo|wetter|天気|天气)\b/i,
+    },
+    {
+      intent: "theme",
+      re: /\b(theme|tema|thème|テーマ|主题|switch to|change (the )?theme|use (the )?(aurora|blush|mint|twilight|peach|frost))\b/i,
+    },
+    {
+      intent: "language",
+      re: /\b(speak|talk|switch to|change language|idioma|langue|sprache|言語|语言)\b.+\b(english|spanish|español|french|français|german|deutsch|japanese|chinese|中文|日本語)\b/i,
+    },
+    {
+      intent: "settings",
+      re: /\b(open settings|show settings|ajustes|réglages|einstellungen|設定|设置)\b/i,
+    },
+    {
+      intent: "clear",
+      re: /\b(clear (chat|conversation|history)|reset chat|borra|efface|lösche|消去|清空)\b/i,
+    },
+    {
+      intent: "open_talk",
+      re: /\b(open (pyx )?talk|switch to talk|abrir talk)\b/i,
+    },
+    {
+      intent: "open_studio",
+      re: /\b(open (pyx )?studio|go (to|home)|abrir studio)\b/i,
+    },
+    {
+      intent: "share",
+      re: /\b(share|copy (this|that|conversation)|compartir|partager|teilen)\b/i,
+    },
+    {
+      intent: "slack_send",
+      re: /\b(send (this |that |it )?to slack|post to slack)\b/i,
+    },
+    {
+      intent: "discord_send",
+      re: /\b(send (this |that |it )?to discord|post to discord)\b/i,
+    },
+    {
+      intent: "calculator",
+      re: /\b(what('?s| is)|calculate|compute|cuánto es|combien fait|was ist|計算|等于)\b.{0,40}[\d][\d\s+\-*/x×÷.^()]+/i,
+    },
+    {
+      intent: "joke",
+      re: /\b(tell me a joke|make me laugh|chiste|blague|witz|冗談|笑话)\b/i,
+    },
+  ];
+
+  var GOLDEN = [
+    { text: "hey pyx", intent: "greet" },
+    { text: "hello", intent: "greet" },
+    { text: "hola", intent: "greet" },
+    { text: "who are you", intent: "identity" },
+    { text: "what can you do", intent: "help" },
+    { text: "what time is it", intent: "time" },
+    { text: "what's the date today", intent: "date" },
+    { text: "what's the weather in austin", intent: "weather" },
+    { text: "switch to mint", intent: "theme" },
+    { text: "change the theme to blush", intent: "theme" },
+    { text: "speak Spanish", intent: "language" },
+    { text: "open settings", intent: "settings" },
+    { text: "clear conversation", intent: "clear" },
+    { text: "open pyx talk", intent: "open_talk" },
+    { text: "open studio", intent: "open_studio" },
+    { text: "share this", intent: "share" },
+    { text: "send this to slack", intent: "slack_send" },
+    { text: "post to discord", intent: "discord_send" },
+    { text: "what's 12 times 4", intent: "calculator" },
+    { text: "calculate 8 + 2 * 3", intent: "calculator" },
+    { text: "tell me a joke", intent: "joke" },
+    { text: "goodbye", intent: "farewell" },
+    { text: "explain photosynthesis in simple terms", intent: "chat" },
+    { text: "write a haiku about rain", intent: "chat" },
+  ];
+
+  function normalize(text) {
+    return String(text || "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function extractTheme(text) {
+    var n = normalize(text).toLowerCase();
+    var i;
+    for (i = 0; i < THEMES.length; i++) {
+      if (n.indexOf(THEMES[i]) !== -1) return THEMES[i];
+    }
+    return null;
+  }
+
+  function extractLang(text) {
+    var n = normalize(text).toLowerCase();
+    var key;
+    for (key in LANG_ALIASES) {
+      if (Object.prototype.hasOwnProperty.call(LANG_ALIASES, key) && n.indexOf(key) !== -1) {
+        return LANG_ALIASES[key];
+      }
+    }
+    return null;
+  }
+
+  function extractMath(text) {
+    var n = normalize(text)
+      .replace(/×|x/gi, "*")
+      .replace(/÷/g, "/")
+      .replace(/,/g, "");
+    var m = n.match(/(-?\d+(?:\.\d+)?(?:\s*[+\-*/^()]\s*-?\d+(?:\.\d+)?)*)/);
+    return m ? m[1].replace(/\s+/g, "") : null;
+  }
+
+  function safeEvalMath(expr) {
+    if (!expr || !/^[-+*/^().\d]+$/.test(expr)) return null;
+    if (expr.length > 80) return null;
+    var js = expr.replace(/\^/g, "**");
+    try {
+      var fn = new Function("return (" + js + ")");
+      var v = fn();
+      if (typeof v !== "number" || !isFinite(v)) return null;
+      return Math.round(v * 1e8) / 1e8;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function classify(text) {
+    var utterance = normalize(text);
+    if (!utterance) {
+      return { intent: "empty", confidence: 0, slots: {}, utterance: "" };
+    }
+    var i;
+    var rule;
+    for (i = 0; i < RULES.length; i++) {
+      rule = RULES[i];
+      if (rule.re.test(utterance)) {
+        var slots = {};
+        if (rule.intent === "theme") slots.theme = extractTheme(utterance);
+        if (rule.intent === "language") slots.lang = extractLang(utterance);
+        if (rule.intent === "calculator") {
+          slots.expr = extractMath(utterance);
+          slots.value = safeEvalMath(slots.expr);
+        }
+        if (rule.intent === "weather") {
+          var loc = utterance.replace(rule.re, "").replace(/\b(in|for|à|en|in der)\b/gi, " ").trim();
+          if (loc) slots.location = loc;
+        }
+        return {
+          intent: rule.intent,
+          confidence: 0.86,
+          slots: slots,
+          utterance: utterance,
+        };
+      }
+    }
+    return { intent: "chat", confidence: 0.45, slots: {}, utterance: utterance };
+  }
+
+  function formatTime(lang) {
+    try {
+      return new Intl.DateTimeFormat(lang || "en", {
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(new Date());
+    } catch (e) {
+      return new Date().toLocaleTimeString();
+    }
+  }
+
+  function formatDate(lang) {
+    try {
+      return new Intl.DateTimeFormat(lang || "en", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }).format(new Date());
+    } catch (e) {
+      return new Date().toLocaleDateString();
+    }
+  }
+
+  /**
+   * Local handlers return a string reply, or null to fall through to the LLM.
+   * `t` is i18n.t(lang, key). Actions are side-effect flags for the UI.
+   */
+  function resolve(result, opts) {
+    opts = opts || {};
+    var lang = opts.lang || "en";
+    var t = opts.t;
+    var intent = result.intent;
+    var out = { reply: null, action: null, useLlm: false, useWeb: false };
+
+    switch (intent) {
+      case "empty":
+        out.reply = "";
+        return out;
+      case "greet":
+        out.reply = t ? t(lang, "greeting") : "Hi, I’m Pyx.";
+        return out;
+      case "farewell":
+        out.reply = lang === "es" ? "Hasta luego." : lang === "fr" ? "À bientôt." : lang === "de" ? "Tschüss." : lang === "ja" ? "またね。" : lang === "zh" ? "再见。" : "See you.";
+        return out;
+      case "identity":
+        out.reply = t ? t(lang, "identity") : "I’m Pyx Assistant.";
+        return out;
+      case "help":
+        out.reply = t ? t(lang, "help") : "Ask me anything.";
+        return out;
+      case "time":
+        out.reply = (t ? t(lang, "timePrefix") : "It’s") + " " + formatTime(lang) + ".";
+        return out;
+      case "date":
+        out.reply = (t ? t(lang, "datePrefix") : "Today is") + " " + formatDate(lang) + ".";
+        return out;
+      case "theme":
+        if (result.slots.theme) {
+          out.action = { type: "theme", theme: result.slots.theme };
+          out.reply = (t ? t(lang, "themeSet") : "Theme set to") + " " + result.slots.theme + ".";
+        } else {
+          out.action = { type: "settings" };
+          out.reply = t ? t(lang, "help") : "Pick a theme in settings.";
+        }
+        return out;
+      case "language":
+        if (result.slots.lang) {
+          out.action = { type: "language", lang: result.slots.lang };
+          out.reply = (t ? t(lang, "langSet") : "Okay — I’ll use") + " " + result.slots.lang + ".";
+        } else {
+          out.action = { type: "settings" };
+          out.reply = t ? t(lang, "help") : "Pick a language in settings.";
+        }
+        return out;
+      case "settings":
+        out.action = { type: "settings" };
+        out.reply = t ? t(lang, "settings") : "Settings";
+        return out;
+      case "clear":
+        out.action = { type: "clear" };
+        out.reply = t ? t(lang, "cleared") : "Conversation cleared.";
+        return out;
+      case "open_talk":
+        out.action = { type: "open_talk" };
+        out.reply = t ? t(lang, "openTalk") : "Opening Pyx Talk.";
+        return out;
+      case "open_studio":
+        out.action = { type: "open_studio" };
+        out.reply = "Studio";
+        return out;
+      case "share":
+        out.action = { type: "share" };
+        out.reply = t ? t(lang, "copied") : "Copied.";
+        return out;
+      case "slack_send":
+        out.action = { type: "slack" };
+        out.reply = t ? t(lang, "sendSlack") : "Slack";
+        return out;
+      case "discord_send":
+        out.action = { type: "discord" };
+        out.reply = t ? t(lang, "sendDiscord") : "Discord";
+        return out;
+      case "calculator":
+        if (result.slots.value != null) {
+          out.reply = (t ? t(lang, "calcPrefix") : "That’s") + " " + String(result.slots.value) + ".";
+          return out;
+        }
+        out.useLlm = true;
+        return out;
+      case "weather":
+        out.useLlm = true;
+        out.useWeb = true;
+        return out;
+      case "joke":
+        out.useLlm = true;
+        return out;
+      case "chat":
+        out.useLlm = true;
+        return out;
+      default: {
+        var _never = intent;
+        void _never;
+        out.useLlm = true;
+        return out;
+      }
+    }
+  }
+
+  function evaluateGolden() {
+    var i;
+    var hit = 0;
+    var misses = [];
+    for (i = 0; i < GOLDEN.length; i++) {
+      var g = GOLDEN[i];
+      var got = classify(g.text).intent;
+      if (got === g.intent) hit += 1;
+      else misses.push({ text: g.text, expected: g.intent, got: got });
+    }
+    return {
+      total: GOLDEN.length,
+      hit: hit,
+      accuracy: GOLDEN.length ? hit / GOLDEN.length : 0,
+      misses: misses,
+    };
+  }
+
+  var api = {
+    THEMES: THEMES,
+    RULES: RULES,
+    GOLDEN: GOLDEN,
+    normalize: normalize,
+    classify: classify,
+    resolve: resolve,
+    extractTheme: extractTheme,
+    extractLang: extractLang,
+    extractMath: extractMath,
+    safeEvalMath: safeEvalMath,
+    evaluateGolden: evaluateGolden,
+  };
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = api;
+  }
+  root.PyxAssistantSLU = api;
+})(typeof globalThis !== "undefined" ? globalThis : this);

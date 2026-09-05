@@ -1,0 +1,8 @@
+name = "mi-mailing"
+main = "src/index.js"
+compatibility_date = "2026-03-01"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "SUBSCRIBERS"
+id = "a6192a2952c743af84fa69155cbd8522"

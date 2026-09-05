@@ -1,0 +1,12 @@
+{
+  "name": "mi-mailing",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "secret:resend": "wrangler secret put RESEND_API_KEY"
+  },
+  "devDependencies": {
+    "wrangler": "^4.86.0"
+  }
+}

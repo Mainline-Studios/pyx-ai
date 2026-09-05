@@ -565,6 +565,10 @@
           <span>sign in for labeling, traffic analyzer, workshop tools</span>
         </li>
         <li>
+          <a href="/betas">pyx betas</a>
+          <span>early surfaces — pyx assistant first</span>
+        </li>
+        <li>
           <a href="/pyx-talk.html">pyx talk</a>
           <span>conversational pyx in the browser</span>
         </li>
@@ -617,6 +621,10 @@
       var mailJoinBtn = document.getElementById("mailJoinBtn");
       var mailStatus = document.getElementById("mailStatus");
       var mailEmail = document.getElementById("mailEmail");
+      // Cloudflare Worker + Resend (no GCP). Update after `wrangler deploy`.
+      var MAILING_API =
+        window.MI_MAILING_API ||
+        "https://mi-mailing.mainline-mi.workers.dev/subscribe";
 
       function syncThreshold(from) {
         var v = Math.max(0, Math.min(1000, parseInt(from.value, 10) || 0));
@@ -705,7 +713,7 @@
         mailStatus.textContent = "joining…";
         mailJoinBtn.disabled = true;
         try {
-          var res = await fetch("/api/mi/mailing/subscribe", {
+          var res = await fetch(MAILING_API, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email: email, source: "mi_site" }),

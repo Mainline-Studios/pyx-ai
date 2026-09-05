@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="aurora">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Pyx Assistant</title>
+  <meta name="description" content="Pyx Assistant — a voice-first beta with pastel swirls, text or speech, and Pyx Talk underneath." />
+  <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;650;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/betas/pyxassistant/pyx-assistant.css" />
+</head>
+<body>
+  <div class="stage">
+    <div class="swirl" aria-hidden="true">
+      <canvas class="swirl__canvas" id="swirlCanvas"></canvas>
+      <div class="swirl__veil"></div>
+    </div>
+
+    <header class="topbar">
+      <a id="backLink" href="/betas">Betas</a>
+      <div class="brand-mark">Pyx Assistant</div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="icon-btn" id="historyBtn" title="Conversation" aria-label="Conversation">☰</button>
+        <button type="button" class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">✦</button>
+      </div>
+    </header>
+
+    <main class="hero">
+      <div class="caption">
+        <p class="caption__user" id="userLine"></p>
+        <p class="caption__reply" id="reply">Hi, I’m Pyx.</p>
+        <p class="caption__status" id="status">Tap the orb or type below.</p>
+      </div>
+
+      <div class="orb-wrap">
+        <button type="button" class="orb" id="orb" data-state="idle" aria-label="Listen">
+          <span class="orb__glow"></span>
+          <span class="orb__core"></span>
+          <span class="orb__ring"></span>
+          <span class="waves" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        </button>
+      </div>
+    </main>
+
+    <footer class="dock">
+      <form class="composer" id="composer" action="#" onsubmit="return false;">
+        <input id="input" type="text" autocomplete="off" enterkeyhint="send" placeholder="Ask Pyx anything" aria-label="Message" />
+        <button type="button" class="icon-btn" id="mic" aria-label="Listen">●</button>
+        <button type="button" class="send" id="send">Send</button>
+      </form>
+    </footer>
+  </div>
+
+  <div class="sheet" id="settingsSheet" aria-hidden="true">
+    <div class="sheet__card" role="dialog" aria-labelledby="settingsTitle">
+      <h2 id="settingsTitle">Settings</h2>
+      <div class="field">
+        <label id="themeLabel" for="theme">Theme</label>
+        <select id="theme"></select>
+      </div>
+      <div class="field">
+        <label id="langLabel" for="lang">Language</label>
+        <select id="lang"></select>
+      </div>
+      <div class="toggle">
+        <label id="voiceLabel" for="voice">Speak replies</label>
+        <input id="voice" type="checkbox" checked />
+      </div>
+      <div class="field">
+        <label id="modeLabel" for="mode">Model</label>
+        <select id="mode">
+          <option value="fast">Fast</option>
+          <option value="smart">Smart</option>
+          <option value="thinking">Thinking</option>
+        </select>
+      </div>
+      <div class="field">
+        <label id="slackLabel" for="slack">Slack incoming webhook</label>
+        <input id="slack" type="url" placeholder="https://hooks.slack.com/services/…" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label id="discordLabel" for="discord">Discord webhook</label>
+        <input id="discord" type="url" placeholder="https://discord.com/api/webhooks/…" autocomplete="off" />
+      </div>
+      <div class="row-actions">
+        <button type="button" class="ghost" id="sendSlack">Send last reply to Slack</button>
+        <button type="button" class="ghost" id="sendDiscord">Send last reply to Discord</button>
+        <button type="button" class="ghost" id="openTalk">Open in Pyx Talk</button>
+        <button type="button" class="ghost" id="clearBtn">Clear conversation</button>
+        <button type="button" class="ghost" data-close-sheet>Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet" id="historySheet" aria-hidden="true">
+    <div class="sheet__card" role="dialog" aria-labelledby="historyTitle">
+      <h2 id="historyTitle">Conversation</h2>
+      <ul class="history" id="historyList"></ul>
+      <div class="row-actions">
+        <button type="button" class="ghost" data-close-sheet>Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/js/pyx-handoff.js"></script>
+  <script src="/betas/pyxassistant/pyx-assistant-i18n.js"></script>
+  <script src="/betas/pyxassistant/pyx-assistant-slu.js"></script>
+  <script src="/betas/pyxassistant/pyx-assistant.js"></script>
+</body>
+</html>

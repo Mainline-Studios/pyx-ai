@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="aurora">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Pyx Betas</title>
+  <meta name="description" content="Early Pyx experiences. Right now: Pyx Assistant." />
+  <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/betas/pyxassistant/pyx-assistant.css" />
+  <style>
+    .betas {
+      position: relative;
+      z-index: 2;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: calc(28px + env(safe-area-inset-top)) 22px 48px;
+    }
+    .betas h1 {
+      margin: 18px 0 8px;
+      font-size: clamp(2rem, 5vw, 3rem);
+      letter-spacing: -0.045em;
+    }
+    .betas p.lede {
+      margin: 0 0 28px;
+      color: var(--muted);
+      max-width: 42ch;
+    }
+    .beta-card {
+      display: grid;
+      grid-template-columns: 88px 1fr auto;
+      gap: 16px;
+      align-items: center;
+      padding: 18px;
+      border-radius: 22px;
+      background: var(--glass);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(16px);
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s;
+    }
+    .beta-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+    }
+    .mini-orb {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
+    }
+    .mini-orb::before {
+      content: "";
+      position: absolute;
+      inset: -30%;
+      background: conic-gradient(from 40deg, var(--swirl-a), var(--swirl-c), var(--swirl-d), var(--swirl-b), var(--swirl-a));
+      animation: swirlSpin 10s linear infinite;
+      filter: blur(8px);
+    }
+    .beta-card h2 {
+      margin: 0 0 4px;
+      font-size: 1.2rem;
+      letter-spacing: -0.03em;
+    }
+    .beta-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .chip {
+      display: inline-flex;
+      color: var(--ink);
+      text-decoration: none;
+      background: var(--glass);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      font-weight: 650;
+    }
+    .pill {
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 0.78rem;
+      font-weight: 750;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--swirl-a), var(--swirl-c));
+      color: #1a1020;
+    }
+    @media (max-width: 640px) {
+      .beta-card { grid-template-columns: 72px 1fr; }
+      .pill { grid-column: 2; justify-self: start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="swirl" aria-hidden="true">
+    <div class="swirl__veil" style="background:
+      radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--swirl-a) 40%, transparent), transparent 42%),
+      radial-gradient(ellipse at 80% 30%, color-mix(in srgb, var(--swirl-c) 36%, transparent), transparent 46%),
+      radial-gradient(ellipse at 50% 80%, color-mix(in srgb, var(--swirl-b) 34%, transparent), transparent 50%),
+      var(--bg);"></div>
+  </div>
+  <main class="betas">
+    <p><a class="chip" href="/studio.html">Studio</a></p>
+    <h1>Betas</h1>
+    <p class="lede">Early surfaces we’re trying in public. One for now — more later.</p>
+    <a class="beta-card" href="/betas/pyxassistant">
+      <span class="mini-orb" aria-hidden="true"></span>
+      <span>
+        <h2>Pyx Assistant</h2>
+        <p>Voice or text. Pastel swirls. Talks through Pyx.</p>
+      </span>
+      <span class="pill">Open</span>
+    </a>
+  </main>
+</body>
+</html>

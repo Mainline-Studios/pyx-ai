@@ -15,6 +15,7 @@
     { id: "speak", label: "Speak", href: "/pyx-speak.html" },
     { id: "gallery", label: "Gallery", href: "/pyx-gallery.html" },
     { id: "downloads", label: "Downloads", href: "/pyx-download.html" },
+    { id: "betas", label: "Betas", href: "/betas" },
   ];
 
   var STYLE_ID = "pyx-shell-styles";

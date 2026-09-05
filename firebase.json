@@ -184,6 +184,14 @@
           "serviceId": "pyxaiapi",
           "region": "us-central1"
         }
+      },
+      {
+        "source": "/betas",
+        "destination": "/betas/index.html"
+      },
+      {
+        "source": "/betas/pyxassistant",
+        "destination": "/betas/pyxassistant/index.html"
       }
     ]
   }
