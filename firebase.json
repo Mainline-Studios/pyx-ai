@@ -74,6 +74,20 @@
         }
       },
       {
+        "source": "/api/mi/**",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/mi/mailing/**",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "/api/talk",
         "run": {
           "serviceId": "pyxaiapi",

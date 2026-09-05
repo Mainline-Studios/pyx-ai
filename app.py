@@ -1751,6 +1751,29 @@ def moderator_check():
     return jsonify(_moderator_check_payload(text, threshold=threshold))
 
 
+@app.route("/api/mi/mailing/subscribe", methods=["POST", "OPTIONS"])
+@app.route("/mi/mailing/subscribe", methods=["POST", "OPTIONS"])
+def mi_mailing_subscribe():
+    """Join the Mainline Intelligence mailing list; welcome from no-reply@pixelplaceofficial.com."""
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(silent=True) or {}
+    email = data.get("email")
+    source = data.get("source") or "mi_site"
+    if email is None or not isinstance(email, str):
+        return jsonify({"ok": False, "error": "missing email"}), 400
+    if not isinstance(source, str):
+        source = "mi_site"
+    try:
+        from mi_mailing import subscribe as mi_subscribe
+
+        result = mi_subscribe(email, source=source.strip()[:80] or "mi_site")
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]}), 500
+    status = 200 if result.get("ok") else 400
+    return jsonify(result), status
+
+
 @app.route("/ai-decide", methods=["POST", "OPTIONS"])
 def ai_decide():
     """Same as /score but also trains and writes to Firestore. Use for game AI decisions so Pyx learns."""

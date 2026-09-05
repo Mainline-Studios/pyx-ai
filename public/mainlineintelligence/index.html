@@ -412,6 +412,20 @@
     .wait-status.ok { color: var(--deep); }
     .wait-status.bad { color: var(--bad); }
 
+    .joke {
+      margin: 0 0 1.25rem;
+      max-width: 42ch;
+      color: var(--deep);
+      font-weight: 600;
+      font-size: 0.98rem;
+      line-height: 1.45;
+    }
+
+    #mailing input[type="email"] {
+      width: min(100%, 28rem);
+      margin-bottom: 0.25rem;
+    }
+
     footer {
       margin-top: 3rem;
       padding-top: 1rem;
@@ -446,6 +460,7 @@
       <div class="links">
         <a href="#moderator">mi moderator</a>
         <a href="#coming">coming soon</a>
+        <a href="#mailing">mailing list</a>
         <a href="#devs">dev’s corner</a>
       </div>
       <div class="wash" aria-hidden="true"></div>
@@ -466,6 +481,17 @@
         <h3>mainline conversational intelligence (mci)</h3>
         <p>the industrial evolution of pyx — conversation engineered for serious work. deeper context, stronger reliability, and studio-grade dialogue for teams and products that need ai they can actually ship with.</p>
       </div>
+    </section>
+
+    <section id="mailing">
+      <h2>mi mailing list</h2>
+      <p>drop your email for mi updates — moderator tips, marii/mci drops, and the occasional “we shipped something weird.”</p>
+      <p class="joke">no, we won’t make it ads. we’ve already done enough crimes against your attention span.</p>
+      <label for="mailEmail">email</label>
+      <input id="mailEmail" type="email" placeholder="you@studio.dev" autocomplete="email" />
+      <button class="waitlist" type="button" id="mailJoinBtn">join the list →</button>
+      <p class="wait-status" id="mailStatus" aria-live="polite"></p>
+      <p class="hint">welcome mail comes from no-reply@pixelplaceofficial.com · replies hit support</p>
     </section>
 
     <section id="moderator">
@@ -569,15 +595,8 @@
       </ul>
 
       <div class="block" style="margin-top:2.25rem">
-        <h3>mci waitlist</h3>
-        <p>want early access to mainline conversational intelligence? email us and say what you’re building.</p>
-        <p>
-          <a class="dev-mail" href="mailto:support@pixelplaceofficial.com?subject=mci%20waitlist&body=hey%20mainline%20—%20i'd%20like%20to%20join%20the%20mci%20waitlist.%0A%0Awhat%20i'm%20building%3A%0A">support@pixelplaceofficial.com</a>
-        </p>
-        <label for="devEmail" style="margin-top:1.25rem">or drop your email and we’ll open mail for you</label>
-        <input id="devEmail" type="email" placeholder="you@studio.dev" autocomplete="email" />
-        <button class="waitlist" type="button" id="waitlistBtn">join mci waitlist →</button>
-        <p class="wait-status" id="waitStatus" aria-live="polite"></p>
+        <h3>mci / mi list</h3>
+        <p>want early peeks at mci and the rest of the wave? <a href="#mailing">join the mi mailing list</a> — same inbox, zero ad billboards.</p>
       </div>
     </section>
 
@@ -595,9 +614,9 @@
       var result = document.getElementById("result");
       var runCheck = document.getElementById("runCheck");
       var snippet = document.getElementById("snippet");
-      var waitlistBtn = document.getElementById("waitlistBtn");
-      var waitStatus = document.getElementById("waitStatus");
-      var devEmail = document.getElementById("devEmail");
+      var mailJoinBtn = document.getElementById("mailJoinBtn");
+      var mailStatus = document.getElementById("mailStatus");
+      var mailEmail = document.getElementById("mailEmail");
 
       function syncThreshold(from) {
         var v = Math.max(0, Math.min(1000, parseInt(from.value, 10) || 0));
@@ -675,17 +694,59 @@
         if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) check();
       });
 
-      waitlistBtn.addEventListener("click", function () {
-        var email = (devEmail.value || "").trim();
-        var subject = encodeURIComponent("mci waitlist");
-        var body = encodeURIComponent(
-          "hey mainline — i'd like to join the mci waitlist.\n\n" +
-            (email ? "email: " + email + "\n\n" : "") +
-            "what i'm building:\n"
-        );
-        waitStatus.className = "wait-status ok";
-        waitStatus.textContent = "opening mail to support@pixelplaceofficial.com…";
-        window.location.href = "mailto:support@pixelplaceofficial.com?subject=" + subject + "&body=" + body;
+      async function joinMailingList() {
+        var email = (mailEmail.value || "").trim();
+        if (!email || email.indexOf("@") < 1) {
+          mailStatus.className = "wait-status bad";
+          mailStatus.textContent = "need a real email first";
+          return;
+        }
+        mailStatus.className = "wait-status";
+        mailStatus.textContent = "joining…";
+        mailJoinBtn.disabled = true;
+        try {
+          var res = await fetch("/api/mi/mailing/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email, source: "mi_site" }),
+          });
+          var raw = await res.text();
+          var data = null;
+          try {
+            data = JSON.parse(raw);
+          } catch (e) {
+            if ((raw || "").trim().charAt(0) === "<") {
+              throw new Error("api unavailable right now (cloud run / billing). try again later.");
+            }
+            throw new Error("bad response (" + res.status + ")");
+          }
+          if (!res.ok || !data || !data.ok) {
+            throw new Error((data && data.error) || ("failed (" + res.status + ")"));
+          }
+          mailStatus.className = "wait-status ok";
+          if (data.mailed) {
+            mailStatus.textContent = data.already
+              ? "you’re already on the list — welcome mail resent"
+              : "you’re in — check your inbox (from no-reply@pixelplaceofficial.com)";
+          } else {
+            mailStatus.textContent = data.already
+              ? "you’re already on the list (welcome mail pending — smtp not live yet)"
+              : "you’re on the list (welcome mail pending — smtp not live yet)";
+          }
+        } catch (err) {
+          mailStatus.className = "wait-status bad";
+          mailStatus.textContent = String(err && err.message || err);
+        } finally {
+          mailJoinBtn.disabled = false;
+        }
+      }
+
+      mailJoinBtn.addEventListener("click", joinMailingList);
+      mailEmail.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          joinMailingList();
+        }
       });
 
       updateSnippet();
