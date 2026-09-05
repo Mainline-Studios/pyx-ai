@@ -1,0 +1,189 @@
+/**
+ * Calm Contrast — light field, charcoal mark, quiet S-curve.
+ * Loaded beside the main assistant sheet; only applies when data-theme matches.
+ */
+[data-theme="calm-contrast"] {
+  --bg: #f3f4f2;
+  --ink: #141618;
+  --muted: rgba(20, 22, 24, 0.56);
+  --glass: rgba(255, 255, 255, 0.82);
+  --line: rgba(20, 22, 24, 0.12);
+  --swirl-a: #141618;
+  --swirl-b: #2c3136;
+  --swirl-c: #6b7178;
+  --swirl-d: #e6e7e4;
+  --swirl-e: #ffffff;
+  --cc-ring: #141618;
+  --cc-paper: #fafaf8;
+}
+
+html[data-theme="calm-contrast"],
+[data-theme="calm-contrast"] body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+[data-theme="calm-contrast"] .swirl__canvas {
+  opacity: 0;
+}
+
+[data-theme="calm-contrast"] .swirl__veil {
+  background:
+    radial-gradient(circle at 50% 44%, rgba(255, 255, 255, 0.95) 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 80%, rgba(20, 22, 24, 0.06), transparent 55%),
+    var(--bg);
+}
+
+[data-theme="calm-contrast"] .topbar a,
+[data-theme="calm-contrast"] .icon-btn,
+[data-theme="calm-contrast"] .text-btn,
+[data-theme="calm-contrast"] .ghost {
+  background: var(--cc-paper);
+  box-shadow: 0 8px 24px rgba(20, 22, 24, 0.06);
+}
+
+[data-theme="calm-contrast"] .topbar a:hover,
+[data-theme="calm-contrast"] .icon-btn:hover,
+[data-theme="calm-contrast"] .text-btn:hover {
+  box-shadow: 0 10px 28px rgba(20, 22, 24, 0.1);
+}
+
+[data-theme="calm-contrast"] .brand-mark {
+  letter-spacing: 0.2em;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+[data-theme="calm-contrast"] .brand-sub {
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+
+[data-theme="calm-contrast"] .caption__reply {
+  font-weight: 620;
+  letter-spacing: -0.045em;
+}
+
+[data-theme="calm-contrast"] .orb__glow {
+  inset: -10%;
+  background: radial-gradient(circle at 50% 50%, rgba(20, 22, 24, 0.1), transparent 64%);
+  filter: blur(10px);
+  opacity: 1;
+  animation: none;
+}
+
+[data-theme="calm-contrast"] .orb__core {
+  background: var(--cc-paper);
+  box-shadow:
+    0 18px 44px rgba(20, 22, 24, 0.12),
+    inset 0 0 0 1px rgba(20, 22, 24, 0.04);
+}
+
+[data-theme="calm-contrast"] .orb__core::before {
+  inset: 0;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><path fill='none' stroke='%23141618' stroke-width='22' d='M100 19.5a80.5 80.5 0 1 1 0 161a80.5 80.5 0 1 1 0-161'/><path fill='none' stroke='%23141618' stroke-width='20' stroke-linecap='round' d='M40 100c24-54 52-54 60 0s36 54 60 0'/></svg>")
+    center / 86% 86% no-repeat;
+  filter: none;
+  opacity: 1;
+  animation: none;
+}
+
+[data-theme="calm-contrast"] .orb__core::after {
+  inset: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+[data-theme="calm-contrast"] .orb__ring {
+  inset: -2%;
+  border: 0;
+  box-shadow: none;
+}
+
+[data-theme="calm-contrast"] .orb.is-session .orb__ring {
+  box-shadow: 0 0 0 6px rgba(20, 22, 24, 0.06);
+}
+
+[data-theme="calm-contrast"] .orb[data-state="speak"] .orb__core {
+  animation: none;
+}
+
+[data-theme="calm-contrast"] .waves i {
+  background: var(--ink);
+}
+
+[data-theme="calm-contrast"] .field-sim {
+  background: var(--cc-paper);
+  box-shadow: 0 12px 32px rgba(20, 22, 24, 0.08);
+}
+
+[data-theme="calm-contrast"] .field-sim__grass {
+  background:
+    radial-gradient(circle at 50% 58%, rgba(20, 22, 24, 0.06), transparent 62%),
+    #e7ebe4;
+}
+
+[data-theme="calm-contrast"] .field-sim__dirt {
+  background: linear-gradient(135deg, #3a3530, #1c1a18);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="calm-contrast"] .field-sim__base {
+  background: rgba(20, 22, 24, 0.16);
+  box-shadow: 0 0 0 1px rgba(20, 22, 24, 0.12);
+}
+
+[data-theme="calm-contrast"] .field-sim__base.is-on {
+  background: var(--ink);
+  box-shadow: 0 0 0 1px rgba(20, 22, 24, 0.4);
+}
+
+[data-theme="calm-contrast"] .field-sim__mound {
+  text-shadow: none;
+}
+
+[data-theme="calm-contrast"] .field-sim__stat i {
+  background: rgba(20, 22, 24, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(20, 22, 24, 0.12);
+}
+
+[data-theme="calm-contrast"] .field-sim__stat i.is-on,
+[data-theme="calm-contrast"] .field-sim__stat[data-kind="strikes"] i.is-on,
+[data-theme="calm-contrast"] .field-sim__stat[data-kind="outs"] i.is-on {
+  background: var(--ink);
+  box-shadow: none;
+}
+
+[data-theme="calm-contrast"] .composer {
+  background: var(--cc-paper);
+  box-shadow: 0 16px 40px rgba(20, 22, 24, 0.1);
+}
+
+[data-theme="calm-contrast"] .send {
+  color: #f7f7f4;
+  background: var(--ink);
+}
+
+[data-theme="calm-contrast"] .sheet {
+  background: rgba(20, 22, 24, 0.28);
+}
+
+[data-theme="calm-contrast"] .sheet__card {
+  background: var(--cc-paper);
+  box-shadow: 0 -12px 48px rgba(20, 22, 24, 0.12);
+}
+
+[data-theme="calm-contrast"] .field select,
+[data-theme="calm-contrast"] .field input[type="url"],
+[data-theme="calm-contrast"] .field input[type="text"],
+[data-theme="calm-contrast"] .history li,
+[data-theme="calm-contrast"] .data-chip,
+[data-theme="calm-contrast"] .ghost {
+  background: #fff;
+}
+
+[data-theme="calm-contrast"] .toast {
+  background: var(--cc-paper);
+  color: var(--ink);
+}

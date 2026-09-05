@@ -7,7 +7,7 @@
 (function (root) {
   "use strict";
 
-  var THEMES = ["aurora", "blush", "mint", "twilight", "peach", "frost"];
+  var THEMES = ["aurora", "blush", "mint", "twilight", "peach", "frost", "calm-contrast"];
 
   var LANG_ALIASES = {
     english: "en",
@@ -63,7 +63,7 @@
     },
     {
       intent: "theme",
-      re: /\b(theme|tema|thème|テーマ|主题|switch to|change (the )?theme|use (the )?(aurora|blush|mint|twilight|peach|frost))\b/i,
+      re: /\b(theme|tema|thème|テーマ|主题|switch to|change (the )?theme|use (the )?(aurora|blush|mint|twilight|peach|frost|calm[\s-]?contrast))\b/i,
     },
     {
       intent: "language",
@@ -72,6 +72,10 @@
     {
       intent: "settings",
       re: /\b(open settings|show settings|ajustes|réglages|einstellungen|設定|设置)\b/i,
+    },
+    {
+      intent: "data",
+      re: /\b(show (my )?data|open data|what do you know about me|what have you learned|what you remember about me|my data)\b/i,
     },
     {
       intent: "clear",
@@ -125,6 +129,10 @@
       intent: "repeat",
       re: /\b(repeat that|say that again|what did you say)\b/i,
     },
+    {
+      intent: "sports",
+      re: /\b(mlb|nba|nfl|nhl|wnba|mls|soccer|baseball|football|basketball|hockey|batting average|\bops\b|\bera\b|standings|scoreboard|home runs?|how('s| is) \w+ (hitting|doing|pitching)|vs\.? \w+)\b/i,
+    },
   ];
 
   var GOLDEN = [
@@ -138,8 +146,10 @@
     { text: "what's the weather in austin", intent: "weather" },
     { text: "switch to mint", intent: "theme" },
     { text: "change the theme to blush", intent: "theme" },
+    { text: "switch to calm contrast", intent: "theme" },
     { text: "speak Spanish", intent: "language" },
     { text: "open settings", intent: "settings" },
+    { text: "show my data", intent: "data" },
     { text: "clear conversation", intent: "clear" },
     { text: "open pyx talk", intent: "open_talk" },
     { text: "open studio", intent: "open_studio" },
@@ -152,6 +162,9 @@
     { text: "fun fact", intent: "fact" },
     { text: "tell me a riddle", intent: "riddle" },
     { text: "inspire me", intent: "quote" },
+    { text: "how's Ohtani doing", intent: "sports" },
+    { text: "mlb scores", intent: "sports" },
+    { text: "nba scores", intent: "sports" },
     { text: "compliment me", intent: "compliment" },
     { text: "say that again", intent: "repeat" },
     { text: "goodbye", intent: "farewell" },
@@ -167,6 +180,7 @@
 
   function extractTheme(text) {
     var n = normalize(text).toLowerCase();
+    if (/\bcalm[\s-]+contrast\b/.test(n) || /\bcalmcontrast\b/.test(n)) return "calm-contrast";
     var i;
     for (i = 0; i < THEMES.length; i++) {
       if (n.indexOf(THEMES[i]) !== -1) return THEMES[i];
@@ -300,7 +314,7 @@
       case "theme":
         if (result.slots.theme) {
           out.action = { type: "theme", theme: result.slots.theme };
-          out.reply = (t ? t(lang, "themeSet") : "Theme set to") + " " + result.slots.theme + ".";
+          out.reply = (t ? t(lang, "themeSet") : "Theme set to") + " " + String(result.slots.theme).replace(/-/g, " ") + ".";
         } else {
           out.action = { type: "settings" };
           out.reply = t ? t(lang, "help") : "Pick a theme in settings.";
@@ -318,6 +332,10 @@
       case "settings":
         out.action = { type: "settings" };
         out.reply = t ? t(lang, "settings") : "Settings";
+        return out;
+      case "data":
+        out.action = { type: "data" };
+        out.reply = t ? t(lang, "dataOpen") : "Here’s what I remember about you.";
         return out;
       case "clear":
         out.action = { type: "clear" };
@@ -370,6 +388,8 @@
         return out;
       case "repeat":
         out.special = "__REPEAT__";
+        return out;
+      case "sports":
         return out;
       case "chat":
         return out;

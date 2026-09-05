@@ -9,6 +9,9 @@
   var i18n = window.PyxAssistantI18n;
   var math = window.PyxAssistantMath;
   var kb = window.PyxAssistantKB;
+  var learn = window.PyxAssistantLearn;
+  var cookies = window.PyxAssistantCookies;
+  var sports = window.PyxAssistantSports;
   var voice = null;
 
   var state = {
@@ -26,6 +29,11 @@
 
   var els = {};
   var swirlRaf = 0;
+  var swirlClock = 0;
+  var swirlLast = 0;
+  var swirlBurstStart = 0;
+  var swirlBurstDur = 0;
+  var swirlReduced = false;
   var handleInFlight = false;
 
   function t(key) {
@@ -34,6 +42,12 @@
 
   function load() {
     try {
+      if (cookies) {
+        var packed = cookies.loadModel();
+        if (packed && learn) learn.unpack(packed);
+        var fromCookies = cookies.loadChats();
+        if (fromCookies.length) state.messages = fromCookies;
+      }
       var raw = localStorage.getItem(STORE_KEY);
       if (!raw) return;
       var o = JSON.parse(raw);
@@ -45,12 +59,16 @@
       }
       if (typeof o.slack === "string") state.slack = o.slack;
       if (typeof o.discord === "string") state.discord = o.discord;
-      if (Array.isArray(o.messages)) state.messages = o.messages.slice(-40);
+      if (!state.messages.length && Array.isArray(o.messages)) state.messages = o.messages.slice(-40);
     } catch (e) {}
   }
 
   function save() {
     try {
+      if (cookies) {
+        cookies.saveChats(state.messages);
+        if (learn) cookies.saveModel(learn.pack());
+      }
       localStorage.setItem(
         STORE_KEY,
         JSON.stringify({
@@ -60,7 +78,6 @@
           voiceId: state.voiceId,
           slack: state.slack,
           discord: state.discord,
-          messages: state.messages.slice(-40),
         })
       );
     } catch (e) {}
@@ -81,6 +98,89 @@
     toast._t = setTimeout(function () {
       els.toast.classList.remove("is-on");
     }, 2200);
+  }
+
+  function shortName(full) {
+    var parts = String(full || "").trim().split(/\s+/);
+    if (!parts.length) return "";
+    if (parts.length > 1 && /^jr\.?$/i.test(parts[parts.length - 1])) return parts.slice(-2).join(" ");
+    return parts[parts.length - 1];
+  }
+
+  function fieldNode(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text) n.textContent = text;
+    return n;
+  }
+
+  function countDots(kind, label, max, filled) {
+    var wrap = fieldNode("span", "field-sim__stat");
+    wrap.setAttribute("data-kind", kind);
+    wrap.appendChild(fieldNode("em", "", label));
+    var i;
+    var n = Math.max(0, Number(filled) || 0);
+    for (i = 0; i < max; i++) {
+      var dot = fieldNode("i", i < n ? "is-on" : "");
+      wrap.appendChild(dot);
+    }
+    return wrap;
+  }
+
+  function paintField(board) {
+    if (!els.field) return;
+    els.field.innerHTML = "";
+    if (!board || board.kind !== "mlb-field" || !board.live) {
+      els.field.hidden = true;
+      document.body.classList.remove("has-field");
+      return;
+    }
+    document.body.classList.add("has-field");
+    els.field.hidden = false;
+    var inning = [board.inningState, board.inning].filter(Boolean).join(" ");
+    var score = board.away + " " + board.awayScore + " · " + board.home + " " + board.homeScore;
+    els.field.setAttribute(
+      "aria-label",
+      score +
+        (inning ? ", " + inning : "") +
+        ". " +
+        (board.pitcher ? board.pitcher + " pitching" : "Pitcher") +
+        (board.batter ? " to " + board.batter : "") +
+        ". " +
+        board.balls +
+        "-" +
+        board.strikes +
+        " count, " +
+        board.outs +
+        " out" +
+        (board.outs === 1 ? "" : "s") +
+        "."
+    );
+    els.field.appendChild(fieldNode("p", "field-sim__score", score));
+    if (inning) els.field.appendChild(fieldNode("p", "field-sim__inning", inning));
+    var diamond = fieldNode("div", "field-sim__diamond");
+    diamond.appendChild(fieldNode("div", "field-sim__grass"));
+    diamond.appendChild(fieldNode("div", "field-sim__dirt"));
+    ["2", "3", "1", "h"].forEach(function (spot) {
+      var base = fieldNode("span", "field-sim__base is-" + spot);
+      var on = (spot === "1" && board.first) || (spot === "2" && board.second) || (spot === "3" && board.third);
+      if (on) base.classList.add("is-on");
+      diamond.appendChild(base);
+    });
+    var mound = fieldNode("span", "field-sim__mound");
+    mound.appendChild(fieldNode("b", "", "P"));
+    mound.appendChild(document.createTextNode(shortName(board.pitcher) || "Pitcher"));
+    diamond.appendChild(mound);
+    var plate = fieldNode("span", "field-sim__plate");
+    plate.appendChild(fieldNode("b", "", "B"));
+    plate.appendChild(document.createTextNode(shortName(board.batter) || "Batter"));
+    diamond.appendChild(plate);
+    els.field.appendChild(diamond);
+    var count = fieldNode("div", "field-sim__count");
+    count.appendChild(countDots("balls", "B", 3, board.balls));
+    count.appendChild(countDots("strikes", "S", 2, board.strikes));
+    count.appendChild(countDots("outs", "O", 3, board.outs));
+    els.field.appendChild(count);
   }
 
   function setUi(mode, extra) {
@@ -120,6 +220,14 @@
     els.send.textContent = t("send");
     els.settingsTitle.textContent = t("settings");
     els.historyTitle.textContent = t("history");
+    if (els.dataTitle) els.dataTitle.textContent = t("dataTitle");
+    if (els.dataBtn) {
+      els.dataBtn.textContent = t("data");
+      els.dataBtn.setAttribute("aria-label", t("data"));
+      els.dataBtn.setAttribute("title", t("data"));
+    }
+    if (els.openData) els.openData.textContent = t("dataSee");
+    if (els.dataForgetBtn) els.dataForgetBtn.textContent = t("forgetMe");
     els.themeLabel.textContent = t("theme");
     els.langLabel.textContent = t("language");
     els.voiceLabel.textContent = t("voiceReplies");
@@ -130,12 +238,15 @@
     els.sendDiscord.textContent = t("sendDiscord");
     if (els.openTalk) els.openTalk.textContent = t("stayLocal");
     els.clearBtn.textContent = t("clear");
+    if (els.forgetBtn) els.forgetBtn.textContent = t("forgetMe");
     if (!state.messages.length) {
-      els.reply.textContent = t("greeting");
+      els.reply.textContent = learn ? learn.greeting(t("greeting")) : t("greeting");
       els.userLine.textContent = "";
       els.status.textContent = t("hint");
+      paintField(null);
     }
     renderHistory();
+    renderData();
   }
 
   function renderHistory() {
@@ -238,10 +349,16 @@
       case "settings":
         openSheet(els.settingsSheet);
         return;
+      case "data":
+        renderData();
+        openSheet(els.dataSheet);
+        return;
       case "clear":
         state.messages = [];
+        paintField(null);
         save();
         renderHistory();
+        paintChrome();
         return;
       case "open_talk":
         toast(t("stayLocal"));
@@ -281,22 +398,69 @@
     }
   }
 
-  function localReply(text) {
+  async function localReply(text) {
+    if (sports && sports.clearBoard) sports.clearBoard();
+    if (learn) {
+      var fb = learn.observeFeedback(text);
+      var extracted = learn.ingest(text);
+      if (extracted.reply) {
+        if (extracted.kind) learn.observe(text, extracted.kind);
+        if (/\b(what(?:'s| is) my name|who am i|do you know me|what do i like)\b/i.test(text)) {
+          renderData();
+          openSheet(els.dataSheet);
+        }
+        return learn.flavor(extracted.reply);
+      }
+      if (fb === "pos" && kb && learn.profile.lastKind === "joke") {
+        return learn.flavor(kb.expandSpecial("__JOKE__"));
+      }
+    }
     if (math && math.looksMath(text)) {
       var solved = math.answer(text);
-      if (solved) return solved.reply;
+      if (learn) learn.observe(text, "math");
+      if (solved) return learn ? learn.flavor(solved.reply) : solved.reply;
       return "I couldn’t parse that as math. Try 15% of 80, 9 times 8, or 32 F to C.";
     }
     var understood = slu.classify(text);
     var resolved = slu.resolve(understood, { lang: state.lang, t: i18n.t });
     runAction(resolved.action);
     if (resolved.action && resolved.action.type === "clear") return resolved.reply;
-    if (resolved.special && kb) return kb.expandSpecial(resolved.special);
-    if (resolved.reply) return resolved.reply;
+    if (understood.intent === "greet") {
+      var g = learn ? learn.greeting(resolved.reply) : resolved.reply;
+      if (learn) learn.observe(text, "talk");
+      return g;
+    }
+    var kind = learn ? learn.kindFromIntent(understood.intent, null) : "talk";
+    if (resolved.special && kb) {
+      if (learn) learn.observe(text, kind);
+      return learn ? learn.flavor(kb.expandSpecial(resolved.special)) : kb.expandSpecial(resolved.special);
+    }
+    if (resolved.reply) {
+      if (learn) learn.observe(text, kind);
+      return learn ? learn.flavor(resolved.reply) : resolved.reply;
+    }
+    if (sports && (understood.intent === "sports" || sports.looksSports(text))) {
+      try {
+        var sportReply = await sports.answer(text);
+        if (sportReply) {
+          if (learn) learn.observe(text, "talk");
+          return learn ? learn.flavor(sportReply) : sportReply;
+        }
+      } catch (err) {
+        return "I couldn’t reach live sports just now. Try me again in a second. =)";
+      }
+    }
     if (kb) {
-      var hit = kb.retrieve(text, 0.62);
-      if (hit) return hit.reply;
-      return kb.warmFallback(text);
+      var priors = learn ? learn.priorsFor(text) : {};
+      var likes = learn ? learn.profile.likes : [];
+      var hit = kb.retrieve(text, 0.62, priors, likes);
+      if (hit) {
+        var recKind = kb.family ? kb.family(hit.rec.kind) : hit.rec.kind;
+        if (learn) learn.observe(text, learn.kindFromIntent(understood.intent, recKind));
+        return learn ? learn.flavor(hit.reply) : hit.reply;
+      }
+      if (learn) learn.observe(text, "talk");
+      return learn ? learn.flavor(kb.warmFallback(text)) : kb.warmFallback(text);
     }
     return t("identity");
   }
@@ -306,9 +470,10 @@
     if (!text || handleInFlight) return;
     handleInFlight = true;
     els.userLine.textContent = text;
+    kickSwirl();
     setUi("think");
     try {
-      var reply = localReply(text);
+      var reply = await localReply(text);
       if (reply == null) reply = "";
       if (kb) kb.remember(reply);
       if (!(slu.classify(text).intent === "clear")) {
@@ -316,8 +481,11 @@
         if (reply) state.messages.push({ role: "assistant", content: reply });
       }
       els.reply.textContent = reply || t("greeting");
+      paintField(sports && sports.board);
       save();
       renderHistory();
+      renderData();
+      refreshKbMeta();
       if (state.voice) speak(reply);
       else setUi(state.session ? "listen" : "idle");
     } finally {
@@ -362,10 +530,143 @@
   }
 
   function closeSheets() {
-    [els.settingsSheet, els.historySheet].forEach(function (s) {
+    [els.settingsSheet, els.historySheet, els.dataSheet].forEach(function (s) {
+      if (!s) return;
       s.classList.remove("is-open");
       s.setAttribute("aria-hidden", "true");
     });
+  }
+
+  function node(tag, className, text) {
+    var n = document.createElement(tag);
+    if (className) n.className = className;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function fillCount(key, n) {
+    return t(key).replace("{n}", String(n));
+  }
+
+  function chips(items, emptyText) {
+    if (!items.length) return node("p", "data-value is-empty", emptyText);
+    var wrap = node("div", "data-chips");
+    items.forEach(function (item) {
+      wrap.appendChild(node("span", "data-chip", item));
+    });
+    return wrap;
+  }
+
+  function block(title, child) {
+    var sec = node("section", "data-block");
+    sec.appendChild(node("h3", "", title));
+    sec.appendChild(child);
+    return sec;
+  }
+
+  function renderData() {
+    if (!els.dataBody) return;
+    els.dataBody.innerHTML = "";
+    els.dataBody.appendChild(node("p", "data-note", t("dataIntro")));
+    var info = learn
+      ? learn.explain()
+      : {
+          name: "",
+          likes: [],
+          dislikes: [],
+          seen: 0,
+          lastLabel: "",
+          tastes: [],
+          patterned: false,
+          known: false,
+        };
+
+    if (!info.known && !state.messages.length) {
+      els.dataBody.appendChild(node("p", "data-value is-empty", t("dataEmpty")));
+    }
+
+    var about = node("div");
+    about.appendChild(node("p", info.name ? "data-value" : "data-value is-empty", info.name || t("dataNameNone")));
+    els.dataBody.appendChild(block(t("dataName"), about.firstChild));
+    els.dataBody.appendChild(block(t("dataLikes"), chips(info.likes, t("dataLikesNone"))));
+    els.dataBody.appendChild(block(t("dataDislikes"), chips(info.dislikes, t("dataDislikesNone"))));
+
+    var tasteWrap = node("div");
+    tasteWrap.appendChild(node("p", "data-note", t("dataTastesHint")));
+    if (!info.patterned) {
+      tasteWrap.appendChild(node("p", "data-value is-empty", t("dataTastesNone")));
+    } else {
+      info.tastes.forEach(function (row) {
+        var item = node("div", "data-taste");
+        var rowEl = node("div", "data-taste__row");
+        rowEl.appendChild(node("span", "data-taste__name", t("taste_" + row.id)));
+        rowEl.appendChild(node("span", "data-taste__amt", t("tasteAmt_" + row.amount)));
+        item.appendChild(rowEl);
+        var track = node("div", "data-taste__track");
+        var fill = node("div", "data-taste__fill");
+        fill.style.width = row.bar + "%";
+        track.appendChild(fill);
+        item.appendChild(track);
+        tasteWrap.appendChild(item);
+      });
+    }
+    els.dataBody.appendChild(block(t("dataTastes"), tasteWrap));
+
+    if (info.seen) {
+      els.dataBody.appendChild(block(t("dataLast"), node("p", "data-value", t("taste_" + info.lastKind) || info.lastLabel)));
+      els.dataBody.appendChild(block(t("dataTurns"), node("p", "data-value", fillCount("dataTurnsBody", info.seen))));
+    }
+
+    var chatWrap = node("div");
+    if (!state.messages.length) {
+      chatWrap.appendChild(node("p", "data-value is-empty", t("dataChatsNone")));
+    } else {
+      chatWrap.appendChild(node("p", "data-note", fillCount("dataChatsBody", state.messages.length)));
+      var list = node("ul", "data-chats");
+      state.messages.slice(-24).forEach(function (m) {
+        var li = node("li");
+        li.appendChild(node("span", "role", m.role === "user" ? t("dataYou") : t("dataPyx")));
+        li.appendChild(document.createTextNode(m.content));
+        list.appendChild(li);
+      });
+      chatWrap.appendChild(list);
+    }
+    els.dataBody.appendChild(block(t("dataChats"), chatWrap));
+
+    var setup = node("ul", "data-setup");
+    var loc = (i18n.LOCALES[state.lang] && i18n.LOCALES[state.lang].label) || state.lang;
+    var voiceName = state.voiceId;
+    if (els.mode && els.mode.selectedIndex >= 0 && els.mode.options[els.mode.selectedIndex]) {
+      voiceName = els.mode.options[els.mode.selectedIndex].textContent;
+    }
+    setup.appendChild(node("li", "", t("dataLook") + ": " + state.theme));
+    setup.appendChild(node("li", "", t("language") + ": " + loc));
+    setup.appendChild(node("li", "", state.voice ? t("dataSpeakOn") : t("dataSpeakOff")));
+    setup.appendChild(node("li", "", t("voiceName") + ": " + voiceName));
+    if (state.slack) setup.appendChild(node("li", "", "Slack: saved on this device (link hidden)."));
+    if (state.discord) setup.appendChild(node("li", "", "Discord: saved on this device (link hidden)."));
+    els.dataBody.appendChild(block(t("dataSetup"), setup));
+    els.dataBody.appendChild(block(t("dataWhere"), node("p", "data-note", t("dataWhereBody"))));
+  }
+
+  function forgetMe() {
+    if (learn) learn.reset();
+    if (sports && sports.reset) sports.reset();
+    state.messages = [];
+    paintField(null);
+    if (cookies) cookies.clearAll();
+    save();
+    renderHistory();
+    renderData();
+    paintChrome();
+    refreshKbMeta();
+    closeSheets();
+    toast(t("forgotten"));
+  }
+
+  function openDataSheet() {
+    renderData();
+    openSheet(els.dataSheet);
   }
 
   function paintLangOptions() {
@@ -384,7 +685,7 @@
     slu.THEMES.forEach(function (name) {
       var opt = document.createElement("option");
       opt.value = name;
-      opt.textContent = name;
+      opt.textContent = name === "calm-contrast" ? "calm contrast" : name;
       els.theme.appendChild(opt);
     });
     els.theme.value = state.theme;
@@ -406,6 +707,22 @@
       els.mode.appendChild(opt);
     });
     els.mode.value = state.voiceId;
+  }
+
+  function swirlSpeed(now) {
+    if (!swirlBurstDur) return 1;
+    var u = (now - swirlBurstStart) / swirlBurstDur;
+    if (u >= 1 || u < 0) {
+      swirlBurstDur = 0;
+      return 1;
+    }
+    return 1 + 12 * Math.pow(1 - u, 1.35);
+  }
+
+  function kickSwirl() {
+    if (swirlReduced) return;
+    swirlBurstStart = performance.now();
+    swirlBurstDur = 500 + Math.random() * 1000;
   }
 
   function startSwirl(canvas) {
@@ -432,15 +749,20 @@
       ];
     }
     function frame(ts) {
+      var dt = swirlLast ? Math.min(48, ts - swirlLast) : 16;
+      swirlLast = ts;
+      var speed = swirlSpeed(ts);
+      swirlClock += dt * speed;
+      var amp = 0.08 + 0.06 * Math.min(1, (speed - 1) / 12);
       var w = canvas.width;
       var h = canvas.height;
       var cols = colors();
       ctx.clearRect(0, 0, w, h);
       ctx.globalCompositeOperation = "lighter";
       blobs.forEach(function (b, i) {
-        var px = (b.x + Math.sin(ts * b.s + b.a) * 0.08) * w;
-        var py = (b.y + Math.cos(ts * b.s * 1.15 + b.a) * 0.07) * h;
-        var rad = b.r * Math.min(w, h);
+        var px = (b.x + Math.sin(swirlClock * b.s + b.a) * amp) * w;
+        var py = (b.y + Math.cos(swirlClock * b.s * 1.15 + b.a) * (amp * 0.88)) * h;
+        var rad = b.r * Math.min(w, h) * (1 + 0.08 * Math.min(1, (speed - 1) / 12));
         var g = ctx.createRadialGradient(px, py, 0, px, py, rad);
         g.addColorStop(0, cols[i]);
         g.addColorStop(1, "rgba(0,0,0,0)");
@@ -451,7 +773,8 @@
       });
       swirlRaf = requestAnimationFrame(frame);
     }
-    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    swirlReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!swirlReduced) {
       swirlRaf = requestAnimationFrame(frame);
     } else {
       frame(0);
@@ -504,10 +827,14 @@
     els.historyBtn.addEventListener("click", function () {
       openSheet(els.historySheet);
     });
+    if (els.dataBtn) {
+      els.dataBtn.addEventListener("click", openDataSheet);
+    }
     document.querySelectorAll("[data-close-sheet]").forEach(function (btn) {
       btn.addEventListener("click", closeSheets);
     });
-    [els.settingsSheet, els.historySheet].forEach(function (sheet) {
+    [els.settingsSheet, els.historySheet, els.dataSheet].forEach(function (sheet) {
+      if (!sheet) return;
       sheet.addEventListener("click", function (ev) {
         if (ev.target === sheet) closeSheets();
       });
@@ -546,13 +873,41 @@
         toast(t("stayLocal"));
       });
     }
+    if (els.openData) {
+      els.openData.addEventListener("click", function () {
+        closeSheets();
+        openDataSheet();
+      });
+    }
     els.clearBtn.addEventListener("click", function () {
       runAction({ type: "clear" });
       toast(t("cleared"));
     });
+    if (els.forgetBtn) {
+      els.forgetBtn.addEventListener("click", forgetMe);
+    }
+    if (els.dataForgetBtn) {
+      els.dataForgetBtn.addEventListener("click", forgetMe);
+    }
     document.addEventListener("keydown", function (ev) {
       if (ev.key === "Escape") closeSheets();
     });
+  }
+
+  function memoryCaption() {
+    if (!learn) return "";
+    if (learn.profile.name) return " · remembers " + learn.profile.name;
+    if (learn.profile.likes.length) return " · learning what you like";
+    if (learn.profile.seen >= 3) return " · learning your taste";
+    return "";
+  }
+
+  function refreshKbMeta() {
+    if (!els.kbMeta) return;
+    var base = els.kbMeta.getAttribute("data-base");
+    if (!base) return;
+    var voiceBit = els.kbMeta.getAttribute("data-voice") || "";
+    els.kbMeta.textContent = base + memoryCaption() + (voiceBit ? " · " + voiceBit : "");
   }
 
   async function bootKnowledge() {
@@ -561,9 +916,9 @@
     var n = kb.load(data);
     if (els.kbMeta) {
       els.kbMeta.hidden = false;
-      var line = n.toLocaleString() + " local replies · neural British voice";
-      els.kbMeta.textContent = line;
-      els.kbMeta.setAttribute("data-base", n.toLocaleString() + " local replies");
+      els.kbMeta.setAttribute("data-base", n.toLocaleString() + " local replies · live sports");
+      els.kbMeta.setAttribute("data-voice", "neural British voice");
+      refreshKbMeta();
     }
     return n;
   }
@@ -576,9 +931,8 @@
     paintVoiceOptions();
     voice.warmup(function (msg) {
       if (els.kbMeta && els.kbMeta.hidden === false) {
-        var base = els.kbMeta.getAttribute("data-base") || els.kbMeta.textContent;
-        els.kbMeta.setAttribute("data-base", base.split(" · ")[0]);
-        els.kbMeta.textContent = els.kbMeta.getAttribute("data-base") + " · " + msg;
+        els.kbMeta.setAttribute("data-voice", msg);
+        refreshKbMeta();
       }
     }).then(function () {
       paintVoiceOptions();
@@ -598,10 +952,16 @@
       back: document.getElementById("backLink"),
       settingsBtn: document.getElementById("settingsBtn"),
       historyBtn: document.getElementById("historyBtn"),
+      dataBtn: document.getElementById("dataBtn"),
       settingsSheet: document.getElementById("settingsSheet"),
       historySheet: document.getElementById("historySheet"),
+      dataSheet: document.getElementById("dataSheet"),
       settingsTitle: document.getElementById("settingsTitle"),
       historyTitle: document.getElementById("historyTitle"),
+      dataTitle: document.getElementById("dataTitle"),
+      dataBody: document.getElementById("dataBody"),
+      openData: document.getElementById("openData"),
+      dataForgetBtn: document.getElementById("dataForgetBtn"),
       theme: document.getElementById("theme"),
       lang: document.getElementById("lang"),
       voice: document.getElementById("voice"),
@@ -618,9 +978,11 @@
       sendDiscord: document.getElementById("sendDiscord"),
       openTalk: document.getElementById("openTalk"),
       clearBtn: document.getElementById("clearBtn"),
+      forgetBtn: document.getElementById("forgetBtn"),
       history: document.getElementById("historyList"),
       toast: document.getElementById("toast"),
       kbMeta: document.getElementById("kbMeta"),
+      field: document.getElementById("fieldSim"),
     };
     load();
     applyTheme(state.theme);

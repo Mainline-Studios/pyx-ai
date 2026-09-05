@@ -125,8 +125,21 @@
     return s;
   }
 
-  function retrieve(query, minScore) {
+  function family(kind) {
+    var k = String(kind || "");
+    if (k.indexOf("joke") === 0) return "joke";
+    if (k.indexOf("fact") === 0 || k === "define") return "fact";
+    if (k.indexOf("trivia") === 0) return "trivia";
+    if (k.indexOf("riddle") === 0) return "riddle";
+    if (k.indexOf("quote") === 0) return "quote";
+    if (k === "howto") return "howto";
+    return "talk";
+  }
+
+  function retrieve(query, minScore, priors, likes) {
     minScore = minScore == null ? 0.55 : minScore;
+    priors = priors || {};
+    likes = likes || [];
     var qt = tokens(query);
     var candidates = [];
     var seen = {};
@@ -141,6 +154,15 @@
     var bestScore = 0;
     candidates.forEach(function (rec) {
       var s = score(query, rec);
+      var fam = family(rec.kind);
+      if (priors[fam]) s += priors[fam] * 0.45;
+      if (likes.length) {
+        var blob = (rec.q + " " + (rec.tags || []).join(" ")).toLowerCase();
+        likes.forEach(function (like) {
+          var L = String(like || "").toLowerCase().trim();
+          if (L.length > 2 && blob.indexOf(L) !== -1) s += 0.4;
+        });
+      }
       if (s > bestScore) {
         bestScore = s;
         best = rec;
@@ -178,6 +200,7 @@
   var api = {
     load: load,
     retrieve: retrieve,
+    family: family,
     expandSpecial: expandSpecial,
     pickUnused: pickUnused,
     warmFallback: warmFallback,

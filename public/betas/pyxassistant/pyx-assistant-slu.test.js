@@ -41,6 +41,8 @@ assert(math.answer("32 f to c").value === 0, "32 F → 0 C");
 assert(math.answer("5 km to miles").value > 3 && math.answer("5 km to miles").value < 3.2, "5 km → miles");
 assert(math.looksMath("what's 12 times 4") === true, "looksMath times");
 assert(slu.extractTheme("switch to mint") === "mint", "theme slot mint");
+assert(slu.extractTheme("switch to calm contrast") === "calm-contrast", "theme slot calm contrast");
+assert(slu.classify("switch to calm contrast").intent === "theme", "slu: calm contrast → theme");
 assert(slu.extractLang("speak Spanish") === "es", "language slot es");
 
 var resolved = slu.resolve(slu.classify("what time is it"), { lang: "en", t: i18n.t });
@@ -74,6 +76,159 @@ assert(kb.warmFallback("write a haiku about rain").length > 20, "unmatched still
 assert(i18n.t("en", "name") === "Pyx Assistant", "product name is Pyx Assistant");
 assert(i18n.t("es", "name") === "Pyx Assistant", "name stays Pyx Assistant in ES");
 assert(/on-device|local notebook|no cloud/i.test(i18n.t("en", "identity")), "identity says on-device");
+
+var learn = require("./pyx-assistant-learn.js");
+var cookies = require("./pyx-assistant-cookies.js");
+
+learn.reset();
+var beforeJoke = learn.predict("tell me a joke").joke;
+var i;
+for (i = 0; i < 10; i++) learn.observe("tell me a joke", "joke");
+assert(learn.predict("tell me a joke").joke > beforeJoke, "softmax learns joke preference");
+assert(learn.kindFromIntent("calculator") === "math", "calculator maps to math class");
+assert(learn.kindFromIntent("settings") === "talk", "settings maps to talk");
+
+learn.reset();
+var named = learn.ingest("my name is Brennan");
+assert(learn.profile.name === "Brennan", "ingest name");
+assert(/Brennan/.test(named.reply), "name confirmation");
+learn.ingest("I like otters");
+assert(learn.profile.likes[0] && /otter/i.test(learn.profile.likes[0]), "ingest likes");
+learn.ingest("I hate riddles");
+assert(learn.profile.dislikes.length >= 1, "ingest dislikes");
+assert(/Brennan|otter/i.test(learn.summary()), "summary includes profile");
+assert(/Brennan/.test(learn.greeting("Hi")), "greeting uses name");
+
+var snap = learn.pack();
+learn.reset();
+assert(learn.profile.name === "", "reset clears name");
+learn.unpack(snap);
+assert(learn.profile.name === "Brennan", "unpack restores name");
+assert(learn.profile.likes.length >= 1, "unpack restores likes");
+
+var compact = cookies.compactMessages([
+  { role: "user", content: "hi there" },
+  { role: "assistant", content: "hello Brennan" },
+  { role: "system", content: "skip me" },
+]);
+assert(compact.length === 2 && compact[0][0] === "u" && compact[1][0] === "a", "compact chats");
+var expanded = cookies.expandMessages(compact);
+assert(expanded[0].role === "user" && expanded[1].content === "hello Brennan", "expand chats");
+assert(cookies.loadChats().length === 0, "loadChats is empty without document.cookie");
+assert(cookies.loadModel() === null, "loadModel is null without document.cookie");
+
+global.document = (function () {
+  var store = {};
+  return {
+    get cookie() {
+      return Object.keys(store)
+        .filter(function (k) {
+          return store[k];
+        })
+        .map(function (k) {
+          return k + "=" + store[k];
+        })
+        .join("; ");
+    },
+    set cookie(s) {
+      var nv = String(s).split(";")[0];
+      var cut = nv.indexOf("=");
+      var name = nv.slice(0, cut);
+      var val = nv.slice(cut + 1);
+      if (/max-age=0/.test(s)) store[name] = "";
+      else store[name] = val;
+    },
+  };
+})();
+cookies.saveChats([
+  { role: "user", content: "hello cookie" },
+  { role: "assistant", content: "saved" },
+]);
+var fromCookie = cookies.loadChats();
+assert(fromCookie.length === 2 && fromCookie[0].content === "hello cookie", "cookie roundtrip chats");
+cookies.saveModel(learn.pack());
+var ml = cookies.loadModel();
+assert(ml && ml.v === 1 && ml.n === "Brennan", "cookie roundtrip model");
+cookies.clearAll();
+assert(cookies.loadChats().length === 0 && cookies.loadModel() === null, "clearAll wipes cookies");
+
+kb.load(data);
+var boosted = kb.retrieve("tell me something interesting", 0.2, { fact: 1 }, ["otters"]);
+assert(boosted && boosted.rec, "retrieve still works with priors and likes");
+assert(kb.family("joke_prompt") === "joke", "family maps joke_prompt");
+assert(kb.family("define") === "fact", "family maps define to fact");
+assert(i18n.t("en", "forgetMe").indexOf("Forget") !== -1, "forget-me string exists");
+assert(slu.classify("show my data").intent === "data", "show my data → data");
+assert(slu.resolve(slu.classify("show my data"), { lang: "en", t: i18n.t }).action.type === "data", "data intent opens Data");
+assert(i18n.t("en", "dataTitle").indexOf("know") !== -1, "data title is plain language");
+
+learn.reset();
+var blank = learn.explain();
+assert(blank.known === false && blank.patterned === false, "explain empty profile");
+learn.ingest("my name is Brennan");
+learn.ingest("I like otters");
+var i2;
+for (i2 = 0; i2 < 12; i2++) learn.observe("tell me a joke", "joke");
+var report = learn.explain();
+assert(report.name === "Brennan", "explain includes name");
+assert(report.likes.length >= 1, "explain includes likes");
+assert(report.patterned === true, "explain sees a taste pattern after jokes");
+assert(report.tastes[0].id === "joke", "joke ranks first after joke observes");
+assert(typeof report.tastes[0].amount === "string", "taste amount is a plain word");
+assert(learn.kindFromIntent("data") === "talk", "data intent maps to talk class");
+
+var sports = require("./pyx-assistant-sports.js");
+assert(sports.looksSports("how's Ohtani doing") === true, "Ohtani looks like sports");
+assert(sports.looksSports("tell me about gravity") === false, "gravity is not sports");
+assert(sports.looksSports("hello") === false, "hello is not sports");
+assert(sports.parse("Cubs score").kind === "scores", "Cubs score → scores");
+assert(sports.parse("Cubs standings").kind === "standings", "Cubs standings");
+assert(sports.parse("Judge vs Soto").kind === "compare", "Judge vs Soto → compare");
+assert(sports.parse("nba scores").kind === "scores", "nba scores → scores");
+assert(sports.parse("nba scores").league === "nba", "nba scores → nba league");
+assert(sports.parse("nfl scores").league === "nfl", "nfl scores → nfl");
+assert(sports.parse("how's LeBron doing").league === "nba", "LeBron → nba");
+assert(sports.looksSports("nba scores") === true, "nba scores looks like sports");
+assert(sports.looksSports("how's lebron doing") === true, "lebron looks like sports");
+assert(sports.detectLeague("lakers score") === "nba", "lakers → nba");
+assert(sports.detectLeague("Cubs score") === "mlb", "Cubs stay mlb");
+var fakeLive = {
+  status: { detailedState: "In Progress", abstractGameState: "Live" },
+  teams: {
+    away: { score: 1, team: { teamName: "Giants", name: "San Francisco Giants" } },
+    home: { score: 0, team: { teamName: "Mets", name: "New York Mets" } },
+  },
+  linescore: {
+    balls: 2,
+    strikes: 1,
+    outs: 1,
+    inningState: "Bottom",
+    currentInningOrdinal: "2nd",
+    offense: { batter: { fullName: "Carson Benge" }, onDeck: { fullName: "Jared Young" } },
+    defense: { pitcher: { fullName: "Anthony Molina" } },
+  },
+};
+var liveLine = sports.formatGame(fakeLive);
+assert(/2-1/.test(liveLine), "live line includes count");
+assert(/Benge/.test(liveLine), "live line includes hitter");
+assert(/Molina/.test(liveLine), "live line includes pitcher");
+assert(/1 out/.test(liveLine), "live line includes outs");
+var board = sports.fieldBoard(fakeLive);
+assert(board.live === true, "field board is live");
+assert(/Benge/.test(board.batter), "field board names the batter");
+assert(/Molina/.test(board.pitcher), "field board names the pitcher");
+assert(board.balls === 2 && board.strikes === 1 && board.outs === 1, "field board has the count");
+assert(sports.parse("tennis scores").kind === "other", "tennis is unsupported");
+assert(!sports.parse("who's pitching").team, "pitching is not Pirates");
+assert(sports.parse("college football scores").kind === "scores", "cfb scores");
+assert(sports.parse("college football scores").league === "ncaaf", "cfb → ncaaf");
+assert(!sports.parse("college football scores").espnClub, "cfb is a league not a club");
+assert(/star/i.test(sports.commentOPS("0.906")), "OPS .906 is star-level");
+assert(slu.classify("how's Ohtani doing").intent === "sports", "slu: ohtani → sports");
+assert(slu.classify("mlb scores").intent === "sports", "slu: mlb scores → sports");
+assert(slu.classify("nba scores").intent === "sports", "slu: nba scores → sports");
+assert(learn.kindFromIntent("sports") === "talk", "sports maps to talk class");
+assert(/sports|MLB|NBA/i.test(i18n.t("en", "identity")), "identity mentions sports");
 
 if (failed) {
   console.error("\n" + failed + " failed");
