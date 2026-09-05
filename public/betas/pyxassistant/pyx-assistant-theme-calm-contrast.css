@@ -1,7 +1,8 @@
 /**
  * Calm Contrast — paper field and charcoal type, with the same
- * background orbs as the other looks. The S-curve mark spins while
- * Pyx is listening, thinking, or speaking.
+ * background orbs as the other looks. The ring-and-wave mark follows
+ * the still: charcoal metal with a quiet iridescent sheen. While Pyx
+ * listens or speaks, the light drifts and the mark breathes a little.
  */
 [data-theme="calm-contrast"] {
   --bg: #f3f4f2;
@@ -16,6 +17,11 @@
   --swirl-e: #fde68a;
   --cc-ring: #141618;
   --cc-paper: #fafaf8;
+  --cc-mark: url("/betas/pyxassistant/pyx-assistant-mark.svg?v=1");
+  --cc-metal:
+    radial-gradient(ellipse at 74% 84%, rgba(168, 214, 214, 0.42) 0%, transparent 46%),
+    radial-gradient(ellipse at 36% 58%, rgba(142, 162, 176, 0.28) 0%, transparent 52%),
+    linear-gradient(165deg, #121315 0%, #1a1c20 42%, #3d4650 70%, #7f949c 90%, #c4c8b6 100%);
 }
 
 html[data-theme="calm-contrast"],
@@ -60,39 +66,77 @@ html[data-theme="calm-contrast"],
 }
 
 [data-theme="calm-contrast"] .orb__core {
+  overflow: hidden;
   background: var(--cc-paper);
   box-shadow:
-    0 18px 44px rgba(20, 22, 24, 0.12),
+    0 18px 44px rgba(20, 22, 24, 0.1),
     inset 0 0 0 1px rgba(20, 22, 24, 0.04);
 }
 
-[data-theme="calm-contrast"] .orb__core::before {
+[data-theme="calm-contrast"] .orb__core::before,
+[data-theme="calm-contrast"] .orb__core::after {
   inset: 0;
-  background:
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><path fill='none' stroke='%23141618' stroke-width='22' d='M100 19.5a80.5 80.5 0 1 1 0 161a80.5 80.5 0 1 1 0-161'/><path fill='none' stroke='%23141618' stroke-width='20' stroke-linecap='round' d='M40 100c24-54 52-54 60 0s36 54 60 0'/></svg>")
-    center / 86% 86% no-repeat;
+  background-image: var(--cc-metal);
+  background-size: 150% 150%, 170% 170%, 100% 100%;
+  background-position: 28% 18%, 78% 88%, 50% 50%;
+  background-repeat: no-repeat;
+  -webkit-mask-image: var(--cc-mark);
+  mask-image: var(--cc-mark);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: 86%;
+  mask-size: 86%;
+  -webkit-mask-mode: alpha;
+  mask-mode: alpha;
+  transform-origin: 50% 50%;
   filter: none;
   opacity: 1;
-  animation: none;
+  animation: ccSheen 14s ease-in-out infinite;
+}
+
+[data-theme="calm-contrast"] .orb__core::after {
+  inset: -10%;
+  -webkit-mask-size: 90%;
+  mask-size: 90%;
+  filter: blur(10px);
+  opacity: 0.22;
+  animation: ccSheen 14s ease-in-out infinite;
 }
 
 [data-theme="calm-contrast"] .orb[data-state="listen"] .orb__core::before,
 [data-theme="calm-contrast"] .orb[data-state="think"] .orb__core::before {
-  animation: ccMarkSpin 3.2s linear infinite;
+  animation:
+    ccSheen 4.8s ease-in-out infinite,
+    ccBreathe 2.4s ease-in-out infinite;
+}
+
+[data-theme="calm-contrast"] .orb[data-state="listen"] .orb__core::after,
+[data-theme="calm-contrast"] .orb[data-state="think"] .orb__core::after {
+  animation:
+    ccSheen 4.8s ease-in-out infinite,
+    ccBreathe 2.4s ease-in-out infinite;
+  animation-delay: 0s, 0.12s;
+  opacity: 0.32;
 }
 
 [data-theme="calm-contrast"] .orb[data-state="speak"] .orb__core::before {
-  animation: ccMarkSpin 1.8s linear infinite;
+  animation:
+    ccSheen 3.6s ease-in-out infinite,
+    ccBreathe 1.8s ease-in-out infinite;
+}
+
+[data-theme="calm-contrast"] .orb[data-state="speak"] .orb__core::after {
+  animation:
+    ccSheen 3.6s ease-in-out infinite,
+    ccBreathe 1.8s ease-in-out infinite;
+  animation-delay: 0s, 0.1s;
+  opacity: 0.34;
 }
 
 [data-theme="calm-contrast"] .orb[data-state="speak"] .orb__core {
-  animation: speakPulse 1.4s var(--ease) infinite;
-}
-
-[data-theme="calm-contrast"] .orb__core::after {
-  inset: 0;
-  background: transparent;
-  backdrop-filter: none;
+  animation: none;
 }
 
 [data-theme="calm-contrast"] .orb__ring {
@@ -179,12 +223,19 @@ html[data-theme="calm-contrast"],
   color: var(--ink);
 }
 
-@keyframes ccMarkSpin {
-  to { transform: rotate(360deg); }
+@keyframes ccSheen {
+  0%, 100% { background-position: 28% 18%, 78% 88%, 50% 50%; }
+  50% { background-position: 64% 72%, 32% 36%, 50% 50%; }
+}
+
+@keyframes ccBreathe {
+  0%, 100% { transform: scale3d(1, 1, 1); }
+  50% { transform: scale3d(1.035, 0.985, 1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   [data-theme="calm-contrast"] .orb__core::before,
+  [data-theme="calm-contrast"] .orb__core::after,
   [data-theme="calm-contrast"] .orb[data-state="speak"] .orb__core {
     animation: none !important;
   }
