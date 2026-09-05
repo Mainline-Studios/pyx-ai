@@ -103,7 +103,27 @@
     },
     {
       intent: "joke",
-      re: /\b(tell me a joke|make me laugh|chiste|blague|witz|冗談|笑话)\b/i,
+      re: /\b(tell me a joke|make me laugh|another joke|got a joke|chiste|blague|witz|冗談|笑话)\b/i,
+    },
+    {
+      intent: "fact",
+      re: /\b(fun fact|random fact|tell me a fact|something interesting|another fact)\b/i,
+    },
+    {
+      intent: "riddle",
+      re: /\b(tell me a riddle|another riddle|give me a riddle|riddle me)\b/i,
+    },
+    {
+      intent: "quote",
+      re: /\b(tell me a quote|inspire me|another quote|a quote)\b/i,
+    },
+    {
+      intent: "compliment",
+      re: /\b(compliment me|say something nice|encourage me|be nice)\b/i,
+    },
+    {
+      intent: "repeat",
+      re: /\b(repeat that|say that again|what did you say)\b/i,
     },
   ];
 
@@ -129,6 +149,11 @@
     { text: "what's 12 times 4", intent: "calculator" },
     { text: "calculate 8 + 2 * 3", intent: "calculator" },
     { text: "tell me a joke", intent: "joke" },
+    { text: "fun fact", intent: "fact" },
+    { text: "tell me a riddle", intent: "riddle" },
+    { text: "inspire me", intent: "quote" },
+    { text: "compliment me", intent: "compliment" },
+    { text: "say that again", intent: "repeat" },
     { text: "goodbye", intent: "farewell" },
     { text: "explain photosynthesis in simple terms", intent: "chat" },
     { text: "write a haiku about rain", intent: "chat" },
@@ -248,7 +273,7 @@
     var lang = opts.lang || "en";
     var t = opts.t;
     var intent = result.intent;
-    var out = { reply: null, action: null, useLlm: false, useWeb: false };
+    var out = { reply: null, action: null, useLlm: false, useWeb: false, special: null };
 
     switch (intent) {
       case "empty":
@@ -320,25 +345,37 @@
         return out;
       case "calculator":
         if (result.slots.value != null) {
-          out.reply = (t ? t(lang, "calcPrefix") : "That’s") + " " + String(result.slots.value) + ".";
+          out.reply = (t ? t(lang, "calcPrefix") : "That’s") + " " + String(result.slots.value) + ". =)";
           return out;
         }
-        out.useLlm = true;
         return out;
       case "weather":
-        out.useLlm = true;
-        out.useWeb = true;
+        out.reply =
+          "I don’t have live weather here — I’m a local notebook, not a radar. Check the sky or an app, and I can still convert temperatures. =)";
         return out;
       case "joke":
-        out.useLlm = true;
+        out.special = "__JOKE__";
+        return out;
+      case "fact":
+        out.special = "__FACT__";
+        return out;
+      case "riddle":
+        out.special = "__RIDDLE__";
+        return out;
+      case "quote":
+        out.special = "__QUOTE__";
+        return out;
+      case "compliment":
+        out.special = "__COMPLIMENT__";
+        return out;
+      case "repeat":
+        out.special = "__REPEAT__";
         return out;
       case "chat":
-        out.useLlm = true;
         return out;
       default: {
-        var _never = intent;
-        void _never;
-        out.useLlm = true;
+        var unused = intent;
+        void unused;
         return out;
       }
     }

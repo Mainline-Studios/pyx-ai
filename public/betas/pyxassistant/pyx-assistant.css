@@ -312,6 +312,12 @@ button, input, textarea {
   animation: speakPulse 1.4s var(--ease) infinite;
 }
 
+.orb.is-session .orb__ring {
+  box-shadow:
+    0 0 0 10px rgba(255, 255, 255, 0.06),
+    0 0 42px color-mix(in srgb, var(--swirl-a) 45%, transparent);
+}
+
 .waves {
   position: absolute;
   inset: 0;

@@ -2,39 +2,33 @@
 
 Voice-first beta at `/betas/pyxassistant`. The betas index lives at `/betas`.
 
-The look is Siri-inspired pastel swirls. The product name is **Pyx Assistant**.
+On-device only: no Pyx Talk. Pastel swirls stay. The name is **Pyx Assistant**.
 
 ## Architecture
 
 ```
-Browser UI  →  SLU (intent + slots)  →  local reply
-                                 ↘  POST /api/talk  (Pyx cloud LLM)
-Voice  →  Web Speech API (ASR)   →  SLU
-TTS    ←  Speech Synthesis
+Mic → VAD → Whisper tiny.en (transformers.js) → SLU + math + KB retrieval → Kokoro TTS
+                                                                    ↘ keep listening
+Tap orb: start session / interrupt speech / pause
 ```
-
-Modules (no build step):
 
 | File | Role |
 |------|------|
-| `public/betas/index.html` | Betas list |
-| `public/betas/pyxassistant/index.html` | Assistant shell |
-| `pyx-assistant.css` | Pastel themes + orb |
-| `pyx-assistant-i18n.js` | EN/ES/FR/DE/JA/ZH |
-| `pyx-assistant-slu.js` | Intent classifier + local handlers |
-| `pyx-assistant.js` | Voice, Talk API, Slack/Discord webhooks |
-
-Add an intent in `pyx-assistant-slu.js` (`RULES` + `resolve` switch) and a golden utterance in `GOLDEN`.
+| `kb/pyx-assistant-kb.json` | 1,300+ local replies (jokes, facts, trivia, riddles, quotes, how-tos, definitions, small talk) |
+| `pyx-assistant-math.js` | Expression parser, word numbers, unit conversions |
+| `pyx-assistant-kb.js` | Keyword retrieval + warm fallback |
+| `pyx-assistant-slu.js` | Intents (never calls Talk) |
+| `pyx-assistant-voice.js` | Whisper STT + Kokoro TTS + continuous listen |
+| `scripts/build-pyx-assistant-kb.js` | Regenerates the knowledge pack |
 
 ## Testing
 
 ```bash
 node public/betas/pyxassistant/pyx-assistant-slu.test.js
+node scripts/build-pyx-assistant-kb.js
 ```
 
 ## Deploy
-
-Hosting rewrites map `/betas` and `/betas/pyxassistant` to their `index.html` files.
 
 ```bash
 npx -y firebase-tools@latest deploy --only hosting --project pyx-ai

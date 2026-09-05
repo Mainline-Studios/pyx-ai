@@ -254,7 +254,8 @@
     if (pct) return (parseFloat(pct[1]) / 100) * parseFloat(pct[2]);
     var cleaned = rewritten
       .replace(/what(?:'s| is)|calculate|compute|equals?|cuánto es|combien|was ist/gi, " ")
-      .replace(/[^0-9a-z+\-*/^%().,\s]/gi, " ");
+      .replace(/[^0-9a-z+\-*/^%().,\s]/gi, " ")
+      .replace(/\b(sqrt|cbrt|sin|cos|tan|abs|log|ln)\s+(-?\d+(?:\.\d+)?)/g, "$1($2)");
     var expr = cleaned.replace(/percent/g, " * 0.01 ").replace(/\s+/g, "");
     if (!expr || expr.length > 120) return null;
     return parseExpr(tokenize(expr));

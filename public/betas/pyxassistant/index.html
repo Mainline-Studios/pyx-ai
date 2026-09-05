@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Pyx Assistant</title>
-  <meta name="description" content="Pyx Assistant — a voice-first beta with pastel swirls, text or speech, and Pyx Talk underneath." />
+  <meta name="description" content="Pyx Assistant — on-device voice, jokes, math, facts, and warm small talk. No Pyx Talk." />
   <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -32,7 +32,8 @@
       <div class="caption">
         <p class="caption__user" id="userLine"></p>
         <p class="caption__reply" id="reply">Hi, I’m Pyx.</p>
-        <p class="caption__status" id="status">Tap the orb or type below.</p>
+        <p class="caption__status" id="status">Tap the orb — I’ll keep listening. Type anytime.</p>
+        <p class="caption__status" id="kbMeta" hidden></p>
       </div>
 
       <div class="orb-wrap">
@@ -70,11 +71,11 @@
         <input id="voice" type="checkbox" checked />
       </div>
       <div class="field">
-        <label id="modeLabel" for="mode">Model</label>
+        <label id="modeLabel" for="mode">Kokoro voice</label>
         <select id="mode">
-          <option value="fast">Fast</option>
-          <option value="smart">Smart</option>
-          <option value="thinking">Thinking</option>
+          <option value="af_heart">af heart</option>
+          <option value="af_bella">af bella</option>
+          <option value="am_michael">am michael</option>
         </select>
       </div>
       <div class="field">
@@ -88,7 +89,7 @@
       <div class="row-actions">
         <button type="button" class="ghost" id="sendSlack">Send last reply to Slack</button>
         <button type="button" class="ghost" id="sendDiscord">Send last reply to Discord</button>
-        <button type="button" class="ghost" id="openTalk">Open in Pyx Talk</button>
+        <button type="button" class="ghost" id="openTalk">This beta stays on-device</button>
         <button type="button" class="ghost" id="clearBtn">Clear conversation</button>
         <button type="button" class="ghost" data-close-sheet>Close</button>
       </div>
@@ -110,6 +111,9 @@
   <script src="/js/pyx-handoff.js"></script>
   <script src="/betas/pyxassistant/pyx-assistant-i18n.js"></script>
   <script src="/betas/pyxassistant/pyx-assistant-slu.js"></script>
+  <script src="/betas/pyxassistant/pyx-assistant-math.js"></script>
+  <script src="/betas/pyxassistant/pyx-assistant-kb.js"></script>
   <script src="/betas/pyxassistant/pyx-assistant.js"></script>
+  <script type="module" src="/betas/pyxassistant/pyx-assistant-voice.js"></script>
 </body>
 </html>

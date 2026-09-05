@@ -1,33 +1,32 @@
 /**
- * Pyx Assistant — UI, voice, Talk API, and integrations.
+ * Pyx Assistant — local KB + math + continuous on-device voice.
  */
 (function () {
   "use strict";
 
-  var STORE_KEY = "pyx.assistant.v1";
-  var PYX_CLOUD_RUN = "https://pyxaiapi-574247481583.us-central1.run.app";
-  var PYXEL =
-    "You are Pyx Assistant, a warm, concise, Siri-like voice assistant. " +
-    "Answer in the user's language. Keep replies short unless asked for depth. " +
-    "Stay friendly and useful. Refuse harmful requests briefly.";
-
+  var STORE_KEY = "pyx.assistant.v2";
   var slu = window.PyxAssistantSLU;
   var i18n = window.PyxAssistantI18n;
+  var math = window.PyxAssistantMath;
+  var kb = window.PyxAssistantKB;
+  var voice = null;
 
   var state = {
     theme: "aurora",
     lang: "en",
     voice: true,
-    mode: "fast",
+    voiceId: "af_heart",
     slack: "",
     discord: "",
     messages: [],
     ui: "idle",
+    session: false,
+    warming: false,
   };
 
   var els = {};
-  var recognition = null;
   var swirlRaf = 0;
+  var handleInFlight = false;
 
   function t(key) {
     return i18n.t(state.lang, key);
@@ -41,7 +40,7 @@
       if (o.theme) state.theme = o.theme;
       if (o.lang) state.lang = o.lang;
       if (typeof o.voice === "boolean") state.voice = o.voice;
-      if (o.mode) state.mode = o.mode;
+      if (o.voiceId) state.voiceId = o.voiceId;
       if (typeof o.slack === "string") state.slack = o.slack;
       if (typeof o.discord === "string") state.discord = o.discord;
       if (Array.isArray(o.messages)) state.messages = o.messages.slice(-40);
@@ -56,7 +55,7 @@
           theme: state.theme,
           lang: state.lang,
           voice: state.voice,
-          mode: state.mode,
+          voiceId: state.voiceId,
           slack: state.slack,
           discord: state.discord,
           messages: state.messages.slice(-40),
@@ -82,13 +81,18 @@
     }, 2200);
   }
 
-  function setUi(mode) {
+  function setUi(mode, extra) {
     state.ui = mode;
     els.orb.setAttribute("data-state", mode);
-    var label = t("hint");
-    if (mode === "listen") label = t("listening");
-    else if (mode === "think") label = t("thinking");
-    else if (mode === "speak") label = t("speaking");
+    els.orb.classList.toggle("is-session", !!state.session);
+    var label = extra || t("hint");
+    if (!extra) {
+      if (mode === "listen") label = state.session ? t("listeningHold") : t("listening");
+      else if (mode === "think") label = t("thinking");
+      else if (mode === "speak") label = t("speakingTap");
+      else if (mode === "warm") label = extra || t("warming");
+      else if (state.session) label = t("listeningHold");
+    }
     els.status.textContent = label;
     els.send.disabled = mode === "think";
   }
@@ -117,12 +121,12 @@
     els.themeLabel.textContent = t("theme");
     els.langLabel.textContent = t("language");
     els.voiceLabel.textContent = t("voiceReplies");
-    els.modeLabel.textContent = t("model");
+    els.modeLabel.textContent = t("voiceName");
     els.slackLabel.textContent = t("slackWebhook");
     els.discordLabel.textContent = t("discordWebhook");
     els.sendSlack.textContent = t("sendSlack");
     els.sendDiscord.textContent = t("sendDiscord");
-    els.openTalk.textContent = t("openTalk");
+    if (els.openTalk) els.openTalk.textContent = t("stayLocal");
     els.clearBtn.textContent = t("clear");
     if (!state.messages.length) {
       els.reply.textContent = t("greeting");
@@ -162,133 +166,33 @@
   }
 
   function speak(text) {
-    if (!state.voice || !window.speechSynthesis || !text) return;
+    if (!state.voice || !text) {
+      if (state.session && voice) voice.startListenLoop();
+      else setUi("idle");
+      return;
+    }
+    var loc = i18n.LOCALES[state.lang] || i18n.LOCALES.en;
+    if (voice && typeof voice.speak === "function") {
+      setUi("speak");
+      voice.speak(text, loc.tts);
+      return;
+    }
+    if (!window.speechSynthesis) {
+      setUi(state.session ? "listen" : "idle");
+      return;
+    }
     window.speechSynthesis.cancel();
     var u = new SpeechSynthesisUtterance(text);
-    var loc = i18n.LOCALES[state.lang] || i18n.LOCALES.en;
     u.lang = loc.tts;
     u.rate = 1.02;
     u.onstart = function () {
       setUi("speak");
     };
     u.onend = function () {
-      setUi("idle");
+      if (state.session && voice) voice.startListenLoop();
+      else setUi("idle");
     };
     window.speechSynthesis.speak(u);
-  }
-
-  function pyxIsLocalHost() {
-    var h = location.hostname || "";
-    return h === "localhost" || h === "127.0.0.1" || h === "";
-  }
-
-  function fetchTalk(body) {
-    var opts = {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      mode: "cors",
-      cache: "no-store",
-      credentials: "omit",
-    };
-    var direct = PYX_CLOUD_RUN + "/talk";
-    var proxied = "/api/talk";
-    if (pyxIsLocalHost()) {
-      return fetch("/talk", opts).catch(function () {
-        return fetch(direct, opts);
-      });
-    }
-    function once(url) {
-      return fetch(url, opts);
-    }
-    function withFallback(first, second) {
-      return once(first)
-        .then(function (res) {
-          if (res.status >= 500) {
-            return once(second).catch(function () {
-              return res;
-            });
-          }
-          return res;
-        })
-        .catch(function () {
-          return once(second);
-        });
-    }
-    return withFallback(proxied, direct).then(function (res) {
-      if (res && (res.status === 502 || res.status === 503 || res.status === 429)) {
-        return new Promise(function (resolve) {
-          setTimeout(resolve, 900);
-        }).then(function () {
-          return withFallback(direct, proxied);
-        });
-      }
-      return res;
-    });
-  }
-
-  function parseSse(buffer, onEvent) {
-    var parts = buffer.split("\n\n");
-    var rest = parts.pop() || "";
-    parts.forEach(function (part) {
-      var line = part.split("\n").filter(function (l) {
-        return l.indexOf("data: ") === 0;
-      })[0];
-      if (!line) return;
-      try {
-        onEvent(JSON.parse(line.slice(6)));
-      } catch (e) {}
-    });
-    return rest;
-  }
-
-  async function askLlm(userText, useWeb) {
-    var history = state.messages
-      .filter(function (m) {
-        return m.role === "user" || m.role === "assistant";
-      })
-      .slice(-16)
-      .map(function (m) {
-        return { role: m.role, content: m.content };
-      });
-    history.push({ role: "user", content: userText });
-    var body = {
-      messages: history,
-      mode: state.mode,
-      stream: true,
-      use_web: !!useWeb,
-      use_web_auto: true,
-      pyxel_instructions: PYXEL + " Respond in language code: " + state.lang + ".",
-    };
-    var res = await fetchTalk(body);
-    if (!res || !res.ok) {
-      var raw = res ? await res.text() : "";
-      throw new Error(raw || "Talk request failed");
-    }
-    if (!res.body || !res.body.getReader) {
-      var j = await res.json();
-      return j.reply || "";
-    }
-    var reader = res.body.getReader();
-    var dec = new TextDecoder();
-    var buf = "";
-    var reply = "";
-    els.reply.textContent = "";
-    while (true) {
-      var chunk = await reader.read();
-      if (chunk.done) break;
-      buf += dec.decode(chunk.value, { stream: true });
-      buf = parseSse(buf, function (evt) {
-        if (evt.type === "delta" && evt.t) {
-          reply += evt.t;
-          els.reply.textContent = reply;
-        }
-        if (evt.type === "error") {
-          throw new Error(evt.message || evt.detail || "LLM error");
-        }
-      });
-    }
-    return reply || t("identity");
   }
 
   function transcript() {
@@ -338,11 +242,7 @@
         renderHistory();
         return;
       case "open_talk":
-        if (window.PyxHandoff) {
-          window.PyxHandoff.sendTo("talk", transcript(), "pyxassistant");
-        } else {
-          location.href = "/pyx-talk.html";
-        }
+        toast(t("stayLocal"));
         return;
       case "open_studio":
         location.href = "/studio.html";
@@ -379,106 +279,77 @@
     }
   }
 
-  async function handleUserText(raw, fromVoice) {
-    var text = slu.normalize(raw);
-    if (!text) return;
-    els.userLine.textContent = text;
+  function localReply(text) {
+    if (math && math.looksMath(text)) {
+      var solved = math.answer(text);
+      if (solved) return solved.reply;
+    }
     var understood = slu.classify(text);
     var resolved = slu.resolve(understood, { lang: state.lang, t: i18n.t });
     runAction(resolved.action);
-
-    if (resolved.action && resolved.action.type === "clear") {
-      setUi("idle");
-      speak(resolved.reply);
-      return;
+    if (resolved.action && resolved.action.type === "clear") return resolved.reply;
+    if (resolved.special && kb) return kb.expandSpecial(resolved.special);
+    if (resolved.reply) return resolved.reply;
+    if (kb) {
+      var hit = kb.retrieve(text, 0.62);
+      if (hit) return hit.reply;
+      return kb.warmFallback(text);
     }
+    return t("identity");
+  }
 
-    state.messages.push({ role: "user", content: text });
-    if (resolved.useLlm) {
-      setUi("think");
-      try {
-        var reply = await askLlm(text, resolved.useWeb);
-        state.messages.push({ role: "assistant", content: reply });
-        els.reply.textContent = reply;
-        save();
-        renderHistory();
-        setUi(fromVoice && state.voice ? "speak" : "idle");
-        speak(reply);
-      } catch (e) {
-        var fallback = "I couldn’t reach Pyx Talk just now. Try again in a moment.";
-        state.messages.push({ role: "assistant", content: fallback });
-        els.reply.textContent = fallback;
-        save();
-        renderHistory();
-        setUi("idle");
+  async function handleUserText(raw, fromVoice) {
+    var text = slu.normalize(raw);
+    if (!text || handleInFlight) return;
+    handleInFlight = true;
+    els.userLine.textContent = text;
+    setUi("think");
+    try {
+      var reply = localReply(text);
+      if (reply == null) reply = "";
+      if (kb) kb.remember(reply);
+      if (!(slu.classify(text).intent === "clear")) {
+        state.messages.push({ role: "user", content: text });
+        if (reply) state.messages.push({ role: "assistant", content: reply });
       }
-      return;
-    }
-
-    if (resolved.reply) {
-      state.messages.push({ role: "assistant", content: resolved.reply });
-      els.reply.textContent = resolved.reply;
+      els.reply.textContent = reply || t("greeting");
       save();
       renderHistory();
-      setUi("idle");
-      speak(resolved.reply);
+      if (fromVoice || state.session) speak(reply);
+      else setUi("idle");
+    } finally {
+      handleInFlight = false;
     }
   }
 
-  function SpeechCtor() {
-    return window.SpeechRecognition || window.webkitSpeechRecognition || null;
-  }
-
-  function stopListen() {
-    if (recognition) {
-      try {
-        recognition.stop();
-      } catch (e) {}
-    }
-    if (state.ui === "listen") setUi("idle");
-  }
-
-  function startListen() {
-    var Ctor = SpeechCtor();
-    if (!Ctor) {
+  async function toggleOrb() {
+    voice = window.PyxAssistantVoice;
+    if (!voice) {
       toast(t("noSpeech"));
       els.input.focus();
       return;
     }
-    if (state.ui === "listen") {
-      stopListen();
+    if (voice.isSpeaking()) {
+      await voice.interrupt();
+      state.session = true;
+      setUi("listen");
       return;
     }
-    recognition = new Ctor();
-    var loc = i18n.LOCALES[state.lang] || i18n.LOCALES.en;
-    recognition.lang = loc.speech;
-    recognition.interimResults = true;
-    recognition.continuous = false;
-    recognition.onstart = function () {
-      setUi("listen");
-    };
-    recognition.onerror = function (ev) {
-      if (ev.error === "not-allowed") toast(t("micDenied"));
+    if (voice.isSession() || state.session) {
+      await voice.stopSession();
+      state.session = false;
       setUi("idle");
-    };
-    recognition.onend = function () {
-      if (state.ui === "listen") setUi("idle");
-    };
-    recognition.onresult = function (ev) {
-      var i;
-      var finalText = "";
-      var interim = "";
-      for (i = ev.resultIndex; i < ev.results.length; i++) {
-        if (ev.results[i].isFinal) finalText += ev.results[i][0].transcript;
-        else interim += ev.results[i][0].transcript;
-      }
-      if (interim) els.userLine.textContent = interim;
-      if (finalText) handleUserText(finalText, true);
-    };
+      toast(t("paused"));
+      return;
+    }
     try {
-      recognition.start();
+      state.session = true;
+      await voice.startSession();
+      setUi("listen");
     } catch (e) {
-      toast(t("noSpeech"));
+      state.session = false;
+      toast(t("micDenied"));
+      setUi("idle");
     }
   }
 
@@ -514,6 +385,22 @@
       els.theme.appendChild(opt);
     });
     els.theme.value = state.theme;
+  }
+
+  function paintVoiceOptions() {
+    els.mode.innerHTML = "";
+    var names = (voice && voice.listVoices && voice.listVoices()) || [
+      "af_heart",
+      "af_bella",
+      "am_michael",
+    ];
+    names.forEach(function (name) {
+      var opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name.replace(/_/g, " ");
+      els.mode.appendChild(opt);
+    });
+    els.mode.value = state.voiceId;
   }
 
   function startSwirl(canvas) {
@@ -567,9 +454,34 @@
     void swirlRaf;
   }
 
+  function bindVoice() {
+    voice = window.PyxAssistantVoice;
+    if (!voice) return;
+    voice.setVoice(state.voiceId);
+    voice.onStatus = function (kind, extra) {
+      if (kind === "listen") setUi("listen", extra);
+      else if (kind === "think") setUi("think", extra);
+      else if (kind === "speak") setUi("speak", extra);
+      else if (kind === "idle") setUi("idle", extra);
+      else if (extra) els.status.textContent = extra;
+    };
+    voice.onPartial = function (p) {
+      if (p) els.userLine.textContent = p;
+    };
+    voice.onUtterance = function (text) {
+      handleUserText(text, true);
+    };
+    voice.onSpeakEnd = function (interrupted) {
+      if (interrupted) setUi("listen");
+    };
+    voice.onError = function () {
+      toast(t("sttFail"));
+    };
+  }
+
   function bind() {
-    els.orb.addEventListener("click", startListen);
-    els.mic.addEventListener("click", startListen);
+    els.orb.addEventListener("click", toggleOrb);
+    els.mic.addEventListener("click", toggleOrb);
     els.send.addEventListener("click", function () {
       var v = els.input.value;
       els.input.value = "";
@@ -606,7 +518,8 @@
       save();
     });
     els.mode.addEventListener("change", function () {
-      state.mode = els.mode.value;
+      state.voiceId = els.mode.value;
+      if (voice && voice.setVoice) voice.setVoice(state.voiceId);
       save();
     });
     els.slack.addEventListener("change", function () {
@@ -623,9 +536,11 @@
     els.sendDiscord.addEventListener("click", function () {
       postWebhook("discord");
     });
-    els.openTalk.addEventListener("click", function () {
-      runAction({ type: "open_talk" });
-    });
+    if (els.openTalk) {
+      els.openTalk.addEventListener("click", function () {
+        toast(t("stayLocal"));
+      });
+    }
     els.clearBtn.addEventListener("click", function () {
       runAction({ type: "clear" });
       toast(t("cleared"));
@@ -633,6 +548,28 @@
     document.addEventListener("keydown", function (ev) {
       if (ev.key === "Escape") closeSheets();
     });
+  }
+
+  async function bootKnowledge() {
+    var res = await fetch("/betas/pyxassistant/kb/pyx-assistant-kb.json", { cache: "force-cache" });
+    var data = await res.json();
+    var n = kb.load(data);
+    if (els.kbMeta) els.kbMeta.textContent = n + " local replies";
+    return n;
+  }
+
+  async function bootVoice() {
+    voice = window.PyxAssistantVoice;
+    if (!voice || !voice.warmup) return;
+    state.warming = true;
+    setUi("warm", t("warming"));
+    await voice.warmup(function (msg) {
+      els.status.textContent = msg;
+    });
+    state.warming = false;
+    bindVoice();
+    paintVoiceOptions();
+    if (!state.messages.length) setUi("idle");
   }
 
   function init() {
@@ -669,29 +606,40 @@
       clearBtn: document.getElementById("clearBtn"),
       history: document.getElementById("historyList"),
       toast: document.getElementById("toast"),
+      kbMeta: document.getElementById("kbMeta"),
     };
     load();
     applyTheme(state.theme);
     applyLang(state.lang);
     paintThemeOptions();
     paintLangOptions();
+    paintVoiceOptions();
     els.voice.checked = state.voice;
-    els.mode.value = state.mode;
     els.slack.value = state.slack;
     els.discord.value = state.discord;
     paintChrome();
     bind();
     startSwirl(document.getElementById("swirlCanvas"));
-    if (window.PyxHandoff) {
-      window.PyxHandoff.applyIncoming({
-        app: "pyxassistant",
-        onQuery: function (q) {
-          handleUserText(q, false);
-        },
-        onText: function (text) {
-          if (text) handleUserText(text, false);
-        },
+    bootKnowledge()
+      .then(function () {
+        if (window.PyxHandoff) {
+          window.PyxHandoff.applyIncoming({
+            app: "pyxassistant",
+            onQuery: function (q) {
+              handleUserText(q, false);
+            },
+            onText: function (text) {
+              if (text) handleUserText(text, false);
+            },
+          });
+        }
+      })
+      .catch(function () {
+        toast("Knowledge pack didn’t load — math and built-ins still work.");
       });
+    if (window.PyxAssistantVoice) bootVoice();
+    else {
+      window.addEventListener("pyx-voice-ready", bootVoice, { once: true });
     }
   }
 
