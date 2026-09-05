@@ -1,8 +1,14 @@
 /**
  * MI mailing list — Cloudflare Worker + Resend
  * POST /subscribe  { "email": "...", "source": "mi_site" }
+ *
+ * Secrets: RESEND_API_KEY (wrangler secret put)
+ * Optional vars: RESEND_FROM — default no-reply@pixelplaceofficial.com
+ *   Until the domain is verified in Resend, use:
+ *   Mainline Intelligence <onboarding@resend.dev>
+ *   (Resend only delivers test mail to your account email.)
  */
-const FROM = "Mainline Intelligence <no-reply@pixelplaceofficial.com>";
+const DEFAULT_FROM = "Mainline Intelligence <no-reply@pixelplaceofficial.com>";
 const REPLY_TO = "support@pixelplaceofficial.com";
 const NOTIFY_TO = "support@pixelplaceofficial.com";
 const ALLOWED_ORIGINS = new Set([
@@ -15,6 +21,10 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function fromAddress(env) {
+  return (env.RESEND_FROM && String(env.RESEND_FROM).trim()) || DEFAULT_FROM;
+}
 
 function corsHeaders(origin) {
   const allow =
@@ -79,7 +89,7 @@ async function sendResend(env, { to, subject, html, text, replyTo }) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: FROM,
+      from: fromAddress(env),
       to: [to],
       subject,
       html,

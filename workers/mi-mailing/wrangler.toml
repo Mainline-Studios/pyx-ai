@@ -3,6 +3,12 @@ main = "src/index.js"
 compatibility_date = "2026-03-01"
 workers_dev = true
 
+# Until pixelplaceofficial.com is verified in Resend, send from onboarding@resend.dev
+# (test delivers only to your Resend account email). After verify, change to:
+# RESEND_FROM = "Mainline Intelligence <no-reply@pixelplaceofficial.com>"
+[vars]
+RESEND_FROM = "Mainline Intelligence <onboarding@resend.dev>"
+
 [[kv_namespaces]]
 binding = "SUBSCRIBERS"
 id = "a6192a2952c743af84fa69155cbd8522"
