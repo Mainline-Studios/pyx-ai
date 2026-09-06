@@ -1,11 +1,10 @@
 /**
- * MARII ask — Cloudflare Worker fallback when Cloud Run billing is off.
+ * MARII ask — Cloudflare Worker (Workers AI, NOT Groq).
  * POST /ask  { "text": "...", "mode?": "fast", "use_web?": true }
  *
- * Secrets: GROQ_API_KEY (or PYX_TALK_LLM_KEY)
+ * Binding: AI (Workers AI). No Groq keys or api.groq.com calls.
  */
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const DEFAULT_MODEL = "openai/gpt-oss-20b";
+const DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 
 const ALLOWED_ORIGINS = new Set([
   "https://pyx-ai.web.app",
@@ -19,7 +18,8 @@ const ALLOWED_ORIGINS = new Set([
 const SYSTEM = (
   "You are MARII — Mainline Artificial Realtime Instant Intelligence. " +
   "Be concise, clear, and helpful. Prefer short answers that feel instant. " +
-  "You power Pyx Assistant’s optional cloud boost. Stay safe for general audiences."
+  "You power Pyx Assistant’s optional cloud boost and Announcer ask. " +
+  "Stay safe for general audiences. For sports projections, give light booth color only — not betting advice."
 );
 
 function corsHeaders(origin) {
@@ -44,49 +44,44 @@ function json(body, status, origin) {
   });
 }
 
-async function groqAsk(env, text) {
-  const key = (env.GROQ_API_KEY || env.PYX_TALK_LLM_KEY || "").trim();
-  if (!key) {
-    const err = new Error("GROQ_API_KEY not configured");
+function extractAnswer(result) {
+  if (!result) return "";
+  if (typeof result === "string") return result.trim();
+  if (typeof result.response === "string") return result.response.trim();
+  if (typeof result.result === "string") return result.result.trim();
+  if (
+    result.choices &&
+    result.choices[0] &&
+    result.choices[0].message &&
+    typeof result.choices[0].message.content === "string"
+  ) {
+    return result.choices[0].message.content.trim();
+  }
+  return "";
+}
+
+async function workersAiAsk(env, text) {
+  if (!env.AI || typeof env.AI.run !== "function") {
+    const err = new Error("Workers AI binding missing");
     err.status = 503;
     throw err;
   }
   const model = (env.MARII_MODEL || "").trim() || DEFAULT_MODEL;
-  const res = await fetch(GROQ_URL, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer " + key,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 384,
-      temperature: 0.55,
-      messages: [
-        { role: "system", content: SYSTEM },
-        { role: "user", content: text },
-      ],
-    }),
+  const result = await env.AI.run(model, {
+    messages: [
+      { role: "system", content: SYSTEM },
+      { role: "user", content: text },
+    ],
+    max_tokens: 512,
+    temperature: 0.55,
   });
-  if (!res.ok) {
-    const detail = (await res.text()).slice(0, 400);
-    const err = new Error(detail || "LLM failed");
+  const answer = extractAnswer(result);
+  if (!answer) {
+    const err = new Error("empty Workers AI content");
     err.status = 502;
     throw err;
   }
-  const data = await res.json();
-  const answer =
-    data &&
-    data.choices &&
-    data.choices[0] &&
-    data.choices[0].message &&
-    data.choices[0].message.content;
-  if (!answer || typeof answer !== "string") {
-    const err = new Error("empty LLM content");
-    err.status = 502;
-    throw err;
-  }
-  return { answer: answer.trim(), model };
+  return { answer, model };
 }
 
 export default {
@@ -99,10 +94,22 @@ export default {
     }
 
     if (url.pathname === "/health" || url.pathname === "/") {
-      return json({ ok: true, service: "marii-ask" }, 200, origin);
+      return json(
+        {
+          ok: true,
+          service: "marii-ask",
+          backend: "workers-ai",
+          groq: false,
+        },
+        200,
+        origin
+      );
     }
 
-    if (request.method !== "POST" || (url.pathname !== "/ask" && url.pathname !== "/api/marii/ask")) {
+    if (
+      request.method !== "POST" ||
+      (url.pathname !== "/ask" && url.pathname !== "/api/marii/ask")
+    ) {
       return json({ error: "Not found" }, 404, origin);
     }
 
@@ -118,11 +125,12 @@ export default {
     if (text.length > 4000) return json({ error: "Text too long" }, 413, origin);
 
     try {
-      const { answer, model } = await groqAsk(env, text);
+      const { answer, model } = await workersAiAsk(env, text);
       return json(
         {
           answer,
           source: "marii",
+          backend: "workers-ai",
           latency_ms: Date.now() - started,
           model,
         },

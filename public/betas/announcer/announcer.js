@@ -8,6 +8,8 @@
   var MLB = "https://statsapi.mlb.com/api/v1";
   var LIVE = "https://statsapi.mlb.com/api/v1.1/game/";
   var POLL_MS = 7000;
+  // Workers AI Worker only — never Groq.
+  var MARII_ASK_URL = "https://marii-ask.mainline-mi.workers.dev/ask";
 
   var state = {
     mode: "normal", // normal | announcer
@@ -971,6 +973,60 @@
     return answerGeneral(feed, t);
   }
 
+  function buildMariiPrompt(question) {
+    var ctx = [];
+    try {
+      ctx.push(answerSituation(state.lastFeed));
+      ctx.push(answerMatchup(state.lastFeed));
+      var hot = answerHotBats(state.lastFeed);
+      if (hot) ctx.push(hot);
+      var pen = answerBullpen(state.lastFeed);
+      if (pen) ctx.push(pen);
+      var lines = answerLineup(state.lastFeed);
+      if (lines && lines.length < 1200) ctx.push(lines);
+    } catch (e) {}
+    return (
+      "You are MARII helping with a live MLB Announcer beta. " +
+      "Answer briefly (2–6 sentences unless listing a lineup). " +
+      "Use the live game context below. For projections, give light booth color only — not betting advice. " +
+      "If something isn’t in the context, say so.\n\n" +
+      "LIVE GAME CONTEXT:\n" +
+      ctx.join("\n\n") +
+      "\n\nQUESTION:\n" +
+      question
+    );
+  }
+
+  async function fetchMariiAsk(url, text, signal) {
+    var res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text, mode: "fast", use_web: false }),
+      signal: signal,
+    });
+    if (!res.ok) throw new Error("marii " + res.status);
+    var data = await res.json();
+    var answer = data && (data.answer || data.reply);
+    if (!answer || typeof answer !== "string") throw new Error("marii empty");
+    return answer.trim();
+  }
+
+  async function askMarii(question) {
+    var prompt = buildMariiPrompt(question);
+    if (prompt.length > 3800) prompt = prompt.slice(0, 3800);
+    var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var timer = setTimeout(function () {
+      if (ctrl) ctrl.abort();
+    }, 8000);
+    var signal = ctrl ? ctrl.signal : undefined;
+    try {
+      // Workers AI Worker only for MARII — never Groq.
+      return await fetchMariiAsk(MARII_ASK_URL, prompt, signal);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   function showAskAnswer(question, answer) {
     state.lastAskAnswer = answer || "";
     if (!els.askAnswer) return;
@@ -986,7 +1042,7 @@
     if (els.askSpeak) els.askSpeak.disabled = !answer;
   }
 
-  function handleAsk(raw) {
+  async function handleAsk(raw) {
     var question = String(raw || "").trim();
     if (!question) {
       toast("Type a question first.");
@@ -999,8 +1055,27 @@
     if (state.asking) return;
     state.asking = true;
     if (els.askSubmit) els.askSubmit.disabled = true;
+    showAskAnswer(question, "Asking MARII…");
     try {
-      showAskAnswer(question, localAskAnswer(question));
+      var t = question.toLowerCase();
+      var simple =
+        /\b(lineup|batting order|count|outs|runners|situation|scoreboard|who('?s| is) (pitching|batting|at bat))\b/.test(
+          t
+        ) && !/\b(projection|predict|bullpen|hot|forecast)\b/.test(t);
+      if (simple) {
+        showAskAnswer(question, localAskAnswer(question));
+        return;
+      }
+      try {
+        var answer = await askMarii(question);
+        showAskAnswer(question, answer);
+      } catch (err) {
+        showAskAnswer(
+          question,
+          localAskAnswer(question) +
+            "\n\n(MARII was unreachable — answered from the live feed.)"
+        );
+      }
     } finally {
       state.asking = false;
       if (els.askSubmit) els.askSubmit.disabled = false;

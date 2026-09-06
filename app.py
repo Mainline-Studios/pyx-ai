@@ -1758,11 +1758,52 @@ _MARII_SYSTEM = (
     "You power Pyx Assistant’s optional cloud boost. Stay safe for general audiences."
 )
 
+# MARII cloud ask must NOT use Groq. Prefer the Workers AI Worker.
+_MARII_WORKER_ASK_URL = (
+    os.environ.get("MARII_ASK_URL")
+    or "https://marii-ask.mainline-mi.workers.dev/ask"
+).strip()
+
+
+def _marii_ask_via_worker(text: str, *, mode: str = "fast", use_web: bool = False) -> tuple[str | None, str | None, str | None]:
+    """POST to MARII Worker (Workers AI). Returns (answer, model, error). Never calls Groq."""
+    payload = json.dumps(
+        {"text": text, "mode": mode, "use_web": bool(use_web)},
+        ensure_ascii=False,
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        _MARII_WORKER_ASK_URL,
+        data=payload,
+        method="POST",
+        headers={
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": "application/json",
+            "User-Agent": "pyx-marii-ask/1.0",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+        data = json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[:400]
+        return None, None, f"worker HTTP {e.code}: {detail}"
+    except Exception as e:
+        return None, None, str(e)
+    answer = data.get("answer") or data.get("reply")
+    if not isinstance(answer, str) or not answer.strip():
+        return None, None, data.get("error") or "empty worker answer"
+    model = data.get("model")
+    return answer.strip(), (model if isinstance(model, str) else None), None
+
 
 @app.route("/api/marii/ask", methods=["POST", "OPTIONS"])
 @app.route("/marii/ask", methods=["POST", "OPTIONS"])
 def marii_ask():
-    """Thin MARII ask: {text, mode?, use_web?} → {answer, source, latency_ms}."""
+    """Thin MARII ask: {text, mode?, use_web?} → {answer, source, latency_ms}.
+
+    Backend is Cloudflare Workers AI via the marii-ask Worker — not Groq.
+    """
     if request.method == "OPTIONS":
         return "", 204
     if request.method != "POST":
@@ -1795,41 +1836,30 @@ def marii_ask():
     if mode_err:
         mode = "fast"
     use_web = _as_bool(data.get("use_web"))
+    # Optional web snippets prepended for the Worker (still no Groq).
     do_web = use_web or _needs_live_web(text)
-    web_context = ""
-    ground_web = False
     if do_web:
         search_query = _enhance_talk_search_query(text)
         snippets, _provider, werr = _talk_web_snippets(search_query)
         if snippets:
-            web_context = snippets
-            ground_web = True
+            text = (
+                "Use these web snippets when helpful; if they conflict or look stale, say so.\n\n"
+                "--- Web snippets ---\n"
+                + snippets
+                + "\n\n--- User question ---\n"
+                + text
+            )
         elif werr:
-            web_context = f"(Search note: {werr})"
+            text = f"(Search note: {werr})\n\n{text}"
 
-    messages = [{"role": "user", "content": text}]
-    try:
-        reply, model_used = _groq_openai_chat(
-            messages,
-            mode=mode,
-            web_context=web_context,
-            ground_web=ground_web,
-            pyxel_instructions=_MARII_SYSTEM,
-        )
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", errors="replace")[:800]
-        return jsonify({"error": "LLM request failed", "status": e.code, "detail": detail}), 502
-    except urllib.error.URLError as e:
-        return jsonify({"error": "LLM network error", "detail": str(e.reason)}), 502
-    except Exception as e:
-        return jsonify({"error": str(e)}), 502
-
+    reply, model_used, werr = _marii_ask_via_worker(text, mode=mode, use_web=False)
     if not reply:
         return (
             jsonify(
                 {
-                    "error": "MARII is not configured on this server yet",
-                    "hint": "Set PYX_TALK_LLM_KEY (or PYX_TALK_LLM_URL for a local OpenAI-compatible API).",
+                    "error": "MARII Worker unavailable",
+                    "detail": werr or "empty answer",
+                    "hint": "Deploy workers/marii-ask (Workers AI binding). MARII does not use Groq.",
                 }
             ),
             503,
@@ -1853,6 +1883,7 @@ def marii_ask():
         {
             "answer": reply,
             "source": "marii",
+            "backend": "workers-ai",
             "latency_ms": latency_ms,
             "model": model_used,
         }

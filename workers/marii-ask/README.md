@@ -1,12 +1,17 @@
 # MARII ask Worker
 
-Cloudflare fallback for `POST /ask` when Cloud Run `/api/marii/ask` is unavailable.
+Cloudflare Workers AI backend for `POST /ask` (and `/api/marii/ask`).
+
+**Does not use Groq.** Inference runs on the Workers AI binding (`env.AI`).
 
 ```bash
 cd workers/marii-ask
 npm install
-npx wrangler secret put GROQ_API_KEY
-npm run deploy
+npx wrangler deploy
 ```
 
-PA calls `/api/marii/ask` first, then `https://marii-ask.mainline-mi.workers.dev/ask`.
+Clients (Pyx Assistant boost + Announcer ask) call:
+
+`https://marii-ask.mainline-mi.workers.dev/ask`
+
+Optional: set `MARII_MODEL` (Workers AI model id). Default: `@cf/meta/llama-3.1-8b-instruct`.

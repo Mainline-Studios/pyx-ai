@@ -5,8 +5,8 @@
   "use strict";
 
   var STORE_KEY = "pyx.assistant.v3";
-  var MARII_ASK_URL = "/api/marii/ask";
-  var MARII_ASK_FALLBACK = "https://marii-ask.mainline-mi.workers.dev/ask";
+  var MARII_ASK_URL = "https://marii-ask.mainline-mi.workers.dev/ask";
+  var MARII_ASK_SAME_ORIGIN = "/api/marii/ask";
   var MARII_TIMEOUT_MS = 1500;
   var slu = window.PyxAssistantSLU;
   var i18n = window.PyxAssistantI18n;
@@ -459,7 +459,7 @@
         answer = await fetchMariiAsk(MARII_ASK_URL, text, signal);
       } catch (primaryErr) {
         if (signal && signal.aborted) return null;
-        answer = await fetchMariiAsk(MARII_ASK_FALLBACK, text, signal);
+        answer = await fetchMariiAsk(MARII_ASK_SAME_ORIGIN, text, signal);
       }
       if (!answer) return null;
       var ok = await moderateOk(answer);
