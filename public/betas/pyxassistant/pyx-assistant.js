@@ -27,6 +27,7 @@
     ui: "idle",
     session: false,
     warming: false,
+    voiceReady: false,
   };
 
   var els = {};
@@ -37,6 +38,7 @@
   var swirlBurstDur = 0;
   var swirlReduced = false;
   var handleInFlight = false;
+  var pendingHandoff = null;
 
   function t(key) {
     return i18n.t(state.lang, key);
@@ -541,6 +543,10 @@
   async function handleUserText(raw, fromVoice) {
     var text = slu.normalize(raw);
     if (!text || handleInFlight) return;
+    if (!state.voiceReady) {
+      toast("Voice is still downloading — hang on a second.");
+      return;
+    }
     handleInFlight = true;
     els.userLine.textContent = text;
     kickSwirl();
@@ -570,6 +576,10 @@
   }
 
   async function toggleOrb() {
+    if (!state.voiceReady) {
+      toast("Voice is still downloading — hang on a second.");
+      return;
+    }
     voice = window.PyxAssistantVoice;
     if (!voice) {
       toast(t("noSpeech"));
@@ -897,6 +907,12 @@
         els.send.click();
       }
     });
+    if (els.voiceBootSkip) {
+      els.voiceBootSkip.addEventListener("click", function () {
+        if (voice && typeof voice.unlockAudio === "function") voice.unlockAudio();
+        finishVoiceBoot("Using online neural voice.");
+      });
+    }
     els.settingsBtn.addEventListener("click", function () {
       openSheet(els.settingsSheet);
     });
@@ -1005,21 +1021,97 @@
     return n;
   }
 
+  function setChatLocked(locked) {
+    document.body.classList.toggle("voice-locked", !!locked);
+    if (els.input) els.input.disabled = !!locked;
+    if (els.send) els.send.disabled = !!locked;
+    if (els.mic) els.mic.disabled = !!locked;
+    if (els.orb) els.orb.disabled = !!locked;
+  }
+
+  function setVoiceBootMsg(msg) {
+    if (els.voiceBootMsg) els.voiceBootMsg.textContent = msg || "";
+    if (els.kbMeta && els.kbMeta.hidden === false) {
+      els.kbMeta.setAttribute("data-voice", msg || "");
+      refreshKbMeta();
+    }
+  }
+
+  function showVoiceBootSkip(show) {
+    if (!els.voiceBootSkip) return;
+    els.voiceBootSkip.classList.toggle("is-hidden", !show);
+  }
+
+  function finishVoiceBoot(msg) {
+    state.voiceReady = true;
+    state.warming = false;
+    setVoiceBootMsg(msg || "Voice ready.");
+    showVoiceBootSkip(false);
+    setChatLocked(false);
+    if (els.voiceBoot) {
+      els.voiceBoot.classList.add("is-done");
+      els.voiceBoot.setAttribute("aria-busy", "false");
+    }
+    paintVoiceOptions();
+    if (pendingHandoff) {
+      var q = pendingHandoff;
+      pendingHandoff = null;
+      handleUserText(q, false);
+    }
+  }
+
   async function bootVoice() {
     voice = window.PyxAssistantVoice;
-    if (!voice || !voice.warmup) return;
+    if (!voice || !voice.warmup) {
+      setVoiceBootMsg("Neural voice module missing — typing still works.");
+      finishVoiceBoot("Typing ready.");
+      return;
+    }
     state.warming = true;
+    state.voiceReady = false;
+    setChatLocked(true);
+    setVoiceBootMsg("Downloading neural TTS…");
     bindVoice();
     paintVoiceOptions();
-    voice.warmup(function (msg) {
-      if (els.kbMeta && els.kbMeta.hidden === false) {
-        els.kbMeta.setAttribute("data-voice", msg);
-        refreshKbMeta();
-      }
-    }).then(function () {
+    voice.setVoice(state.voiceId);
+    voice.onOnlineReady = function () {
+      setVoiceBootMsg("Online neural voice ready. Still loading Kokoro…");
+      showVoiceBootSkip(true);
+    };
+    voice.onError = function () {
+      toast(t("sttFail"));
+    };
+    try {
+      await voice.warmup(function (msg) {
+        setVoiceBootMsg(msg || "Getting voice ready…");
+        if (voice.ready && voice.ready.kokoro) {
+          paintVoiceOptions();
+          var hadSavedVoice = false;
+          try {
+            var raw = localStorage.getItem(STORE_KEY);
+            var o = raw ? JSON.parse(raw) : null;
+            hadSavedVoice = !!(o && o.voiceId && o.voiceId !== "en-GB" && o.voiceId !== "en-US" && o.voiceId !== "am_fenrir");
+          } catch (e) {}
+          if (!hadSavedVoice) {
+            state.voiceId = voice.voiceId || "bm_lewis";
+            voice.setVoice(state.voiceId);
+            save();
+            paintVoiceOptions();
+          } else {
+            voice.setVoice(state.voiceId);
+          }
+        }
+      });
       paintVoiceOptions();
-    });
-    state.warming = false;
+      if (voice.setVoice) voice.setVoice(state.voiceId);
+      var doneMsg =
+        voice.ready && voice.ready.kokoro
+          ? "Voice ready — Kokoro Lewis."
+          : "Voice ready — online neural TTS.";
+      finishVoiceBoot(doneMsg);
+    } catch (err) {
+      finishVoiceBoot("Online neural TTS ready.");
+    }
   }
 
   function init() {
@@ -1068,6 +1160,9 @@
       toast: document.getElementById("toast"),
       kbMeta: document.getElementById("kbMeta"),
       field: document.getElementById("fieldSim"),
+      voiceBoot: document.getElementById("voiceBoot"),
+      voiceBootMsg: document.getElementById("voiceBootMsg"),
+      voiceBootSkip: document.getElementById("voiceBootSkip"),
     };
     load();
     applyTheme(state.theme);
@@ -1081,6 +1176,7 @@
     els.discord.value = state.discord;
     paintChrome();
     bind();
+    setChatLocked(true);
     startSwirl(document.getElementById("swirlCanvas"));
     bootKnowledge()
       .then(function () {
@@ -1088,10 +1184,13 @@
           window.PyxHandoff.applyIncoming({
             app: "pyxassistant",
             onQuery: function (q) {
-              handleUserText(q, false);
+              if (!state.voiceReady) pendingHandoff = q;
+              else handleUserText(q, false);
             },
             onText: function (text) {
-              if (text) handleUserText(text, false);
+              if (!text) return;
+              if (!state.voiceReady) pendingHandoff = text;
+              else handleUserText(text, false);
             },
           });
         }

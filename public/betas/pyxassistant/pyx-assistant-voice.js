@@ -363,12 +363,21 @@
 
   async function warmup(onProgress) {
     var note = onProgress || function () {};
-    note("Online neural voice is ready. Loading Kokoro…");
+    note("Warming online neural voice…");
     emit("ready");
+    var onlineReady = false;
+    try {
+      // Prime Sound of Text so the first spoken reply isn’t a cold round-trip.
+      await soundOfTextUrl("Hi.", api.voiceId && api.voiceId.indexOf("en-") === 0 ? api.voiceId : "en-GB");
+      onlineReady = true;
+      note("Online neural voice ready. Loading Kokoro…");
+    } catch (e) {
+      note("Online voice warm-up skipped. Loading Kokoro…");
+    }
     if (typeof api.onOnlineReady === "function") {
       try {
-        api.onOnlineReady();
-      } catch (e) {}
+        api.onOnlineReady({ online: onlineReady });
+      } catch (e2) {}
     }
     try {
       var mod = await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm");
@@ -378,7 +387,6 @@
         device: "wasm",
       });
       api.ready.kokoro = true;
-      // Default to Kokoro Lewis once available unless user already picked another Kokoro/online voice.
       if (!api.voiceId || api.voiceId === "en-GB" || api.voiceId === "en-US" || api.voiceId === "am_fenrir") {
         api.voiceId = "bm_lewis";
         note("Kokoro is ready — using Lewis.");
@@ -387,7 +395,11 @@
       }
     } catch (e) {
       api.ready.kokoro = false;
-      note("Online voice is on (Sound of Text). Kokoro didn’t load on this device.");
+      note(
+        onlineReady
+          ? "Online voice is on (Sound of Text). Kokoro didn’t load on this device."
+          : "Voice warm-up finished with limited TTS. Typing still works."
+      );
     }
     return api.ready;
   }

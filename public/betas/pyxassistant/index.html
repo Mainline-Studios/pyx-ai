@@ -10,10 +10,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;650;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/betas/pyxassistant/pyx-assistant.css?v=9" />
+  <link rel="stylesheet" href="/betas/pyxassistant/pyx-assistant.css?v=10" />
   <link rel="stylesheet" href="/betas/pyxassistant/pyx-assistant-theme-calm-contrast.css?v=2" />
 </head>
 <body>
+  <div class="voice-boot" id="voiceBoot" role="status" aria-live="polite" aria-busy="true">
+    <div class="voice-boot__card">
+      <span class="voice-boot__spinner" aria-hidden="true"></span>
+      <p class="voice-boot__title">Getting voice ready</p>
+      <p class="voice-boot__msg" id="voiceBootMsg">Downloading neural TTS…</p>
+      <button type="button" class="ghost voice-boot__skip is-hidden" id="voiceBootSkip">Continue with online voice</button>
+    </div>
+  </div>
+
   <div class="stage">
     <div class="swirl" aria-hidden="true">
       <canvas class="swirl__canvas" id="swirlCanvas"></canvas>
@@ -143,7 +152,7 @@
   <script src="/betas/pyxassistant/pyx-assistant-cookies.js?v=12"></script>
   <script src="/betas/pyxassistant/pyx-assistant-sports.js?v=13"></script>
   <script src="/betas/pyxassistant/pyx-assistant-weather.js?v=12"></script>
-  <script src="/betas/pyxassistant/pyx-assistant.js?v=14"></script>
-  <script src="/betas/pyxassistant/pyx-assistant-voice.js?v=17"></script>
+  <script src="/betas/pyxassistant/pyx-assistant.js?v=15"></script>
+  <script src="/betas/pyxassistant/pyx-assistant-voice.js?v=18"></script>
 </body>
 </html>
