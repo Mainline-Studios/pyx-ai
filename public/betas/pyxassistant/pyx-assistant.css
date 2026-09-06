@@ -761,6 +761,14 @@ body.has-field .orb-wrap {
   cursor: pointer;
 }
 
+a.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
 .history {
   list-style: none;
   margin: 0;

@@ -115,7 +115,8 @@ function welcomeHtml(email, { withNewsletter }) {
         <tr><td style="padding-top:12px;line-height:1.55;color:#1a4a52;font-size:0.95rem;">
           <strong style="color:#0d7377;">betas — pyx assistant + announcer</strong><br/>
           powered by <strong>marii</strong>. extremely early and still being improved.
-          try them: <a href="https://pyx-ai.web.app/betas/" style="color:#2ec4b6;">pyx-ai.web.app/betas</a>
+          try pyx assistant: <a href="https://pyx-ai.web.app/betas/pyxassistant" style="color:#2ec4b6;">pyx-ai.web.app/betas/pyxassistant</a>
+          · <a href="https://pyx-ai.web.app/mainlineintelligence/pyx-assistant" style="color:#2ec4b6;">what it is</a>
         </td></tr>
         ${pdfNote}
         <tr><td style="padding-top:14px;line-height:1.55;color:#0d7377;font-size:0.95rem;font-weight:600;">
@@ -141,7 +142,8 @@ function welcomeText(email, { withNewsletter }) {
     `- marii beta — local / game-scoped (no cloud llm); announcer projections from recent finals\n` +
     `- mci coming soon — industrial conversational pyx\n` +
     `- betas: pyx assistant + announcer — extremely early\n` +
-    `  https://pyx-ai.web.app/betas/\n\n` +
+    `  https://pyx-ai.web.app/betas/pyxassistant\n` +
+    `  about: https://pyx-ai.web.app/mainlineintelligence/pyx-assistant\n\n` +
     (withNewsletter
       ? `issue ${NEWSLETTER_ISSUE} pdf is attached.\n\n`
       : "") +
