@@ -1,5 +1,20 @@
 /* Announcer beta — builds on Pyx Assistant tokens */
 
+/* PA locks the page (orb UI). Announcer needs normal document scrolling. */
+html.announcer-page,
+html.announcer-page body {
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.announcer-page body {
+  min-height: 100dvh;
+}
+
 .voice-boot {
   position: fixed;
   inset: 0;
@@ -68,8 +83,15 @@
 .announcer-stage {
   max-width: 1100px;
   margin: 0 auto;
-  min-height: 100vh;
-  padding-bottom: 40px;
+  min-height: 100dvh;
+  height: auto;
+  display: block;
+  padding-bottom: calc(48px + env(safe-area-inset-bottom));
+  overflow: visible;
+}
+
+.announcer-stage > .swirl {
+  pointer-events: none;
 }
 
 .announcer-main {
@@ -332,8 +354,10 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 280px;
+  max-height: min(42vh, 360px);
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -471,8 +495,10 @@
   font-size: 0.92rem;
   line-height: 1.45;
   min-height: 4.5em;
-  max-height: 340px;
+  max-height: min(40vh, 360px);
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   white-space: pre-wrap;
 }
 
