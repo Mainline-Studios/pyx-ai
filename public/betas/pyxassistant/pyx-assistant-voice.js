@@ -49,15 +49,15 @@
     ];
     if (api.ready.kokoro) {
       list.push(
-        { id: "am_fenrir", label: "On-device · Fenrir (US male)" },
-        { id: "bm_lewis", label: "On-device · Lewis (UK male)" },
-        { id: "am_michael", label: "On-device · Michael (US male)" },
-        { id: "am_adam", label: "On-device · Adam (US male)" },
-        { id: "am_onyx", label: "On-device · Onyx (US male)" },
-        { id: "bm_george", label: "On-device · George (UK male)" },
-        { id: "af_heart", label: "On-device · Heart (US female)" },
-        { id: "af_bella", label: "On-device · Bella (US female)" },
-        { id: "bf_emma", label: "On-device · Emma (UK female)" }
+        { id: "bm_lewis", label: "Kokoro · Lewis (UK male)" },
+        { id: "am_fenrir", label: "Kokoro · Fenrir (US male)" },
+        { id: "am_michael", label: "Kokoro · Michael (US male)" },
+        { id: "am_adam", label: "Kokoro · Adam (US male)" },
+        { id: "am_onyx", label: "Kokoro · Onyx (US male)" },
+        { id: "bm_george", label: "Kokoro · George (UK male)" },
+        { id: "af_heart", label: "Kokoro · Heart (US female)" },
+        { id: "af_bella", label: "Kokoro · Bella (US female)" },
+        { id: "bf_emma", label: "Kokoro · Emma (UK female)" }
       );
     }
     return list;
@@ -363,7 +363,7 @@
 
   async function warmup(onProgress) {
     var note = onProgress || function () {};
-    note("Online neural voice is ready. Loading on-device Kokoro…");
+    note("Online neural voice is ready. Loading Kokoro…");
     emit("ready");
     if (typeof api.onOnlineReady === "function") {
       try {
@@ -378,13 +378,12 @@
         device: "wasm",
       });
       api.ready.kokoro = true;
-      // Prefer on-device voice once available unless user already picked a neural cloud id intentionally
-      // and stored it — callers can keep their choice; we only auto-switch from default en-GB.
-      if (!api.voiceId || api.voiceId === "en-GB") {
-        api.voiceId = "am_fenrir";
-        note("On-device Kokoro is ready — using Fenrir (US male).");
+      // Default to Kokoro Lewis once available unless user already picked another Kokoro/online voice.
+      if (!api.voiceId || api.voiceId === "en-GB" || api.voiceId === "en-US" || api.voiceId === "am_fenrir") {
+        api.voiceId = "bm_lewis";
+        note("Kokoro is ready — using Lewis.");
       } else {
-        note("On-device Kokoro is ready — male & female voices in the picker.");
+        note("Kokoro is ready — pick a voice in the list.");
       }
     } catch (e) {
       api.ready.kokoro = false;

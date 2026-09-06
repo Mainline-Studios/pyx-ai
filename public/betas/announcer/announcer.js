@@ -15,7 +15,7 @@
   var state = {
     mode: "normal", // normal | announcer
     muted: false,
-    voiceId: "en-US",
+    voiceId: "bm_lewis",
     voiceReady: false,
     gamePk: null,
     gameLabel: "",
@@ -801,10 +801,10 @@
         { id: "en-GB", label: "Online neural · British" },
         { id: "en-AU", label: "Online neural · Australian" },
         { id: "en-IN", label: "Online neural · Indian English" },
-        { id: "am_fenrir", label: "On-device · Fenrir (US male)" },
-        { id: "bm_lewis", label: "On-device · Lewis (UK male)" },
-        { id: "am_michael", label: "On-device · Michael (US male)" },
-        { id: "bm_george", label: "On-device · George (UK male)" },
+        { id: "bm_lewis", label: "Kokoro · Lewis (UK male)" },
+        { id: "am_fenrir", label: "Kokoro · Fenrir (US male)" },
+        { id: "am_michael", label: "Kokoro · Michael (US male)" },
+        { id: "bm_george", label: "Kokoro · George (UK male)" },
       ];
     var cur = state.voiceId;
     els.voiceSelect.innerHTML = "";
@@ -883,9 +883,12 @@
           try {
             locked = !!localStorage.getItem("pyx.announcer.voiceId");
           } catch (e) {}
-          // Prefer a booth-friendly male voice when Kokoro lands and user hasn’t locked a pick.
-          if (!locked) {
-            state.voiceId = "am_fenrir";
+          // Prefer Kokoro Lewis when it lands; migrate off online/Fenrir defaults.
+          if (!locked || locked === "en-US" || locked === "en-GB" || locked === "am_fenrir") {
+            state.voiceId = "bm_lewis";
+            try {
+              localStorage.setItem("pyx.announcer.voiceId", state.voiceId);
+            } catch (e2) {}
             voice.setVoice(state.voiceId);
             paintVoiceOptions();
             els.voiceSelect.value = state.voiceId;
@@ -899,7 +902,7 @@
         setVoiceId(state.voiceId);
         var doneMsg =
           voice.ready && voice.ready.kokoro
-            ? "Voice ready — Kokoro on-device."
+            ? "Voice ready — Kokoro Lewis."
             : "Voice ready — online neural TTS.";
         finishVoiceBoot(doneMsg);
       })
