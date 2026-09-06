@@ -8,9 +8,6 @@
   var MLB = "https://statsapi.mlb.com/api/v1";
   var LIVE = "https://statsapi.mlb.com/api/v1.1/game/";
   var POLL_MS = 7000;
-  var MARII_ASK_URL = "/api/marii/ask";
-  var MARII_ASK_FALLBACK = "https://marii-ask.mainline-mi.workers.dev/ask";
-  var MARII_TIMEOUT_MS = 8000;
 
   var state = {
     mode: "normal", // normal | announcer
@@ -539,179 +536,439 @@
     return side;
   }
 
-  function buildGameContext(feed) {
-    if (!feed) return "No live feed loaded yet.";
+  function teamBox(feed, side) {
+    return ((((feed || {}).liveData || {}).boxscore || {}).teams || {})[side] || {};
+  }
+
+  function scoreSnap(feed) {
     var ls = (feed.liveData && feed.liveData.linescore) || {};
-    var gd = feed.gameData || {};
-    var status = (gd.status && gd.status.detailedState) || "";
     var away = teamLabel(feed, "away");
     var home = teamLabel(feed, "home");
-    var ar = (ls.teams && ls.teams.away && ls.teams.away.runs) || 0;
-    var hr = (ls.teams && ls.teams.home && ls.teams.home.runs) || 0;
-    var bits = [];
-    bits.push("Game: " + away + " at " + home + ".");
-    bits.push("Score: " + away + " " + ar + ", " + home + " " + hr + ".");
-    bits.push(
-      "Inning: " +
-        ((ls.inningState || "") + " " + (ls.currentInningOrdinal || "")).trim() +
-        (status ? " (" + status + ")" : "") +
-        "."
-    );
-    if (ls.balls != null && ls.strikes != null) {
-      bits.push("Count: " + ls.balls + "-" + ls.strikes + ", outs: " + (ls.outs != null ? ls.outs : "?") + ".");
+    var ar = Number((ls.teams && ls.teams.away && ls.teams.away.runs) || 0);
+    var hr = Number((ls.teams && ls.teams.home && ls.teams.home.runs) || 0);
+    return {
+      ls: ls,
+      away: away,
+      home: home,
+      ar: ar,
+      hr: hr,
+      lead: ar === hr ? 0 : ar > hr ? "away" : "home",
+      margin: Math.abs(ar - hr),
+      inning: Number(ls.currentInning || 0),
+      inningState: ls.inningState || "",
+      inningOrd: ls.currentInningOrdinal || "",
+      balls: ls.balls,
+      strikes: ls.strikes,
+      outs: ls.outs,
+      status: (((feed.gameData || {}).status || {}).detailedState) || "",
+      offense: ls.offense || {},
+      defense: ls.defense || {},
+    };
+  }
+
+  function battingEntries(feed, side) {
+    var box = teamBox(feed, side);
+    var order = box.battingOrder || [];
+    var out = [];
+    var i;
+    for (i = 0; i < order.length; i++) {
+      var p = playerFromBox(box, order[i]);
+      if (!p) continue;
+      var bat = (p.stats && p.stats.batting) || {};
+      out.push({
+        name: playerName(p),
+        pos: (p.position && (p.position.abbreviation || p.position.name)) || "",
+        hits: Number(bat.hits || 0),
+        abs: Number(bat.atBats || 0),
+        hr: Number(bat.homeRuns || 0),
+        rbi: Number(bat.rbi || 0),
+        runs: Number(bat.runs || 0),
+        bb: Number(bat.baseOnBalls || 0),
+        so: Number(bat.strikeOuts || 0),
+      });
     }
-    var offense = ls.offense || {};
-    var defense = ls.defense || {};
-    var batter = (offense.batter && offense.batter.fullName) || "";
-    var pitcher = (defense.pitcher && defense.pitcher.fullName) || "";
-    var onDeck = (offense.onDeck && offense.onDeck.fullName) || "";
-    var inHole = (offense.inHole && offense.inHole.fullName) || "";
-    if (pitcher || batter) {
-      bits.push(
-        "Current matchup: " +
-          (pitcher || "unknown pitcher") +
-          " vs " +
-          (batter || "unknown batter") +
-          "."
-      );
-    }
-    if (onDeck) bits.push("On deck: " + onDeck + ".");
-    if (inHole) bits.push("In the hole: " + inHole + ".");
+    return out;
+  }
+
+  function pitchingEntries(feed, side) {
+    var box = teamBox(feed, side);
+    var ids = box.pitchers || [];
+    return ids
+      .map(function (id) {
+        var p = playerFromBox(box, id);
+        if (!p) return null;
+        var st = (p.stats && p.stats.pitching) || {};
+        return {
+          name: playerName(p),
+          ip: st.inningsPitched != null ? String(st.inningsPitched) : "",
+          er: Number(st.earnedRuns || 0),
+          h: Number(st.hits || 0),
+          so: Number(st.strikeOuts || 0),
+          bb: Number(st.baseOnBalls || 0),
+          pitches: Number(st.numberOfPitches || st.pitchesThrown || 0),
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function runnersText(offense) {
     var runners = [];
     if (offense.first && offense.first.fullName) runners.push("1B " + offense.first.fullName);
     if (offense.second && offense.second.fullName) runners.push("2B " + offense.second.fullName);
     if (offense.third && offense.third.fullName) runners.push("3B " + offense.third.fullName);
-    bits.push(runners.length ? "Runners: " + runners.join(", ") + "." : "Bases empty.");
+    return runners.length ? runners.join(", ") : "bases empty";
+  }
 
-    var pp = gd.probablePitchers || {};
-    if (pp.away && pp.away.fullName) bits.push("Probable/away starter context: " + pp.away.fullName + ".");
-    if (pp.home && pp.home.fullName) bits.push("Probable/home starter context: " + pp.home.fullName + ".");
+  function answerLineup(feed) {
+    var away = teamLabel(feed, "away");
+    var home = teamLabel(feed, "home");
+    var a = lineupLines(feed, "away");
+    var h = lineupLines(feed, "home");
+    if (!a.length && !h.length) return "Lineups aren’t posted in the feed yet.";
+    return (
+      (a.length ? away + " batting order:\n" + a.join("\n") : "") +
+      (a.length && h.length ? "\n\n" : "") +
+      (h.length ? home + " batting order:\n" + h.join("\n") : "")
+    );
+  }
 
-    var awayLine = lineupLines(feed, "away");
-    var homeLine = lineupLines(feed, "home");
-    if (awayLine.length) bits.push(away + " lineup:\n" + awayLine.join("\n"));
-    if (homeLine.length) bits.push(home + " lineup:\n" + homeLine.join("\n"));
+  function answerMatchup(feed) {
+    var s = scoreSnap(feed);
+    var pitcher = (s.defense.pitcher && s.defense.pitcher.fullName) || "Unknown";
+    var batter = (s.offense.batter && s.offense.batter.fullName) || "Unknown";
+    var onDeck = (s.offense.onDeck && s.offense.onDeck.fullName) || "";
+    var inHole = (s.offense.inHole && s.offense.inHole.fullName) || "";
+    var count =
+      s.balls != null && s.strikes != null
+        ? " Count " + s.balls + "-" + s.strikes + ", " + (s.outs != null ? s.outs : "?") + " out."
+        : "";
+    var parts = [
+      pitcher + " is on the mound against " + batter + "." + count,
+      "Runners: " + runnersText(s.offense) + ".",
+    ];
+    if (onDeck) parts.push("On deck: " + onDeck + ".");
+    if (inHole) parts.push("In the hole: " + inHole + ".");
+    return parts.join(" ");
+  }
 
-    // Pitching lines briefly
-    ["away", "home"].forEach(function (side) {
-      var box = (((feed.liveData || {}).boxscore || {}).teams || {})[side] || {};
-      var pitchers = box.pitchers || [];
-      if (!pitchers.length) return;
-      var names = pitchers
-        .map(function (id) {
-          var p = playerFromBox(box, id);
-          var n = playerName(p);
-          var st = (p && p.stats && p.stats.pitching) || {};
-          if (!n) return "";
-          return (
-            n +
-            (st.inningsPitched != null ? " " + st.inningsPitched + " IP" : "") +
-            (st.earnedRuns != null ? ", " + st.earnedRuns + " ER" : "") +
-            (st.strikeOuts != null ? ", " + st.strikeOuts + " K" : "")
-          );
-        })
-        .filter(Boolean);
-      if (names.length) bits.push(teamLabel(feed, side) + " pitchers used: " + names.join("; ") + ".");
+  function answerSituation(feed) {
+    var s = scoreSnap(feed);
+    return (
+      s.away +
+      " " +
+      s.ar +
+      ", " +
+      s.home +
+      " " +
+      s.hr +
+      ". " +
+      ((s.inningState + " " + s.inningOrd).trim() || "Inning n/a") +
+      (s.status ? " (" + s.status + ")" : "") +
+      ". " +
+      (s.balls != null && s.strikes != null
+        ? "Count " + s.balls + "-" + s.strikes + ", " + (s.outs != null ? s.outs : "?") + " out. "
+        : "") +
+      "Runners: " +
+      runnersText(s.offense) +
+      "."
+    );
+  }
+
+  function answerHotBats(feed) {
+    var sides = ["away", "home"];
+    var all = [];
+    sides.forEach(function (side) {
+      battingEntries(feed, side).forEach(function (b) {
+        if (!b.name) return;
+        var score = b.hits * 3 + b.hr * 4 + b.rbi * 2 + b.runs + b.bb;
+        all.push({ side: side, b: b, score: score });
+      });
     });
+    all.sort(function (a, b) {
+      return b.score - a.score || b.b.hits - a.b.hits;
+    });
+    var hot = all.filter(function (x) {
+      return x.score > 0;
+    }).slice(0, 5);
+    if (!hot.length) {
+      return "Nobody’s piled up counting stats yet — early or quiet bats so far.";
+    }
+    var lines = hot.map(function (x) {
+      var b = x.b;
+      return (
+        b.name +
+        " (" +
+        teamLabel(feed, x.side) +
+        "): " +
+        b.hits +
+        "-" +
+        b.abs +
+        (b.hr ? ", " + b.hr + " HR" : "") +
+        (b.rbi ? ", " + b.rbi + " RBI" : "") +
+        (b.runs ? ", " + b.runs + " R" : "")
+      );
+    });
+    return "Hot bats so far from the box score:\n" + lines.join("\n");
+  }
 
-    return bits.join("\n");
+  function answerBullpen(feed) {
+    var s = scoreSnap(feed);
+    var bits = [];
+    ["away", "home"].forEach(function (side) {
+      var staff = pitchingEntries(feed, side);
+      if (!staff.length) return;
+      var label = teamLabel(feed, side);
+      var lines = staff.map(function (p, idx) {
+        var role = idx === 0 ? "starter/first" : "relief";
+        return (
+          p.name +
+          " (" +
+          role +
+          ")" +
+          (p.ip ? " " + p.ip + " IP" : "") +
+          ", " +
+          p.er +
+          " ER, " +
+          p.so +
+          " K" +
+          (p.pitches ? ", " + p.pitches + " pitches" : "")
+        );
+      });
+      bits.push(label + " pitchers used:\n" + lines.join("\n"));
+      var last = staff[staff.length - 1];
+      if (last && last.pitches >= 25 && staff.length === 1) {
+        bits.push(label + " still on the starter — a bullpen arm could be next if the pitch count climbs.");
+      } else if (staff.length > 1) {
+        bits.push(label + " already into the pen; current arm is " + last.name + ".");
+      }
+    });
+    var current = (s.defense.pitcher && s.defense.pitcher.fullName) || "";
+    if (current) bits.unshift("Pitching now: " + current + ".");
+    if (!bits.length) return "Bullpen detail isn’t in the feed yet.";
+    return bits.join("\n\n");
+  }
+
+  function answerProjection(feed) {
+    var s = scoreSnap(feed);
+    var pitcher = (s.defense.pitcher && s.defense.pitcher.fullName) || "the pitcher";
+    var batter = (s.offense.batter && s.offense.batter.fullName) || "the batter";
+    var onDeck = (s.offense.onDeck && s.offense.onDeck.fullName) || "";
+    var outs = s.outs != null ? s.outs : 0;
+    var countBit =
+      s.balls != null && s.strikes != null ? "a " + s.balls + "-" + s.strikes + " count" : "this at-bat";
+    var inn =
+      (s.inningState + " " + s.inningOrd).trim() ||
+      (s.inning ? "inning " + s.inning : "this inning");
+
+    var offenseSide =
+      /bottom|mid/i.test(s.inningState) || /bot/i.test(s.inningState) ? "home" : "away";
+    if (/top/i.test(s.inningState)) offenseSide = "away";
+    if (/bottom|bot/i.test(s.inningState)) offenseSide = "home";
+    var offenseName = offenseSide === "home" ? s.home : s.away;
+    var defenseName = offenseSide === "home" ? s.away : s.home;
+
+    var sentences = [];
+    sentences.push(
+      "With " +
+        (outs === 1 ? "one out" : outs === 2 ? "two outs" : outs + " outs") +
+        " and " +
+        countBit +
+        ", " +
+        offenseName +
+        " " +
+        (outs >= 2 ? "need a clean swing to keep the inning alive" : "have a chance to build something") +
+        "."
+    );
+    sentences.push(
+      pitcher +
+        " is on the mound for " +
+        defenseName +
+        " against " +
+        batter +
+        (onDeck ? ", with " + onDeck + " on deck" : "") +
+        "."
+    );
+
+    var runState = runnersText(s.offense);
+    if (runState !== "bases empty") {
+      sentences.push("Traffic on the bases (" + runState + ") raises the leverage of this pitch.");
+    } else {
+      sentences.push("Bases are empty, so the focus is on getting the inning started.");
+    }
+
+    // Simple lean from score + inning (not a model — booth color from live state).
+    var leanSide = s.lead || null;
+    var leanName = leanSide === "away" ? s.away : leanSide === "home" ? s.home : null;
+    var late = s.inning >= 7 || /final/i.test(s.status);
+    if (!leanName) {
+      sentences.push(
+        "It’s tied " +
+          s.ar +
+          "-" +
+          s.hr +
+          " in the " +
+          inn +
+          ". Next run swings the whole look of this game."
+      );
+      sentences.push(
+        "A plausible finish from here is still a one-run game either way — call it roughly " +
+          (s.ar + 1) +
+          "-" +
+          s.hr +
+          " or " +
+          s.ar +
+          "-" +
+          (s.hr + 1) +
+          " depending who breaks through first. Booth color only, not a forecast model."
+      );
+    } else {
+      var trailName = leanSide === "away" ? s.home : s.away;
+      var leadScore = leanSide === "away" ? s.ar : s.hr;
+      var trailScore = leanSide === "away" ? s.hr : s.ar;
+      var edge =
+        late && s.margin >= 3
+          ? leanName + " look firmly in control"
+          : late && s.margin >= 1
+            ? leanName + " hold a late edge"
+            : leanName + " have the current edge";
+      sentences.push(
+        "Scoreboard says " +
+          s.away +
+          " " +
+          s.ar +
+          ", " +
+          s.home +
+          " " +
+          s.hr +
+          " in the " +
+          inn +
+          " — " +
+          edge +
+          "."
+      );
+      var projLead = leadScore + (offenseSide === leanSide && outs < 2 ? 1 : 0);
+      var projTrail = trailScore + (offenseSide !== leanSide && outs < 2 && runState !== "bases empty" ? 1 : 0);
+      if (projLead === leadScore && projTrail === trailScore) {
+        projLead = leadScore;
+        projTrail = trailScore;
+      }
+      // Nudge a finishing score that mirrors current margin.
+      var finLead = Math.max(projLead, leadScore);
+      var finTrail = Math.min(projTrail, trailScore + (late && s.margin >= 2 ? 0 : 1));
+      if (finTrail >= finLead) finTrail = Math.max(0, finLead - 1);
+      sentences.push(
+        trailName +
+          " can still push, but from this spot a " +
+          finLead +
+          "-" +
+          finTrail +
+          " finish for " +
+          leanName +
+          " looks plausible. That’s booth color from the live board — not betting advice."
+      );
+    }
+
+    var hot = battingEntries(feed, offenseSide)
+      .filter(function (b) {
+        return b.hits > 0 || b.hr > 0 || b.rbi > 0;
+      })
+      .sort(function (a, b) {
+        return b.hits + b.hr * 2 + b.rbi - (a.hits + a.hr * 2 + a.rbi);
+      })[0];
+    if (hot && hot.name) {
+      sentences.push(
+        offenseName +
+          " have gotten production from " +
+          hot.name +
+          " (" +
+          hot.hits +
+          "-" +
+          hot.abs +
+          (hot.rbi ? ", " + hot.rbi + " RBI" : "") +
+          ") already tonight."
+      );
+    }
+
+    return sentences.join(" ");
+  }
+
+  function answerStarter(feed) {
+    var s = scoreSnap(feed);
+    var bits = [];
+    ["away", "home"].forEach(function (side) {
+      var staff = pitchingEntries(feed, side);
+      if (!staff.length) return;
+      var p = staff[0];
+      bits.push(
+        teamLabel(feed, side) +
+          " first pitcher " +
+          p.name +
+          ": " +
+          (p.ip || "?") +
+          " IP, " +
+          p.h +
+          " H, " +
+          p.er +
+          " ER, " +
+          p.bb +
+          " BB, " +
+          p.so +
+          " K" +
+          (p.pitches ? ", " + p.pitches + " pitches" : "") +
+          "."
+      );
+    });
+    var cur = (s.defense.pitcher && s.defense.pitcher.fullName) || "";
+    if (cur) bits.push("On the mound right now: " + cur + ".");
+    return bits.length ? bits.join(" ") : "Pitching lines aren’t in the feed yet.";
+  }
+
+  function answerGeneral(feed, q) {
+    // Default booth brief for free-form asks — still 100% local feed.
+    return (
+      answerSituation(feed) +
+      " " +
+      answerMatchup(feed) +
+      (/\b(who|what|how|why|will|should|can)\b/i.test(q)
+        ? " For a projection-style take, tap Projections; for bats or pen, use Hot bats or Bullpen."
+        : "")
+    );
   }
 
   function localAskAnswer(q) {
     var feed = state.lastFeed;
-    if (!feed) return null;
+    if (!feed) return "Live feed isn’t ready yet — wait a second and ask again.";
     var t = String(q || "").toLowerCase();
-    var ls = (feed.liveData && feed.liveData.linescore) || {};
-    var offense = ls.offense || {};
-    var defense = ls.defense || {};
 
     if (/\blineup|batting order|who('?s| is) (in the lineup|hitting)\b/.test(t)) {
-      var away = teamLabel(feed, "away");
-      var home = teamLabel(feed, "home");
-      var a = lineupLines(feed, "away");
-      var h = lineupLines(feed, "home");
-      if (!a.length && !h.length) return "Lineups aren’t posted in the feed yet.";
-      return (
-        (a.length ? away + " batting order:\n" + a.join("\n") : "") +
-        (a.length && h.length ? "\n\n" : "") +
-        (h.length ? home + " batting order:\n" + h.join("\n") : "")
-      );
+      return answerLineup(feed);
     }
-
-    if (/\b(pitcher|mound|on the hill).*(batter|hitting|at bat)|batter.*pitcher|who('?s| is) (pitching|batting|at bat|up)|matchup\b/.test(t)) {
-      var pitcher = (defense.pitcher && defense.pitcher.fullName) || "Unknown";
-      var batter = (offense.batter && offense.batter.fullName) || "Unknown";
-      var onDeck = (offense.onDeck && offense.onDeck.fullName) || "";
-      var count =
-        ls.balls != null && ls.strikes != null
-          ? " Count " + ls.balls + "-" + ls.strikes + ", " + (ls.outs != null ? ls.outs : "?") + " out."
-          : "";
-      return (
-        pitcher +
-        " is pitching to " +
-        batter +
-        "." +
-        count +
-        (onDeck ? " On deck: " + onDeck + "." : "")
-      );
+    if (
+      /\b(pitcher|mound|on the hill).*(batter|hitting|at bat)|batter.*pitcher|who('?s| is) (pitching|batting|at bat|up)|matchup\b/.test(
+        t
+      )
+    ) {
+      return answerMatchup(feed);
     }
-
     if (/\b(count|outs|runners|on base|situation|scoreboard)\b/.test(t)) {
-      var bits = [];
-      bits.push(els.scoreLine.textContent || "Score unavailable");
-      bits.push(els.metaLine.textContent || "");
-      var runners = [];
-      if (offense.first && offense.first.fullName) runners.push("1B: " + offense.first.fullName);
-      if (offense.second && offense.second.fullName) runners.push("2B: " + offense.second.fullName);
-      if (offense.third && offense.third.fullName) runners.push("3B: " + offense.third.fullName);
-      bits.push(runners.length ? runners.join(" · ") : "Bases empty");
-      return bits.filter(Boolean).join(". ") + ".";
+      return answerSituation(feed);
     }
-
-    return null;
-  }
-
-  async function fetchMariiAsk(url, text, signal) {
-    var res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: text, mode: "fast", use_web: true }),
-      signal: signal,
-    });
-    if (!res.ok) throw new Error("marii " + res.status);
-    var data = await res.json();
-    var answer = data && (data.answer || data.reply);
-    if (!answer || typeof answer !== "string") throw new Error("marii empty");
-    return answer.trim();
-  }
-
-  async function askMariiWithContext(question) {
-    var ctx = buildGameContext(state.lastFeed);
-    var prompt =
-      "You are MARII helping with a live MLB Announcer beta. " +
-      "Answer briefly (2–6 sentences unless listing a lineup). " +
-      "Use the live game context below. For projections, give a light, informal take — not betting advice. " +
-      "If something isn’t in the context, say so.\n\n" +
-      "LIVE GAME CONTEXT:\n" +
-      ctx +
-      "\n\nQUESTION:\n" +
-      question;
-    if (prompt.length > 3800) prompt = prompt.slice(0, 3800);
-    var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
-    var timer = setTimeout(function () {
-      if (ctrl) ctrl.abort();
-    }, MARII_TIMEOUT_MS);
-    var signal = ctrl ? ctrl.signal : undefined;
-    try {
-      try {
-        return await fetchMariiAsk(MARII_ASK_URL, prompt, signal);
-      } catch (e1) {
-        if (signal && signal.aborted) throw e1;
-        return await fetchMariiAsk(MARII_ASK_FALLBACK, prompt, signal);
-      }
-    } finally {
-      clearTimeout(timer);
+    if (/\b(hot|heating|best bat|who('?s| is) hitting|production at the plate)\b/.test(t)) {
+      return answerHotBats(feed);
     }
+    if (/\b(bullpen|relief|reliever|who('?s| is) (next|coming in)|pitch count)\b/.test(t)) {
+      return answerBullpen(feed);
+    }
+    if (/\b(projection|project|predict|win probability|who wins|forecast|plausible|who('?s| is) favored)\b/.test(t)) {
+      return answerProjection(feed);
+    }
+    if (/\b(starter|how has .* (looked|pitched)|pitching line|era tonight)\b/.test(t)) {
+      return answerStarter(feed);
+    }
+    if (/\b(score|what('?s| is) the score)\b/.test(t)) {
+      return answerSituation(feed);
+    }
+    return answerGeneral(feed, t);
   }
 
   function showAskAnswer(question, answer) {
@@ -729,7 +986,7 @@
     if (els.askSpeak) els.askSpeak.disabled = !answer;
   }
 
-  async function handleAsk(raw) {
+  function handleAsk(raw) {
     var question = String(raw || "").trim();
     if (!question) {
       toast("Type a question first.");
@@ -742,29 +999,8 @@
     if (state.asking) return;
     state.asking = true;
     if (els.askSubmit) els.askSubmit.disabled = true;
-    showAskAnswer(question, "Thinking…");
-
     try {
-      var local = localAskAnswer(question);
-      var preferLocal =
-        local &&
-        !/\b(projection|project|predict|win probability|who wins|bullpen|hot|forecast)\b/i.test(question);
-      if (preferLocal) {
-        showAskAnswer(question, local);
-        return;
-      }
-      var answer = await askMariiWithContext(question);
-      showAskAnswer(question, answer);
-    } catch (err) {
-      var fallback = localAskAnswer(question);
-      if (fallback) {
-        showAskAnswer(question, fallback + "\n\n(MARII was unreachable — answered from the live feed.)");
-      } else {
-        showAskAnswer(
-          question,
-          "Couldn’t reach MARII right now. Try lineup, pitcher/batter, or situation — those work offline from the feed."
-        );
-      }
+      showAskAnswer(question, localAskAnswer(question));
     } finally {
       state.asking = false;
       if (els.askSubmit) els.askSubmit.disabled = false;
