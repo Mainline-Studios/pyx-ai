@@ -19,7 +19,7 @@
     theme: "aurora",
     lang: "en",
     voice: true,
-    voiceId: "en-US",
+    voiceId: "en-GB",
     mariiBoost: false,
     slack: "",
     discord: "",
@@ -60,7 +60,7 @@
       if (typeof o.voice === "boolean") state.voice = o.voice;
       if (typeof o.mariiBoost === "boolean") state.mariiBoost = false;
       if (o.voiceId) {
-        state.voiceId = String(o.voiceId).indexOf("af_") === 0 ? "en-US" : o.voiceId;
+        state.voiceId = String(o.voiceId).indexOf("af_") === 0 ? "en-GB" : o.voiceId;
       }
       if (typeof o.slack === "string") state.slack = o.slack;
       if (typeof o.discord === "string") state.discord = o.discord;
@@ -1086,8 +1086,8 @@
     voice.onKokoroReady = function () {
       // Assistant stays on online neural US by default — only refresh the voice list.
       paintVoiceOptions();
-      if (voice.setVoice) voice.setVoice(state.voiceId || "en-US");
-      setVoiceBootMsg("Kokoro available in Settings · still using online US.");
+      if (voice.setVoice) voice.setVoice(state.voiceId || "en-GB");
+      setVoiceBootMsg("Kokoro available in Settings · still using online British.");
     };
     try {
       await voice.warmup(function (msg) {

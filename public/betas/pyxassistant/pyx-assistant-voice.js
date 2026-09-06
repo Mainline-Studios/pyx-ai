@@ -11,7 +11,7 @@
   var api = {
     ready: { stt: true, tts: true, kokoro: false },
     status: "idle",
-    voiceId: "en-US",
+    voiceId: "en-GB",
     /** When false, skip Web Speech TTS fallback (neural/Kokoro only). */
     allowBrowserFallback: true,
     /** Announcer sets true so Kokoro Lewis becomes the default after load. */
@@ -45,8 +45,8 @@
 
   function listVoices() {
     var list = [
-      { id: "en-US", label: "Online neural · US" },
       { id: "en-GB", label: "Online neural · British" },
+      { id: "en-US", label: "Online neural · US" },
       { id: "en-AU", label: "Online neural · Australian" },
       { id: "en-IN", label: "Online neural · Indian English" },
     ];
@@ -67,7 +67,7 @@
   }
 
   function setVoice(id) {
-    api.voiceId = id || "en-US";
+    api.voiceId = id || "en-GB";
   }
 
   function isKokoroVoice(id) {
@@ -427,7 +427,7 @@
   async function primeOnlineVoice(note) {
     note("Warming online neural voice…");
     try {
-      var v = api.voiceId && api.voiceId.indexOf("en-") === 0 ? api.voiceId : "en-US";
+      var v = api.voiceId && api.voiceId.indexOf("en-") === 0 ? api.voiceId : "en-GB";
       await soundOfTextUrl("Hi.", v);
       note("Online neural voice ready.");
       return true;
