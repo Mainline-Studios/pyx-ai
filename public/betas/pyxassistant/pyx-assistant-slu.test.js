@@ -238,6 +238,14 @@ assert(slu.classify("nba scores").intent === "sports", "slu: nba scores → spor
 assert(learn.kindFromIntent("sports") === "talk", "sports maps to talk class");
 assert(/sports|MLB|NBA/i.test(i18n.t("en", "identity")), "identity mentions sports");
 
+var wiki = require("./pyx-assistant-wiki.js");
+assert(wiki.looksWikiWorthy("who is Ada Lovelace") === true, "wiki-worthy: Ada");
+assert(wiki.looksWikiWorthy("tell me a joke") === false, "wiki skips jokes");
+assert(wiki.extractTopic("who is Ada Lovelace") === "ada lovelace", "wiki topic extract");
+assert(wiki.titleMatchScore("ada lovelace", "Ada Lovelace") >= 0.95, "wiki exact title");
+assert(wiki.titleMatchScore("dogs", "Dog breeding") < 0.92, "wiki rejects loose title");
+assert(wiki.firstSentences("One. Two. Three.", 2) === "One. Two.", "wiki two sentences");
+
 if (failed) {
   console.error("\n" + failed + " failed");
   process.exit(1);

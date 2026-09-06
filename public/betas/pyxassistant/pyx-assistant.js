@@ -13,6 +13,7 @@
   var cookies = window.PyxAssistantCookies;
   var sports = window.PyxAssistantSports;
   var weather = window.PyxAssistantWeather;
+  var wiki = window.PyxAssistantWiki;
   var voice = null;
 
   var state = {
@@ -410,6 +411,9 @@
     if (source === "marii") {
       els.sourceChip.hidden = false;
       els.sourceChip.textContent = t("mariiChip") || "marii";
+    } else if (source === "wiki") {
+      els.sourceChip.hidden = false;
+      els.sourceChip.textContent = "wikipedia";
     } else {
       els.sourceChip.hidden = true;
     }
@@ -526,6 +530,17 @@
         var recKind = kb.family ? kb.family(hit.rec.kind) : hit.rec.kind;
         if (learn) learn.observe(text, learn.kindFromIntent(understood.intent, recKind));
         return { reply: learn ? learn.flavor(hit.reply) : hit.reply, source: "local" };
+      }
+      if (wiki && wiki.looksWikiWorthy(text)) {
+        try {
+          var wikiHit = await wiki.answer(text);
+          if (wikiHit && wikiHit.reply) {
+            if (learn) learn.observe(text, "talk");
+            return { reply: learn ? learn.flavor(wikiHit.reply) : wikiHit.reply, source: "wiki" };
+          }
+        } catch (wikiErr) {
+          // Fall through to warm local reply — wiki is optional.
+        }
       }
       var boost = await askMarii(text);
       if (boost) {
