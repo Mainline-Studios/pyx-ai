@@ -19,6 +19,7 @@
     onUtterance: null,
     onSpeakEnd: null,
     onError: null,
+    onOnlineReady: null,
   };
 
   var session = false;
@@ -120,6 +121,17 @@
       var p = a.play();
       if (p && p.catch) p.catch(reject);
     });
+  }
+
+  /** Call from a user gesture so later TTS playback isn’t blocked. */
+  function unlockAudio() {
+    try {
+      var Ctx = root.AudioContext || root.webkitAudioContext;
+      if (!Ctx) return Promise.resolve();
+      if (!api._audioCtx) api._audioCtx = new Ctx();
+      if (api._audioCtx.state === "suspended") return api._audioCtx.resume();
+    } catch (e) {}
+    return Promise.resolve();
   }
 
   function stopSpeakEl() {
@@ -325,11 +337,16 @@
 
   async function warmup(onProgress) {
     var note = onProgress || function () {};
-    note("Voice ready — online neural TTS. Loading on-device Kokoro in the background…");
+    note("Online neural voice is ready. Loading on-device Kokoro…");
     emit("ready");
+    if (typeof api.onOnlineReady === "function") {
+      try {
+        api.onOnlineReady();
+      } catch (e) {}
+    }
     try {
       var mod = await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm");
-      note("Kokoro downloading…");
+      note("Kokoro downloading model weights…");
       kokoro = await mod.KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
         dtype: "q8",
         device: "wasm",
@@ -359,6 +376,7 @@
     stopMic: stopListenEngine,
     stopSpeak: stopSpeak,
     speak: speak,
+    unlockAudio: unlockAudio,
     listVoices: listVoices,
     setVoice: setVoice,
     isListening: function () {

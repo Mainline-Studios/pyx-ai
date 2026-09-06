@@ -13,6 +13,7 @@
     mode: "normal", // normal | announcer
     muted: false,
     voiceId: "en-US",
+    voiceReady: false,
     gamePk: null,
     gameLabel: "",
     timer: 0,
@@ -214,8 +215,7 @@
 
   function speakNext() {
     if (state.muted || state.speaking || !state.queue.length) return;
-    if (!voice || typeof voice.speak !== "function") {
-      toast("Neural voice isn’t ready yet.");
+    if (!state.voiceReady || !voice || typeof voice.speak !== "function") {
       return;
     }
     var line = state.queue.shift();
@@ -393,6 +393,7 @@
 
   function startGame(game) {
     stopPolling();
+    if (voice && typeof voice.unlockAudio === "function") voice.unlockAudio();
     state.gamePk = game.gamePk;
     state.lastAtBatIndex = -1;
     state.lastEventKey = "";
@@ -522,10 +523,33 @@
     } catch (e) {}
   }
 
+  function setVoiceBootMsg(msg) {
+    if (els.voiceBootMsg) els.voiceBootMsg.textContent = msg || "";
+    if (els.voiceHint) els.voiceHint.textContent = msg || "";
+  }
+
+  function showVoiceBootSkip(show) {
+    if (!els.voiceBootSkip) return;
+    els.voiceBootSkip.classList.toggle("is-hidden", !show);
+  }
+
+  function finishVoiceBoot(msg) {
+    state.voiceReady = true;
+    setVoiceBootMsg(msg || "Neural TTS ready.");
+    showVoiceBootSkip(false);
+    if (els.voiceBoot) {
+      els.voiceBoot.classList.add("is-done");
+      els.voiceBoot.setAttribute("aria-busy", "false");
+    }
+    speakNext();
+  }
+
   function bootVoice() {
     voice = window.PyxAssistantVoice;
     if (!voice || !voice.warmup) {
-      els.voiceHint.textContent = "Neural voice module missing.";
+      setVoiceBootMsg("Neural voice module missing.");
+      showVoiceBootSkip(false);
+      if (els.voiceBoot) els.voiceBoot.classList.add("is-done");
       return;
     }
     voice.allowBrowserFallback = false;
@@ -534,35 +558,47 @@
     voice.onError = function () {
       toast("Neural voice failed — try another voice or wait for Kokoro.");
     };
-    voice.warmup(function (msg) {
-      els.voiceHint.textContent = msg || "Neural TTS ready.";
-      // Keep user’s stored choice; only adopt Kokoro if they still have default US
-      // and Kokoro just became ready with af_heart auto-select in the module.
-      if (voice.ready && voice.ready.kokoro) {
-        paintVoiceOptions();
-        if (voice.voiceId && voice.voiceId.indexOf("af_") === 0) {
-          // Module may auto-switch from en-GB; for Announcer we defaulted to en-US,
-          // so only follow Kokoro if user hasn’t locked a cloud voice in storage.
-          var locked = false;
-          try {
-            locked = !!localStorage.getItem("pyx.announcer.voiceId");
-          } catch (e) {}
-          if (!locked) {
-            state.voiceId = voice.voiceId;
-            paintVoiceOptions();
-            els.voiceSelect.value = state.voiceId;
-          } else {
-            voice.setVoice(state.voiceId);
+    voice.onOnlineReady = function () {
+      setVoiceBootMsg("Online neural voice ready. Still loading Kokoro…");
+      showVoiceBootSkip(true);
+      if (!state.voiceReady) {
+        state.voiceReady = true;
+        speakNext();
+      }
+    };
+    setVoiceBootMsg("Downloading neural TTS…");
+    voice
+      .warmup(function (msg) {
+        setVoiceBootMsg(msg || "Getting voice ready…");
+        if (voice.ready && voice.ready.kokoro) {
+          paintVoiceOptions();
+          if (voice.voiceId && voice.voiceId.indexOf("af_") === 0) {
+            var locked = false;
+            try {
+              locked = !!localStorage.getItem("pyx.announcer.voiceId");
+            } catch (e) {}
+            if (!locked) {
+              state.voiceId = voice.voiceId;
+              paintVoiceOptions();
+              els.voiceSelect.value = state.voiceId;
+            } else {
+              voice.setVoice(state.voiceId);
+            }
           }
         }
-      }
-    }).then(function () {
-      paintVoiceOptions();
-      setVoiceId(state.voiceId);
-      if (!els.voiceHint.textContent || /Warming up/i.test(els.voiceHint.textContent)) {
-        els.voiceHint.textContent = "Neural TTS ready.";
-      }
-    });
+      })
+      .then(function () {
+        paintVoiceOptions();
+        setVoiceId(state.voiceId);
+        var doneMsg =
+          voice.ready && voice.ready.kokoro
+            ? "Voice ready — Kokoro on-device."
+            : "Voice ready — online neural TTS.";
+        finishVoiceBoot(doneMsg);
+      })
+      .catch(function () {
+        finishVoiceBoot("Online neural TTS ready.");
+      });
   }
 
   function bind() {
@@ -591,6 +627,17 @@
       setVoiceId(els.voiceSelect.value);
       toast("Voice updated");
     });
+    if (els.voiceBootSkip) {
+      els.voiceBootSkip.addEventListener("click", function () {
+        if (voice && typeof voice.unlockAudio === "function") voice.unlockAudio();
+        finishVoiceBoot("Using online neural voice.");
+      });
+    }
+    function unlockOnce() {
+      if (voice && typeof voice.unlockAudio === "function") voice.unlockAudio();
+      document.removeEventListener("pointerdown", unlockOnce);
+    }
+    document.addEventListener("pointerdown", unlockOnce);
   }
 
   function init() {
@@ -617,6 +664,9 @@
       toast: $("toast"),
       voiceSelect: $("voiceSelect"),
       voiceHint: $("voiceHint"),
+      voiceBoot: $("voiceBoot"),
+      voiceBootMsg: $("voiceBootMsg"),
+      voiceBootSkip: $("voiceBootSkip"),
     };
     try {
       var m = localStorage.getItem("pyx.announcer.mode");

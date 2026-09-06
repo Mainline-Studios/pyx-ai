@@ -11,9 +11,18 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;650;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/betas/pyxassistant/pyx-assistant.css?v=8" />
-  <link rel="stylesheet" href="/betas/announcer/announcer.css?v=3" />
+  <link rel="stylesheet" href="/betas/announcer/announcer.css?v=4" />
 </head>
 <body>
+  <div class="voice-boot" id="voiceBoot" role="status" aria-live="polite" aria-busy="true">
+    <div class="voice-boot__card">
+      <span class="voice-boot__spinner" aria-hidden="true"></span>
+      <p class="voice-boot__title">Getting voice ready</p>
+      <p class="voice-boot__msg" id="voiceBootMsg">Downloading neural TTS…</p>
+      <button type="button" class="ghost voice-boot__skip is-hidden" id="voiceBootSkip">Continue with online voice</button>
+    </div>
+  </div>
+
   <div class="stage announcer-stage">
     <div class="swirl" aria-hidden="true">
       <div class="swirl__veil"></div>
@@ -85,7 +94,7 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="/betas/pyxassistant/pyx-assistant-voice.js?v=13"></script>
-  <script src="/betas/announcer/announcer.js?v=4"></script>
+  <script src="/betas/pyxassistant/pyx-assistant-voice.js?v=14"></script>
+  <script src="/betas/announcer/announcer.js?v=5"></script>
 </body>
 </html>
