@@ -42,12 +42,24 @@
 
   function listVoices() {
     var list = [
-      { id: "en-GB", label: "Online neural · British" },
       { id: "en-US", label: "Online neural · US" },
+      { id: "en-GB", label: "Online neural · British" },
       { id: "en-AU", label: "Online neural · Australian" },
       { id: "en-IN", label: "Online neural · Indian English" },
     ];
-    if (api.ready.kokoro) list.push({ id: "af_heart", label: "On-device Kokoro" });
+    if (api.ready.kokoro) {
+      list.push(
+        { id: "am_michael", label: "On-device · Michael (US male)" },
+        { id: "am_adam", label: "On-device · Adam (US male)" },
+        { id: "am_fenrir", label: "On-device · Fenrir (US male)" },
+        { id: "am_onyx", label: "On-device · Onyx (US male)" },
+        { id: "bm_george", label: "On-device · George (UK male)" },
+        { id: "bm_lewis", label: "On-device · Lewis (UK male)" },
+        { id: "af_heart", label: "On-device · Heart (US female)" },
+        { id: "af_bella", label: "On-device · Bella (US female)" },
+        { id: "bf_emma", label: "On-device · Emma (UK female)" }
+      );
+    }
     return list;
   }
 
@@ -56,7 +68,13 @@
   }
 
   function isKokoroVoice(id) {
-    return id && id.indexOf("af_") === 0;
+    return !!(id && /^[a-z]{2}_/.test(id));
+  }
+
+  function kokoroSpeechLang(id) {
+    if (!id) return "en-US";
+    if (id.indexOf("b") === 0) return "en-GB";
+    return "en-US";
   }
 
   function chunkText(text) {
@@ -168,12 +186,16 @@
   }
 
   async function speakNeural(text, lang) {
-    var voice = isKokoroVoice(api.voiceId) ? "en-GB" : api.voiceId || "en-GB";
+    var voice = api.voiceId || "en-GB";
+    if (isKokoroVoice(voice)) voice = kokoroSpeechLang(voice);
     if (lang && lang.indexOf("es") === 0) voice = "es-ES";
     else if (lang && lang.indexOf("fr") === 0) voice = "fr-FR";
     else if (lang && lang.indexOf("de") === 0) voice = "de-DE";
     else if (lang && lang.indexOf("ja") === 0) voice = "ja-JP";
     else if (lang && lang.indexOf("zh") === 0) voice = "zh-CN";
+    else if (!isKokoroVoice(api.voiceId) && lang && lang.indexOf("en") === 0) {
+      // keep selected online locale unless lang override needed
+    }
     var chunks = chunkText(text);
     var i;
     for (i = 0; i < chunks.length; i++) {
@@ -255,8 +277,12 @@
     }
     stopListenEngine();
     recognition = new Ctor();
-    recognition.lang = (api.voiceId && api.voiceId.indexOf("en-") === 0 ? api.voiceId : "en-GB");
-    if (recognition.lang.indexOf("af_") === 0) recognition.lang = "en-GB";
+    recognition.lang =
+      api.voiceId && api.voiceId.indexOf("en-") === 0
+        ? api.voiceId
+        : isKokoroVoice(api.voiceId)
+          ? kokoroSpeechLang(api.voiceId)
+          : "en-GB";
     recognition.interimResults = true;
     recognition.continuous = false;
     listening = true;
@@ -355,10 +381,10 @@
       // Prefer on-device voice once available unless user already picked a neural cloud id intentionally
       // and stored it — callers can keep their choice; we only auto-switch from default en-GB.
       if (!api.voiceId || api.voiceId === "en-GB") {
-        api.voiceId = "af_heart";
-        note("On-device Kokoro is ready — using it by default.");
+        api.voiceId = "am_michael";
+        note("On-device Kokoro is ready — using Michael (US male).");
       } else {
-        note("On-device Kokoro is ready — pick it in Settings.");
+        note("On-device Kokoro is ready — male & female voices in the picker.");
       }
     } catch (e) {
       api.ready.kokoro = false;
