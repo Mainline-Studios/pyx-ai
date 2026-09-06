@@ -14,6 +14,14 @@
     205: "NL Central",
     203: "NL West",
   };
+  var DIVISION_ALIASES = [
+    { id: 201, keys: ["al east", "american league east"] },
+    { id: 202, keys: ["al central", "american league central"] },
+    { id: 200, keys: ["al west", "american league west"] },
+    { id: 204, keys: ["nl east", "national league east"] },
+    { id: 205, keys: ["nl central", "national league central"] },
+    { id: 203, keys: ["nl west", "national league west"] },
+  ];
   var NICK = {
     ohtani: "Shohei Ohtani",
     shohei: "Shohei Ohtani",
@@ -105,7 +113,7 @@
     basketball: 1, hockey: 1, baseball: 1,
   };
   var SPORT_RE =
-    /\b(mlb|baseball|world series|pennant|ops|obp|slg|era\b|whip|rbi|rbis|batting average|on.?base|slugging|home runs?|homers?|stolen bases?|strikeouts|innings pitched|box score|scoreboard|standings|cy young|mvp|two-?way|pitcher|hitter|batter|inning|bullpen|lineup|dodgers|yankees|cubs|red sox|mets|braves|phillies|giants|padres|astros|rangers|mariners|angels|orioles|rays|jays|guardians|tigers|twins|royals|white sox|athletics|nationals|marlins|brewers|reds|pirates|cardinals|rockies|diamondbacks|d-backs|nba|nfl|nhl|wnba|mls|soccer|premier league|basketball|hockey|football|lakers|celtics|warriors|knicks|chiefs|cowboys|patriots|maple leafs|canadiens)\b/i;
+    /\b(mlb|baseball|world series|pennant|ops|obp|slg|era\b|whip|rbi|rbis|batting average|on.?base|slugging|home runs?|homers?|stolen bases?|strikeouts|innings pitched|box score|scoreboard|standings|division|nl central|nl east|nl west|al central|al east|al west|who('?s| is) leading|cy young|mvp|two-?way|pitcher|hitter|batter|inning|bullpen|lineup|dodgers|yankees|cubs|red sox|mets|braves|phillies|giants|padres|astros|rangers|mariners|angels|orioles|rays|jays|guardians|tigers|twins|royals|white sox|athletics|nationals|marlins|brewers|reds|pirates|cardinals|rockies|diamondbacks|d-backs|nba|nfl|nhl|wnba|mls|soccer|premier league|basketball|hockey|football|lakers|celtics|warriors|knicks|chiefs|cowboys|patriots|maple leafs|canadiens)\b/i;
   var FOLLOW_RE =
     /\b(he|him|his|she|her|they|them|their|that guy|same guy|career|last year|this year|this season|ops|era|whip|average|homers?|rbi|how('s| is) (he|she|that)|is that good|was that good|and last|what about his|how about his|who('s| is) (up|pitching|batting|hitting|in)|the count|how many outs|runners|on base|what('s| is) the (count|score)|who has the ball|what down|possession)\b/i;
   var OTHER_RE = /\b(nba|nfl|nhl|mls|soccer|premier league|epl|basketball|football|hockey|wnba|ncaaf|college football)\b/i;
@@ -349,6 +357,22 @@
       .join(" ");
   }
 
+  function findDivision(text) {
+    var n = norm(text);
+    if (!n) return null;
+    var i;
+    for (i = 0; i < DIVISION_ALIASES.length; i++) {
+      var row = DIVISION_ALIASES[i];
+      var k;
+      for (k = 0; k < row.keys.length; k++) {
+        if (n.indexOf(row.keys[k]) !== -1) {
+          return { id: row.id, label: DIVISIONS[row.id] };
+        }
+      }
+    }
+    return null;
+  }
+
   function isTeamQuery(names, team, low) {
     if (!team) return false;
     if (/\b(stats?|ops|era|hitting|pitching|batting|player)\b/.test(low)) return false;
@@ -361,7 +385,7 @@
   function looksSports(text) {
     var raw = String(text || "");
     var low = raw.toLowerCase();
-    if (SPORT_RE.test(low) || findTeam(low) || OTHER_RE.test(low) || UNSUPPORTED_RE.test(low) || findEspnClub(low)) return true;
+    if (SPORT_RE.test(low) || findTeam(low) || findDivision(low) || OTHER_RE.test(low) || UNSUPPORTED_RE.test(low) || findEspnClub(low)) return true;
     if ((ctx.player || ctx.espnPlayer || ctx.lastGamePk || ctx.team) && FOLLOW_RE.test(low)) return true;
     var n;
     for (n in NICK) {
@@ -383,6 +407,7 @@
     var low = raw.toLowerCase();
     var names = extractNames(raw);
     var team = findTeam(low);
+    var division = findDivision(low);
     var espnClub = findEspnClub(low);
     var league = detectLeague(low);
     var other = OTHER_RE.test(low);
@@ -390,21 +415,28 @@
     if (UNSUPPORTED_RE.test(low)) {
       kind = "other";
     } else {
-      if (/\b(standings|in first|playoff|wild card|division race|what place)\b/.test(low)) kind = "standings";
+      if (division || /\b(standings|in first|playoff|wild card|division race|what place|who('?s| is) (leading|in first)|who leads)\b/.test(low)) {
+        kind = "standings";
+      }
       if (/\b(score|scores|who won|who('s| is) winning|scoreboard|game tonight|did they win)\b/.test(low) || liveAsk(low)) {
         kind = "scores";
       }
-      if (/\b(lead(s|ing) the|leaderboard|most home runs|hr leader|batting title|cy young)\b/.test(low)) {
+      if (
+        !division &&
+        /\b(leaderboard|most home runs|hr leader|batting title|cy young|ops leader|era leader)\b/.test(low)
+      ) {
         kind = "leaders";
       }
       if (names.length >= 2 || /\b(vs\.?|versus|compared to|compare)\b/.test(low)) kind = "compare";
       if (kind === "player" && team && isTeamQuery(names, team, low)) {
-        kind = /\b(standings|place|record|how are)\b/.test(low) ? "standings" : "scores";
+        kind = /\b(standings|place|record|how are|leading)\b/.test(low) ? "standings" : "scores";
       }
       if (kind === "player" && espnClub && isTeamQuery(names, espnClub.needle, low)) kind = "scores";
       if (kind === "player" && !names.length && espnClub) kind = "scores";
       if (kind === "player" && !names.length && ctx.player && FOLLOW_RE.test(low)) kind = "follow";
       if (kind === "player" && !names.length && ctx.espnPlayer && FOLLOW_RE.test(low)) kind = "follow";
+      // Division + “who’s leading…” must stay standings even if other rules fired.
+      if (division && /\b(lead|first|standings|place|race)\b/.test(low)) kind = "standings";
     }
     if (kind === "scores" && !team && ctx.team && league === "mlb" && ctx.lastLeague === "mlb" && !/\b(all |every |mlb scores|scoreboard)\b/.test(low)) {
       team = ctx.team;
@@ -417,6 +449,7 @@
       low: low,
       names: names,
       team: team,
+      division: division,
       espnClub: espnClub,
       league: league,
       year: extractYear(low),
@@ -1068,6 +1101,31 @@
       });
       return div + ": " + rows.join(", ") + ".";
     }
+    function firstOf(rec) {
+      var t = (rec.teamRecords || [])[0];
+      if (!t) return "";
+      var name = (t.team && (t.team.teamName || t.team.name)) || "Team";
+      return name + " " + t.wins + "-" + t.losses;
+    }
+    if (q.division) {
+      var divRec = null;
+      recs.forEach(function (rec) {
+        if (rec.division && Number(rec.division.id) === Number(q.division.id)) divRec = rec;
+      });
+      if (!divRec) {
+        return "I couldn’t load the " + q.division.label + " table just now. Try again in a second. =)";
+      }
+      if (/\b(lead|leading|first|who)\b/.test(q.low)) {
+        return (
+          q.division.label +
+          " leader right now: " +
+          firstOf(divRec) +
+          ". Full stack — " +
+          lines(divRec)
+        );
+      }
+      return lines(divRec);
+    }
     if (q.team) {
       var hit = "";
       recs.forEach(function (rec) {
@@ -1464,6 +1522,7 @@
     parse: parse,
     extractNames: extractNames,
     findTeam: findTeam,
+    findDivision: findDivision,
     detectLeague: detectLeague,
     formatGame: formatGame,
     fieldBoard: fieldBoard,

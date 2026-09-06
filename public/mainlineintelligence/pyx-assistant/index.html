@@ -85,6 +85,12 @@
     }
     ul { padding-left: 1.15rem; margin: 0.4rem 0 0; }
     li { margin: 0.35rem 0; }
+    .examples a {
+      color: var(--deep);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(46, 196, 182, 0.45);
+    }
+    .examples a:hover { border-bottom-color: var(--deep); }
     .try {
       display: inline-block;
       margin: 1.5rem 0 0;
@@ -146,11 +152,11 @@
     </ul>
 
     <h2>try a few</h2>
-    <ul>
-      <li>“what’s the weather in chicago?”</li>
-      <li>“who’s leading the nl central?”</li>
-      <li>“what’s 17 times 24?”</li>
-      <li>“tell me a short joke”</li>
+    <ul class="examples">
+      <li><a href="/betas/pyxassistant?q=what%27s%20the%20weather%20in%20chicago%3F">“what’s the weather in chicago?”</a></li>
+      <li><a href="/betas/pyxassistant?q=who%27s%20leading%20the%20nl%20central%3F">“who’s leading the nl central?”</a></li>
+      <li><a href="/betas/pyxassistant?q=what%27s%2017%20times%2024%3F">“what’s 17 times 24?”</a></li>
+      <li><a href="/betas/pyxassistant?q=tell%20me%20a%20short%20joke">“tell me a short joke”</a></li>
     </ul>
 
     <a class="try" href="/betas/pyxassistant">open pyx assistant →</a>

@@ -187,6 +187,10 @@ assert(sports.looksSports("tell me about gravity") === false, "gravity is not sp
 assert(sports.looksSports("hello") === false, "hello is not sports");
 assert(sports.parse("Cubs score").kind === "scores", "Cubs score → scores");
 assert(sports.parse("Cubs standings").kind === "standings", "Cubs standings");
+assert(sports.looksSports("who's leading the nl central?") === true, "nl central looks like sports");
+assert(sports.parse("who's leading the nl central?").kind === "standings", "nl central leading → standings");
+assert(sports.parse("who's leading the nl central?").division && sports.parse("who's leading the nl central?").division.id === 205, "nl central division id");
+assert(sports.parse("hr leader").kind === "leaders", "hr leader stays leaders");
 assert(sports.parse("Judge vs Soto").kind === "compare", "Judge vs Soto → compare");
 assert(sports.parse("nba scores").kind === "scores", "nba scores → scores");
 assert(sports.parse("nba scores").league === "nba", "nba scores → nba league");

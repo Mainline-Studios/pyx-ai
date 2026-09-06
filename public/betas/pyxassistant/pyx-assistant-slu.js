@@ -144,7 +144,7 @@
     },
     {
       intent: "sports",
-      re: /\b(mlb|nba|nfl|nhl|wnba|mls|soccer|baseball|football|basketball|hockey|batting average|\bops\b|\bera\b|standings|scoreboard|home runs?|how('s| is) \w+ (hitting|doing|pitching)|vs\.? \w+)\b/i,
+      re: /\b(mlb|nba|nfl|nhl|wnba|mls|soccer|baseball|football|basketball|hockey|batting average|\bops\b|\bera\b|standings|scoreboard|home runs?|nl central|al east|who('s| is) leading|how('s| is) \w+ (hitting|doing|pitching)|vs\.? \w+)\b/i,
     },
   ];
 
@@ -177,6 +177,7 @@
     { text: "inspire me", intent: "quote" },
     { text: "how's Ohtani doing", intent: "sports" },
     { text: "mlb scores", intent: "sports" },
+    { text: "who's leading the nl central", intent: "sports" },
     { text: "nba scores", intent: "sports" },
     { text: "compliment me", intent: "compliment" },
     { text: "say that again", intent: "repeat" },
