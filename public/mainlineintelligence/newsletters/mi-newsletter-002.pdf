@@ -1,0 +1,99 @@
+%PDF-1.4
+1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj
+2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj
+3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>endobj
+4 0 obj<< /Length 1846 >>stream
+BT
+/F2 22 Tf
+1 0 0 1 50 780 Tm
+(mainline intelligence) Tj
+/F1 11 Tf
+1 0 0 1 50 752 Tm
+(newsletter  ·  issue 002  ·  september 2026) Tj
+/F2 14 Tf
+1 0 0 1 50 725 Tm
+(what shipped) Tj
+/F2 12 Tf
+1 0 0 1 50 695 Tm
+(announcer beta ? live) Tj
+/F1 11 Tf
+1 0 0 1 50 677 Tm
+(Pick today's MLB game. We poll every 7 seconds, speak updates) Tj
+/F1 11 Tf
+1 0 0 1 50 660 Tm
+(with neural/Kokoro voices \(Lewis by default\), and keep a call log.) Tj
+/F1 11 Tf
+1 0 0 1 50 643 Tm
+(Try normal vs booth mode.) Tj
+/F2 12 Tf
+1 0 0 1 50 616 Tm
+(game-only MARII \(no cloud AI\)) Tj
+/F1 11 Tf
+1 0 0 1 50 598 Tm
+(Announcer Ask is a contained MARII: lineup, pitcher/batter,) Tj
+/F1 11 Tf
+1 0 0 1 50 581 Tm
+(situation, bullpen, hot bats. Off-topic questions get a honest) Tj
+/F1 11 Tf
+1 0 0 1 50 564 Tm
+(beta shrug ? we're still climbing leagues.) Tj
+/F2 12 Tf
+1 0 0 1 50 537 Tm
+(algorithmic projections) Tj
+/F1 11 Tf
+1 0 0 1 50 519 Tm
+(Projections blend each club's recent finals \(~28 days\),) Tj
+/F1 11 Tf
+1 0 0 1 50 502 Tm
+(head-to-head, and live inning/score to estimate a final.) Tj
+/F1 11 Tf
+1 0 0 1 50 485 Tm
+(Booth color from math + the board ? not an LLM.) Tj
+/F2 12 Tf
+1 0 0 1 50 458 Tm
+(pyx assistant stays local-first) Tj
+/F1 11 Tf
+1 0 0 1 50 440 Tm
+(Jokes, math, sports, weather from the local notebook and live) Tj
+/F1 11 Tf
+1 0 0 1 50 423 Tm
+(feeds. MARII cloud LLM boost is retired.) Tj
+/F2 12 Tf
+1 0 0 1 50 396 Tm
+(still live / coming) Tj
+/F1 11 Tf
+1 0 0 1 50 378 Tm
+(MI moderator API for chat/game text. MCI still on the roadmap.) Tj
+/F2 12 Tf
+1 0 0 1 50 351 Tm
+(links) Tj
+/F1 11 Tf
+1 0 0 1 50 333 Tm
+(https://pyx-ai.web.app/betas/announcer) Tj
+/F1 11 Tf
+1 0 0 1 50 316 Tm
+(https://pyx-ai.web.app/betas/pyxassistant) Tj
+/F1 11 Tf
+1 0 0 1 50 299 Tm
+(https://pyx-ai.web.app/mainlineintelligence) Tj
+/F1 11 Tf
+1 0 0 1 50 272 Tm
+(no ads. we pinky-swear.) Tj
+ET
+endstream
+endobj
+5 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj
+6 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000056 00000 n 
+0000000111 00000 n 
+0000000245 00000 n 
+0000002141 00000 n 
+0000002209 00000 n 
+trailer<< /Size 7 /Root 1 0 R >>
+startxref
+2282
+%%EOF

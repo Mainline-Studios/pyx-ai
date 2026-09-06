@@ -1303,17 +1303,12 @@
     return false;
   }
 
-  function mariiRefuse() {
-    return "I’m the game-only MARII for this matchup — I only talk about this MLB game (lineup, pitchers, situation, bullpen, form, and algorithmic projections). Ask something about the board.";
+  function mariiUnknown() {
+    return "That question is currently for a league above me. MARII is still in beta and it will improve slowly.";
   }
 
-  function answerGeneral(feed, q) {
-    return (
-      answerSituation(feed) +
-      " " +
-      answerMatchup(feed) +
-      " Tap Projections for the prior-games algorithm, or ask about lineup / bullpen / hot bats."
-    );
+  function mariiRefuse() {
+    return mariiUnknown();
   }
 
   function localAskAnswer(q) {
@@ -1347,11 +1342,10 @@
     if (/\b(score|what('?s| is) the score)\b/.test(t)) {
       return answerSituation(feed);
     }
-    // Projections handled async in handleAsk
     if (/\b(projection|project|predict|win probability|who wins|forecast|plausible|who('?s| is) favored|final score)\b/.test(t)) {
       return null;
     }
-    return answerGeneral(feed, t);
+    return mariiUnknown();
   }
 
   function showAskAnswer(question, answer) {
@@ -1399,7 +1393,7 @@
         return;
       }
       var local = localAskAnswer(question);
-      showAskAnswer(question, local || answerGeneral(state.lastFeed, t));
+      showAskAnswer(question, local || mariiUnknown());
     } finally {
       state.asking = false;
       if (els.askSubmit) els.askSubmit.disabled = false;

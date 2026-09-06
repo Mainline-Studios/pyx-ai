@@ -5,7 +5,7 @@ workers_dev = true
 
 [vars]
 RESEND_FROM = "Mainline Intelligence <no-reply@pixelplaceofficial.com>"
-NEWSLETTER_PDF_URL = "https://pyx-ai.web.app/mainlineintelligence/newsletters/mi-newsletter-001.pdf"
+NEWSLETTER_PDF_URL = "https://pyx-ai.web.app/mainlineintelligence/newsletters/mi-newsletter-002.pdf"
 
 [[kv_namespaces]]
 binding = "SUBSCRIBERS"
