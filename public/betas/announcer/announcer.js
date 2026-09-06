@@ -8,6 +8,9 @@
   var MLB = "https://statsapi.mlb.com/api/v1";
   var LIVE = "https://statsapi.mlb.com/api/v1.1/game/";
   var POLL_MS = 7000;
+  var MARII_ASK_URL = "/api/marii/ask";
+  var MARII_ASK_FALLBACK = "https://marii-ask.mainline-mi.workers.dev/ask";
+  var MARII_TIMEOUT_MS = 8000;
 
   var state = {
     mode: "normal", // normal | announcer
@@ -16,6 +19,9 @@
     voiceReady: false,
     gamePk: null,
     gameLabel: "",
+    lastFeed: null,
+    lastAskAnswer: "",
+    asking: false,
     timer: 0,
     countdownTimer: 0,
     pollLeftMs: 0,
@@ -369,6 +375,7 @@
     setPollUi("fetch", 0);
     try {
       var feed = await fetchLive(state.gamePk);
+      state.lastFeed = feed;
       paintScoreboard(feed);
       var updates = extractUpdates(feed, !!bootstrap);
       updates.forEach(function (u) {
@@ -386,6 +393,7 @@
     state.timer = 0;
     state.gamePk = null;
     state.started = false;
+    state.lastFeed = null;
     state.queue = [];
     stopCountdown();
     stopNeuralSpeak();
@@ -399,11 +407,17 @@
     state.lastEventKey = "";
     state.lastScoreKey = "";
     state.lastStatus = "";
+    state.lastAskAnswer = "";
     state.started = true;
     els.pickerPanel.classList.add("is-hidden");
-    els.livePanel.classList.remove("is-hidden");
+    els.liveLayout.classList.remove("is-hidden");
     els.status.textContent = "Connecting to live feed…";
     els.lastCall.textContent = "Warming up the booth…";
+    if (els.askAnswer) {
+      els.askAnswer.innerHTML = '<p class="ask-answer__empty">Pick a chip or type a question about this game.</p>';
+    }
+    if (els.askSpeak) els.askSpeak.disabled = true;
+    if (els.askInput) els.askInput.value = "";
     setPollUi("fetch", 0);
     tick(true);
     state.timer = setInterval(function () {
@@ -465,6 +479,295 @@
       renderGames(games);
     } catch (err) {
       els.gamesHint.textContent = "Couldn’t load MLB schedule. Try refresh.";
+    }
+  }
+
+  function playerFromBox(teamBox, id) {
+    if (!teamBox || !teamBox.players || id == null) return null;
+    return teamBox.players["ID" + id] || teamBox.players[String(id)] || null;
+  }
+
+  function playerName(entry) {
+    if (!entry) return "";
+    if (entry.person && entry.person.fullName) return entry.person.fullName;
+    if (entry.fullName) return entry.fullName;
+    return "";
+  }
+
+  function lineupLines(feed, side) {
+    var box = (((feed || {}).liveData || {}).boxscore || {}).teams || {};
+    var teamBox = box[side] || {};
+    var order = teamBox.battingOrder || [];
+    var lines = [];
+    var i;
+    for (i = 0; i < order.length; i++) {
+      var p = playerFromBox(teamBox, order[i]);
+      var name = playerName(p) || "Unknown";
+      var pos =
+        (p && p.position && (p.position.abbreviation || p.position.name)) || "";
+      var bat =
+        p && p.stats && p.stats.batting
+          ? p.stats.batting
+          : {};
+      var bit =
+        i +
+        1 +
+        ". " +
+        name +
+        (pos ? " (" + pos + ")" : "");
+      if (bat.atBats != null) {
+        bit +=
+          " — " +
+          (bat.hits != null ? bat.hits : "0") +
+          "-" +
+          bat.atBats +
+          (bat.homeRuns ? ", " + bat.homeRuns + " HR" : "") +
+          (bat.rbi ? ", " + bat.rbi + " RBI" : "");
+      }
+      lines.push(bit);
+    }
+    return lines;
+  }
+
+  function teamLabel(feed, side) {
+    var box = (((feed || {}).liveData || {}).boxscore || {}).teams || {};
+    var t = box[side] && box[side].team;
+    if (t) return t.teamName || t.name || side;
+    var gd = ((feed || {}).gameData || {}).teams || {};
+    var g = gd[side];
+    if (g) return g.teamName || (g.team && g.team.teamName) || side;
+    return side;
+  }
+
+  function buildGameContext(feed) {
+    if (!feed) return "No live feed loaded yet.";
+    var ls = (feed.liveData && feed.liveData.linescore) || {};
+    var gd = feed.gameData || {};
+    var status = (gd.status && gd.status.detailedState) || "";
+    var away = teamLabel(feed, "away");
+    var home = teamLabel(feed, "home");
+    var ar = (ls.teams && ls.teams.away && ls.teams.away.runs) || 0;
+    var hr = (ls.teams && ls.teams.home && ls.teams.home.runs) || 0;
+    var bits = [];
+    bits.push("Game: " + away + " at " + home + ".");
+    bits.push("Score: " + away + " " + ar + ", " + home + " " + hr + ".");
+    bits.push(
+      "Inning: " +
+        ((ls.inningState || "") + " " + (ls.currentInningOrdinal || "")).trim() +
+        (status ? " (" + status + ")" : "") +
+        "."
+    );
+    if (ls.balls != null && ls.strikes != null) {
+      bits.push("Count: " + ls.balls + "-" + ls.strikes + ", outs: " + (ls.outs != null ? ls.outs : "?") + ".");
+    }
+    var offense = ls.offense || {};
+    var defense = ls.defense || {};
+    var batter = (offense.batter && offense.batter.fullName) || "";
+    var pitcher = (defense.pitcher && defense.pitcher.fullName) || "";
+    var onDeck = (offense.onDeck && offense.onDeck.fullName) || "";
+    var inHole = (offense.inHole && offense.inHole.fullName) || "";
+    if (pitcher || batter) {
+      bits.push(
+        "Current matchup: " +
+          (pitcher || "unknown pitcher") +
+          " vs " +
+          (batter || "unknown batter") +
+          "."
+      );
+    }
+    if (onDeck) bits.push("On deck: " + onDeck + ".");
+    if (inHole) bits.push("In the hole: " + inHole + ".");
+    var runners = [];
+    if (offense.first && offense.first.fullName) runners.push("1B " + offense.first.fullName);
+    if (offense.second && offense.second.fullName) runners.push("2B " + offense.second.fullName);
+    if (offense.third && offense.third.fullName) runners.push("3B " + offense.third.fullName);
+    bits.push(runners.length ? "Runners: " + runners.join(", ") + "." : "Bases empty.");
+
+    var pp = gd.probablePitchers || {};
+    if (pp.away && pp.away.fullName) bits.push("Probable/away starter context: " + pp.away.fullName + ".");
+    if (pp.home && pp.home.fullName) bits.push("Probable/home starter context: " + pp.home.fullName + ".");
+
+    var awayLine = lineupLines(feed, "away");
+    var homeLine = lineupLines(feed, "home");
+    if (awayLine.length) bits.push(away + " lineup:\n" + awayLine.join("\n"));
+    if (homeLine.length) bits.push(home + " lineup:\n" + homeLine.join("\n"));
+
+    // Pitching lines briefly
+    ["away", "home"].forEach(function (side) {
+      var box = (((feed.liveData || {}).boxscore || {}).teams || {})[side] || {};
+      var pitchers = box.pitchers || [];
+      if (!pitchers.length) return;
+      var names = pitchers
+        .map(function (id) {
+          var p = playerFromBox(box, id);
+          var n = playerName(p);
+          var st = (p && p.stats && p.stats.pitching) || {};
+          if (!n) return "";
+          return (
+            n +
+            (st.inningsPitched != null ? " " + st.inningsPitched + " IP" : "") +
+            (st.earnedRuns != null ? ", " + st.earnedRuns + " ER" : "") +
+            (st.strikeOuts != null ? ", " + st.strikeOuts + " K" : "")
+          );
+        })
+        .filter(Boolean);
+      if (names.length) bits.push(teamLabel(feed, side) + " pitchers used: " + names.join("; ") + ".");
+    });
+
+    return bits.join("\n");
+  }
+
+  function localAskAnswer(q) {
+    var feed = state.lastFeed;
+    if (!feed) return null;
+    var t = String(q || "").toLowerCase();
+    var ls = (feed.liveData && feed.liveData.linescore) || {};
+    var offense = ls.offense || {};
+    var defense = ls.defense || {};
+
+    if (/\blineup|batting order|who('?s| is) (in the lineup|hitting)\b/.test(t)) {
+      var away = teamLabel(feed, "away");
+      var home = teamLabel(feed, "home");
+      var a = lineupLines(feed, "away");
+      var h = lineupLines(feed, "home");
+      if (!a.length && !h.length) return "Lineups aren’t posted in the feed yet.";
+      return (
+        (a.length ? away + " batting order:\n" + a.join("\n") : "") +
+        (a.length && h.length ? "\n\n" : "") +
+        (h.length ? home + " batting order:\n" + h.join("\n") : "")
+      );
+    }
+
+    if (/\b(pitcher|mound|on the hill).*(batter|hitting|at bat)|batter.*pitcher|who('?s| is) (pitching|batting|at bat|up)|matchup\b/.test(t)) {
+      var pitcher = (defense.pitcher && defense.pitcher.fullName) || "Unknown";
+      var batter = (offense.batter && offense.batter.fullName) || "Unknown";
+      var onDeck = (offense.onDeck && offense.onDeck.fullName) || "";
+      var count =
+        ls.balls != null && ls.strikes != null
+          ? " Count " + ls.balls + "-" + ls.strikes + ", " + (ls.outs != null ? ls.outs : "?") + " out."
+          : "";
+      return (
+        pitcher +
+        " is pitching to " +
+        batter +
+        "." +
+        count +
+        (onDeck ? " On deck: " + onDeck + "." : "")
+      );
+    }
+
+    if (/\b(count|outs|runners|on base|situation|scoreboard)\b/.test(t)) {
+      var bits = [];
+      bits.push(els.scoreLine.textContent || "Score unavailable");
+      bits.push(els.metaLine.textContent || "");
+      var runners = [];
+      if (offense.first && offense.first.fullName) runners.push("1B: " + offense.first.fullName);
+      if (offense.second && offense.second.fullName) runners.push("2B: " + offense.second.fullName);
+      if (offense.third && offense.third.fullName) runners.push("3B: " + offense.third.fullName);
+      bits.push(runners.length ? runners.join(" · ") : "Bases empty");
+      return bits.filter(Boolean).join(". ") + ".";
+    }
+
+    return null;
+  }
+
+  async function fetchMariiAsk(url, text, signal) {
+    var res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text, mode: "fast", use_web: true }),
+      signal: signal,
+    });
+    if (!res.ok) throw new Error("marii " + res.status);
+    var data = await res.json();
+    var answer = data && (data.answer || data.reply);
+    if (!answer || typeof answer !== "string") throw new Error("marii empty");
+    return answer.trim();
+  }
+
+  async function askMariiWithContext(question) {
+    var ctx = buildGameContext(state.lastFeed);
+    var prompt =
+      "You are MARII helping with a live MLB Announcer beta. " +
+      "Answer briefly (2–6 sentences unless listing a lineup). " +
+      "Use the live game context below. For projections, give a light, informal take — not betting advice. " +
+      "If something isn’t in the context, say so.\n\n" +
+      "LIVE GAME CONTEXT:\n" +
+      ctx +
+      "\n\nQUESTION:\n" +
+      question;
+    if (prompt.length > 3800) prompt = prompt.slice(0, 3800);
+    var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var timer = setTimeout(function () {
+      if (ctrl) ctrl.abort();
+    }, MARII_TIMEOUT_MS);
+    var signal = ctrl ? ctrl.signal : undefined;
+    try {
+      try {
+        return await fetchMariiAsk(MARII_ASK_URL, prompt, signal);
+      } catch (e1) {
+        if (signal && signal.aborted) throw e1;
+        return await fetchMariiAsk(MARII_ASK_FALLBACK, prompt, signal);
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function showAskAnswer(question, answer) {
+    state.lastAskAnswer = answer || "";
+    if (!els.askAnswer) return;
+    els.askAnswer.innerHTML = "";
+    var qEl = document.createElement("p");
+    qEl.className = "ask-answer__q";
+    qEl.textContent = "Q: " + question;
+    var body = document.createElement("p");
+    body.className = "ask-answer__body";
+    body.textContent = answer;
+    els.askAnswer.appendChild(qEl);
+    els.askAnswer.appendChild(body);
+    if (els.askSpeak) els.askSpeak.disabled = !answer;
+  }
+
+  async function handleAsk(raw) {
+    var question = String(raw || "").trim();
+    if (!question) {
+      toast("Type a question first.");
+      return;
+    }
+    if (!state.gamePk) {
+      toast("Pick a game first.");
+      return;
+    }
+    if (state.asking) return;
+    state.asking = true;
+    if (els.askSubmit) els.askSubmit.disabled = true;
+    showAskAnswer(question, "Thinking…");
+
+    try {
+      var local = localAskAnswer(question);
+      var preferLocal =
+        local &&
+        !/\b(projection|project|predict|win probability|who wins|bullpen|hot|forecast)\b/i.test(question);
+      if (preferLocal) {
+        showAskAnswer(question, local);
+        return;
+      }
+      var answer = await askMariiWithContext(question);
+      showAskAnswer(question, answer);
+    } catch (err) {
+      var fallback = localAskAnswer(question);
+      if (fallback) {
+        showAskAnswer(question, fallback + "\n\n(MARII was unreachable — answered from the live feed.)");
+      } else {
+        showAskAnswer(
+          question,
+          "Couldn’t reach MARII right now. Try lineup, pitcher/batter, or situation — those work offline from the feed."
+        );
+      }
+    } finally {
+      state.asking = false;
+      if (els.askSubmit) els.askSubmit.disabled = false;
     }
   }
 
@@ -608,7 +911,7 @@
     els.refreshGames.addEventListener("click", loadGames);
     els.backToGames.addEventListener("click", function () {
       stopPolling();
-      els.livePanel.classList.add("is-hidden");
+      els.liveLayout.classList.add("is-hidden");
       els.pickerPanel.classList.remove("is-hidden");
       els.status.textContent = "Idle";
       loadGames();
@@ -636,6 +939,40 @@
         finishVoiceBoot("Using online neural voice.");
       });
     }
+    if (els.askForm) {
+      els.askForm.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        handleAsk(els.askInput && els.askInput.value);
+      });
+    }
+    if (els.askChips) {
+      els.askChips.addEventListener("click", function (ev) {
+        var btn = ev.target && ev.target.closest ? ev.target.closest(".ask-chip") : null;
+        if (!btn) return;
+        var q = btn.getAttribute("data-q") || btn.textContent;
+        if (els.askInput) els.askInput.value = q;
+        handleAsk(q);
+      });
+    }
+    if (els.askSpeak) {
+      els.askSpeak.addEventListener("click", function () {
+        if (!state.lastAskAnswer || !state.voiceReady || !voice) {
+          toast("Nothing to read yet.");
+          return;
+        }
+        if (voice.unlockAudio) voice.unlockAudio();
+        state.queue = [];
+        stopNeuralSpeak();
+        state.speaking = true;
+        els.status.textContent = "Speaking…";
+        voice.onSpeakEnd = function () {
+          state.speaking = false;
+          refreshStatusLine();
+          speakNext();
+        };
+        voice.speak(state.lastAskAnswer, "en-US");
+      });
+    }
     function unlockOnce() {
       if (voice && typeof voice.unlockAudio === "function") voice.unlockAudio();
       document.removeEventListener("pointerdown", unlockOnce);
@@ -646,6 +983,7 @@
   function init() {
     els = {
       pickerPanel: $("pickerPanel"),
+      liveLayout: $("liveLayout"),
       livePanel: $("livePanel"),
       gameList: $("gameList"),
       gamesHint: $("gamesHint"),
@@ -670,6 +1008,13 @@
       voiceBoot: $("voiceBoot"),
       voiceBootMsg: $("voiceBootMsg"),
       voiceBootSkip: $("voiceBootSkip"),
+      askPanel: $("askPanel"),
+      askForm: $("askForm"),
+      askInput: $("askInput"),
+      askSubmit: $("askSubmit"),
+      askSpeak: $("askSpeak"),
+      askAnswer: $("askAnswer"),
+      askChips: $("askChips"),
     };
     try {
       var m = localStorage.getItem("pyx.announcer.mode");

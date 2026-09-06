@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;650;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/betas/pyxassistant/pyx-assistant.css?v=8" />
-  <link rel="stylesheet" href="/betas/announcer/announcer.css?v=4" />
+  <link rel="stylesheet" href="/betas/announcer/announcer.css?v=5" />
 </head>
 <body>
   <div class="voice-boot" id="voiceBoot" role="status" aria-live="polite" aria-busy="true">
@@ -60,41 +60,67 @@
         <div class="game-list" id="gameList" role="list"></div>
       </section>
 
-      <section class="panel is-hidden" id="livePanel">
-        <div class="panel__row">
-          <button type="button" class="ghost" id="backToGames">← Games</button>
-          <div class="mode-toggle" role="group" aria-label="Voice mode">
-            <button type="button" class="mode-btn is-on" data-mode="normal" id="modeNormal">Normal</button>
-            <button type="button" class="mode-btn" data-mode="announcer" id="modeAnnouncer">Announcer</button>
+      <div class="live-layout is-hidden" id="liveLayout">
+        <section class="panel live-col" id="livePanel">
+          <div class="panel__row">
+            <button type="button" class="ghost" id="backToGames">← Games</button>
+            <div class="mode-toggle" role="group" aria-label="Voice mode">
+              <button type="button" class="mode-btn is-on" data-mode="normal" id="modeNormal">Normal</button>
+              <button type="button" class="mode-btn" data-mode="announcer" id="modeAnnouncer">Announcer</button>
+            </div>
           </div>
-        </div>
 
-        <div class="scoreboard" id="scoreboard" aria-live="polite">
-          <div class="scoreboard__matchup" id="matchup">—</div>
-          <div class="scoreboard__score" id="scoreLine">—</div>
-          <div class="scoreboard__meta" id="metaLine">—</div>
-        </div>
+          <div class="scoreboard" id="scoreboard" aria-live="polite">
+            <div class="scoreboard__matchup" id="matchup">—</div>
+            <div class="scoreboard__score" id="scoreLine">—</div>
+            <div class="scoreboard__meta" id="metaLine">—</div>
+          </div>
 
-        <div class="poll-status" id="pollStatus" aria-live="polite">
-          <span class="poll-spinner" id="pollSpinner" aria-hidden="true"></span>
-          <span class="caption__status" id="status">Idle</span>
-          <span class="poll-countdown is-hidden" id="pollCountdown" aria-hidden="true">
-            next in <strong id="pollSecs">7</strong>s
-          </span>
-        </div>
-        <p class="caption__reply" id="lastCall">Select a game to start listening.</p>
+          <div class="poll-status" id="pollStatus" aria-live="polite">
+            <span class="poll-spinner" id="pollSpinner" aria-hidden="true"></span>
+            <span class="caption__status" id="status">Idle</span>
+            <span class="poll-countdown is-hidden" id="pollCountdown" aria-hidden="true">
+              next in <strong id="pollSecs">7</strong>s
+            </span>
+          </div>
+          <p class="caption__reply" id="lastCall">Select a game to start listening.</p>
 
-        <div class="panel__row">
-          <h3>Call log</h3>
-          <button type="button" class="ghost" id="clearLog">Clear</button>
-        </div>
-        <ul class="call-log" id="callLog"></ul>
-      </section>
+          <div class="panel__row">
+            <h3>Call log</h3>
+            <button type="button" class="ghost" id="clearLog">Clear</button>
+          </div>
+          <ul class="call-log" id="callLog"></ul>
+        </section>
+
+        <aside class="panel ask-panel" id="askPanel" aria-label="Ask a question">
+          <h2>Ask a question</h2>
+          <p class="hint">Lineups, pitcher vs batter, projections, and more — live game context + MARII.</p>
+          <div class="ask-chips" id="askChips" role="group" aria-label="Suggested questions">
+            <button type="button" class="ask-chip" data-q="What's the lineup?">Lineup</button>
+            <button type="button" class="ask-chip" data-q="Who's pitching and who's batting right now?">Pitcher / batter</button>
+            <button type="button" class="ask-chip" data-q="Give me a quick projection for this game from the current situation.">Projections</button>
+            <button type="button" class="ask-chip" data-q="Summarize the bullpen and who might come in next.">Bullpen</button>
+            <button type="button" class="ask-chip" data-q="Who's hot at the plate in this game so far?">Hot bats</button>
+            <button type="button" class="ask-chip" data-q="What's the count, outs, and runners?">Situation</button>
+          </div>
+          <form class="ask-form" id="askForm">
+            <label class="sr-only" for="askInput">Your question</label>
+            <textarea id="askInput" rows="3" maxlength="500" placeholder="e.g. How has the starter looked tonight?"></textarea>
+            <div class="ask-form__row">
+              <button type="submit" class="ask-submit" id="askSubmit">Ask MARII</button>
+              <button type="button" class="ghost" id="askSpeak" disabled>Read aloud</button>
+            </div>
+          </form>
+          <div class="ask-answer" id="askAnswer" aria-live="polite">
+            <p class="ask-answer__empty">Pick a chip or type a question about this game.</p>
+          </div>
+        </aside>
+      </div>
     </main>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="/betas/pyxassistant/pyx-assistant-voice.js?v=15"></script>
-  <script src="/betas/announcer/announcer.js?v=6"></script>
+  <script src="/betas/announcer/announcer.js?v=7"></script>
 </body>
 </html>
