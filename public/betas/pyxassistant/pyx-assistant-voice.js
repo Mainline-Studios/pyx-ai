@@ -20,6 +20,7 @@
     onSpeakEnd: null,
     onError: null,
     onOnlineReady: null,
+    onKokoroReady: null,
   };
 
   var session = false;
@@ -362,46 +363,97 @@
     return "barge-in";
   }
 
+  async function detectKokoroDevice() {
+    try {
+      if (typeof navigator !== "undefined" && navigator.gpu && navigator.gpu.requestAdapter) {
+        var adapter = await navigator.gpu.requestAdapter();
+        if (adapter) return "webgpu";
+      }
+    } catch (e) {}
+    return "wasm";
+  }
+
+  function formatLoadProgress(p) {
+    if (!p || typeof p !== "object") return "";
+    if (typeof p.progress === "number" && !isNaN(p.progress)) {
+      return Math.max(0, Math.min(100, Math.round(p.progress * 100))) + "%";
+    }
+    if (p.loaded != null && p.total) {
+      return Math.max(0, Math.min(100, Math.round((p.loaded / p.total) * 100))) + "%";
+    }
+    if (p.status === "ready" || p.status === "done") return "100%";
+    if (p.file) return String(p.file).split("/").pop();
+    return "";
+  }
+
+  async function loadKokoro(note) {
+    var device = await detectKokoroDevice();
+    // q4 is much smaller/faster to download on wasm; webgpu can take q8.
+    var dtype = device === "webgpu" ? "q8" : "q4";
+    note("Starting Kokoro (" + dtype + " · " + device + ")…");
+    var mod = await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm");
+    try {
+      if (mod.env) {
+        if ("useBrowserCache" in mod.env) mod.env.useBrowserCache = true;
+      }
+    } catch (e) {}
+    note("Downloading Kokoro model weights…");
+    kokoro = await mod.KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
+      dtype: dtype,
+      device: device,
+      progress_callback: function (p) {
+        var bit = formatLoadProgress(p);
+        if (bit) note("Kokoro download " + bit + "…");
+      },
+    });
+    api.ready.kokoro = true;
+    api.kokoroDevice = device;
+    api.kokoroDtype = dtype;
+    if (!api.voiceId || api.voiceId === "en-GB" || api.voiceId === "en-US" || api.voiceId === "am_fenrir") {
+      api.voiceId = "bm_lewis";
+    }
+    note("Kokoro ready (" + dtype + " · " + device + ").");
+    if (typeof api.onKokoroReady === "function") {
+      try {
+        api.onKokoroReady({ device: device, dtype: dtype, voiceId: api.voiceId });
+      } catch (e2) {}
+    }
+    return true;
+  }
+
+  async function primeOnlineVoice(note) {
+    note("Warming online neural voice…");
+    try {
+      var v = api.voiceId && api.voiceId.indexOf("en-") === 0 ? api.voiceId : "en-GB";
+      await soundOfTextUrl("Hi.", v);
+      note("Online neural voice ready.");
+      return true;
+    } catch (e) {
+      note("Online voice warm-up skipped.");
+      return false;
+    }
+  }
+
+  /**
+   * Chat-ready as soon as online TTS is primed. Kokoro keeps loading in the background
+   * (smaller q4 on wasm / q8 on webgpu) and fires onKokoroReady when done.
+   */
   async function warmup(onProgress) {
     var note = onProgress || function () {};
-    note("Warming online neural voice…");
     emit("ready");
-    var onlineReady = false;
-    try {
-      // Prime Sound of Text so the first spoken reply isn’t a cold round-trip.
-      await soundOfTextUrl("Hi.", api.voiceId && api.voiceId.indexOf("en-") === 0 ? api.voiceId : "en-GB");
-      onlineReady = true;
-      note("Online neural voice ready. Loading Kokoro…");
-    } catch (e) {
-      note("Online voice warm-up skipped. Loading Kokoro…");
-    }
+    api.ready.kokoro = false;
+    api._kokoroPromise = loadKokoro(note).catch(function (err) {
+      api.ready.kokoro = false;
+      note("Kokoro didn’t load — staying on online neural voice.");
+      return false;
+    });
+    var onlineReady = await primeOnlineVoice(note);
     if (typeof api.onOnlineReady === "function") {
       try {
         api.onOnlineReady({ online: onlineReady });
-      } catch (e2) {}
+      } catch (e) {}
     }
-    try {
-      var mod = await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm");
-      note("Kokoro downloading model weights…");
-      kokoro = await mod.KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
-        dtype: "q8",
-        device: "wasm",
-      });
-      api.ready.kokoro = true;
-      if (!api.voiceId || api.voiceId === "en-GB" || api.voiceId === "en-US" || api.voiceId === "am_fenrir") {
-        api.voiceId = "bm_lewis";
-        note("Kokoro is ready — using Lewis.");
-      } else {
-        note("Kokoro is ready — pick a voice in the list.");
-      }
-    } catch (e) {
-      api.ready.kokoro = false;
-      note(
-        onlineReady
-          ? "Online voice is on (Sound of Text). Kokoro didn’t load on this device."
-          : "Voice warm-up finished with limited TTS. Typing still works."
-      );
-    }
+    // Don't block chat on Kokoro — return once online path is usable.
     return api.ready;
   }
 

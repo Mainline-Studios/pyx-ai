@@ -1043,6 +1043,7 @@
   }
 
   function finishVoiceBoot(msg) {
+    var first = !state.voiceReady;
     state.voiceReady = true;
     state.warming = false;
     setVoiceBootMsg(msg || "Voice ready.");
@@ -1053,7 +1054,7 @@
       els.voiceBoot.setAttribute("aria-busy", "false");
     }
     paintVoiceOptions();
-    if (pendingHandoff) {
+    if (first && pendingHandoff) {
       var q = pendingHandoff;
       pendingHandoff = null;
       handleUserText(q, false);
@@ -1070,47 +1071,48 @@
     state.warming = true;
     state.voiceReady = false;
     setChatLocked(true);
-    setVoiceBootMsg("Downloading neural TTS…");
+    setVoiceBootMsg("Getting voice ready…");
     bindVoice();
     paintVoiceOptions();
     voice.setVoice(state.voiceId);
-    voice.onOnlineReady = function () {
-      setVoiceBootMsg("Online neural voice ready. Still loading Kokoro…");
-      showVoiceBootSkip(true);
-    };
     voice.onError = function () {
       toast(t("sttFail"));
     };
+    voice.onOnlineReady = function () {
+      // Unlock chat as soon as online TTS works; Kokoro continues in background.
+      finishVoiceBoot("Voice ready — online neural. Kokoro still loading…");
+      setVoiceBootMsg("Kokoro still downloading in the background…");
+    };
+    voice.onKokoroReady = function () {
+      paintVoiceOptions();
+      var hadSavedVoice = false;
+      try {
+        var raw = localStorage.getItem(STORE_KEY);
+        var o = raw ? JSON.parse(raw) : null;
+        hadSavedVoice = !!(o && o.voiceId && o.voiceId !== "en-GB" && o.voiceId !== "en-US" && o.voiceId !== "am_fenrir");
+      } catch (e) {}
+      if (!hadSavedVoice) {
+        state.voiceId = voice.voiceId || "bm_lewis";
+        voice.setVoice(state.voiceId);
+        save();
+      } else {
+        voice.setVoice(state.voiceId);
+      }
+      paintVoiceOptions();
+      setVoiceBootMsg("Kokoro ready — using " + (state.voiceId === "bm_lewis" ? "Lewis" : state.voiceId) + ".");
+      toast("Kokoro voice ready.");
+    };
     try {
       await voice.warmup(function (msg) {
-        setVoiceBootMsg(msg || "Getting voice ready…");
-        if (voice.ready && voice.ready.kokoro) {
-          paintVoiceOptions();
-          var hadSavedVoice = false;
-          try {
-            var raw = localStorage.getItem(STORE_KEY);
-            var o = raw ? JSON.parse(raw) : null;
-            hadSavedVoice = !!(o && o.voiceId && o.voiceId !== "en-GB" && o.voiceId !== "en-US" && o.voiceId !== "am_fenrir");
-          } catch (e) {}
-          if (!hadSavedVoice) {
-            state.voiceId = voice.voiceId || "bm_lewis";
-            voice.setVoice(state.voiceId);
-            save();
-            paintVoiceOptions();
-          } else {
-            voice.setVoice(state.voiceId);
-          }
+        if (!state.voiceReady) setVoiceBootMsg(msg || "Getting voice ready…");
+        else if (els.kbMeta) {
+          els.kbMeta.setAttribute("data-voice", msg || "");
+          refreshKbMeta();
         }
       });
-      paintVoiceOptions();
-      if (voice.setVoice) voice.setVoice(state.voiceId);
-      var doneMsg =
-        voice.ready && voice.ready.kokoro
-          ? "Voice ready — Kokoro Lewis."
-          : "Voice ready — online neural TTS.";
-      finishVoiceBoot(doneMsg);
+      if (!state.voiceReady) finishVoiceBoot("Voice ready.");
     } catch (err) {
-      finishVoiceBoot("Online neural TTS ready.");
+      if (!state.voiceReady) finishVoiceBoot("Online neural TTS ready.");
     }
   }
 

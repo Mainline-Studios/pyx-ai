@@ -2168,6 +2168,7 @@
   }
 
   function finishVoiceBoot(msg) {
+    var first = !state.voiceReady;
     state.voiceReady = true;
     setVoiceBootMsg(msg || "Neural TTS ready.");
     showVoiceBootSkip(false);
@@ -2175,7 +2176,7 @@
       els.voiceBoot.classList.add("is-done");
       els.voiceBoot.setAttribute("aria-busy", "false");
     }
-    speakNext();
+    if (first) speakNext();
   }
 
   function bootVoice() {
@@ -2193,44 +2194,38 @@
       toast("Neural voice failed — try another voice or wait for Kokoro.");
     };
     voice.onOnlineReady = function () {
-      setVoiceBootMsg("Online neural voice ready. Still loading Kokoro…");
-      showVoiceBootSkip(true);
-      if (!state.voiceReady) {
-        state.voiceReady = true;
-        speakNext();
-      }
+      finishVoiceBoot("Voice ready — online neural. Kokoro still loading…");
+      setVoiceBootMsg("Kokoro still downloading in the background…");
+      if (els.voiceHint) els.voiceHint.textContent = "Kokoro loading in background…";
     };
-    setVoiceBootMsg("Downloading neural TTS…");
+    voice.onKokoroReady = function () {
+      paintVoiceOptions();
+      var saved = "";
+      try {
+        saved = localStorage.getItem("pyx.announcer.voiceId") || "";
+      } catch (e) {}
+      if (preferDefaultKokoro(saved) || preferDefaultKokoro(state.voiceId)) {
+        setVoiceId("bm_lewis");
+        paintVoiceOptions();
+        if (els.voiceSelect) els.voiceSelect.value = "bm_lewis";
+      } else {
+        voice.setVoice(state.voiceId);
+      }
+      setVoiceBootMsg("Kokoro ready — Lewis.");
+      if (els.voiceHint) els.voiceHint.textContent = "Kokoro · Lewis ready.";
+      toast("Kokoro Lewis ready.");
+    };
+    setVoiceBootMsg("Getting voice ready…");
     voice
       .warmup(function (msg) {
-        setVoiceBootMsg(msg || "Getting voice ready…");
-        if (voice.ready && voice.ready.kokoro) {
-          paintVoiceOptions();
-          var saved = "";
-          try {
-            saved = localStorage.getItem("pyx.announcer.voiceId") || "";
-          } catch (e) {}
-          // Prefer Kokoro Lewis; migrate off online/Fenrir defaults (including prior buggy saves).
-          if (preferDefaultKokoro(saved) || preferDefaultKokoro(state.voiceId)) {
-            setVoiceId("bm_lewis");
-            paintVoiceOptions();
-            if (els.voiceSelect) els.voiceSelect.value = "bm_lewis";
-          } else {
-            voice.setVoice(state.voiceId);
-          }
-        }
+        if (!state.voiceReady) setVoiceBootMsg(msg || "Getting voice ready…");
+        else if (els.voiceHint) els.voiceHint.textContent = msg || "";
       })
       .then(function () {
-        paintVoiceOptions();
-        setVoiceId(state.voiceId);
-        var doneMsg =
-          voice.ready && voice.ready.kokoro
-            ? "Voice ready — Kokoro" + (state.voiceId === "bm_lewis" ? " Lewis." : ".")
-            : "Voice ready — online neural TTS.";
-        finishVoiceBoot(doneMsg);
+        if (!state.voiceReady) finishVoiceBoot("Voice ready — online neural TTS.");
       })
       .catch(function () {
-        finishVoiceBoot("Online neural TTS ready.");
+        if (!state.voiceReady) finishVoiceBoot("Online neural TTS ready.");
       });
   }
 
