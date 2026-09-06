@@ -2092,37 +2092,65 @@
     } catch (e) {}
   }
 
+  function isOnlineVoiceId(id) {
+    return !id || /^en-[A-Z]{2}$/.test(id);
+  }
+
+  function preferDefaultKokoro(id) {
+    return !id || isOnlineVoiceId(id) || id === "am_fenrir";
+  }
+
   function paintVoiceOptions() {
     if (!els.voiceSelect) return;
     var names =
       (voice && voice.listVoices && voice.listVoices()) || [
+        { id: "bm_lewis", label: "Kokoro · Lewis (UK male)" },
         { id: "en-US", label: "Online neural · US" },
         { id: "en-GB", label: "Online neural · British" },
         { id: "en-AU", label: "Online neural · Australian" },
         { id: "en-IN", label: "Online neural · Indian English" },
-        { id: "bm_lewis", label: "Kokoro · Lewis (UK male)" },
-        { id: "am_fenrir", label: "Kokoro · Fenrir (US male)" },
-        { id: "am_michael", label: "Kokoro · Michael (US male)" },
-        { id: "bm_george", label: "Kokoro · George (UK male)" },
       ];
-    var cur = state.voiceId;
+    // Keep Kokoro voices ahead of online neural once available.
+    names = names.slice().sort(function (a, b) {
+      var ak = /^[a-z]{2}_/.test(a.id) ? 0 : 1;
+      var bk = /^[a-z]{2}_/.test(b.id) ? 0 : 1;
+      if (ak !== bk) return ak - bk;
+      if (a.id === "bm_lewis") return -1;
+      if (b.id === "bm_lewis") return 1;
+      return 0;
+    });
+    var cur = state.voiceId || "bm_lewis";
     els.voiceSelect.innerHTML = "";
+    // If Lewis is preferred but Kokoro isn't listed yet, keep a placeholder so we don't snap to en-US.
+    if (!names.some(function (v) { return v.id === cur; }) && /^[a-z]{2}_/.test(cur)) {
+      var hold = document.createElement("option");
+      hold.value = cur;
+      hold.textContent = cur === "bm_lewis" ? "Kokoro · Lewis (loading…)" : "Kokoro · " + cur + " (loading…)";
+      els.voiceSelect.appendChild(hold);
+    }
     names.forEach(function (v) {
       var opt = document.createElement("option");
       opt.value = v.id;
       opt.textContent = v.label;
       els.voiceSelect.appendChild(opt);
     });
-    if (names.some(function (v) { return v.id === cur; })) {
+    if (names.some(function (v) { return v.id === cur; }) || els.voiceSelect.querySelector('option[value="' + cur + '"]')) {
       els.voiceSelect.value = cur;
     } else if (names.length) {
-      state.voiceId = names[0].id;
-      els.voiceSelect.value = state.voiceId;
+      // Never overwrite a pending Kokoro default with the first online voice.
+      if (!preferDefaultKokoro(cur)) {
+        els.voiceSelect.value = names[0].id;
+      } else {
+        state.voiceId = "bm_lewis";
+        els.voiceSelect.value = els.voiceSelect.querySelector('option[value="bm_lewis"]')
+          ? "bm_lewis"
+          : names[0].id;
+      }
     }
   }
 
   function setVoiceId(id) {
-    state.voiceId = id || "en-US";
+    state.voiceId = id || "bm_lewis";
     if (voice && voice.setVoice) voice.setVoice(state.voiceId);
     try {
       localStorage.setItem("pyx.announcer.voiceId", state.voiceId);
@@ -2178,19 +2206,15 @@
         setVoiceBootMsg(msg || "Getting voice ready…");
         if (voice.ready && voice.ready.kokoro) {
           paintVoiceOptions();
-          var locked = false;
+          var saved = "";
           try {
-            locked = !!localStorage.getItem("pyx.announcer.voiceId");
+            saved = localStorage.getItem("pyx.announcer.voiceId") || "";
           } catch (e) {}
-          // Prefer Kokoro Lewis when it lands; migrate off online/Fenrir defaults.
-          if (!locked || locked === "en-US" || locked === "en-GB" || locked === "am_fenrir") {
-            state.voiceId = "bm_lewis";
-            try {
-              localStorage.setItem("pyx.announcer.voiceId", state.voiceId);
-            } catch (e2) {}
-            voice.setVoice(state.voiceId);
+          // Prefer Kokoro Lewis; migrate off online/Fenrir defaults (including prior buggy saves).
+          if (preferDefaultKokoro(saved) || preferDefaultKokoro(state.voiceId)) {
+            setVoiceId("bm_lewis");
             paintVoiceOptions();
-            els.voiceSelect.value = state.voiceId;
+            if (els.voiceSelect) els.voiceSelect.value = "bm_lewis";
           } else {
             voice.setVoice(state.voiceId);
           }
@@ -2201,7 +2225,7 @@
         setVoiceId(state.voiceId);
         var doneMsg =
           voice.ready && voice.ready.kokoro
-            ? "Voice ready — Kokoro Lewis."
+            ? "Voice ready — Kokoro" + (state.voiceId === "bm_lewis" ? " Lewis." : ".")
             : "Voice ready — online neural TTS.";
         finishVoiceBoot(doneMsg);
       })
@@ -2324,7 +2348,15 @@
       if (m) setMode(m);
       if (localStorage.getItem("pyx.announcer.muted") === "1") setMuted(true);
       var vid = localStorage.getItem("pyx.announcer.voiceId");
-      if (vid) state.voiceId = vid;
+      // Default / migrate soft defaults to Kokoro Lewis.
+      if (!vid || vid === "en-US" || vid === "en-GB" || vid === "am_fenrir") {
+        state.voiceId = "bm_lewis";
+        try {
+          localStorage.setItem("pyx.announcer.voiceId", "bm_lewis");
+        } catch (e2) {}
+      } else {
+        state.voiceId = vid;
+      }
     } catch (e) {}
     bind();
     loadGames();

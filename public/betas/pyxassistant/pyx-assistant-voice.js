@@ -41,12 +41,7 @@
   }
 
   function listVoices() {
-    var list = [
-      { id: "en-US", label: "Online neural · US" },
-      { id: "en-GB", label: "Online neural · British" },
-      { id: "en-AU", label: "Online neural · Australian" },
-      { id: "en-IN", label: "Online neural · Indian English" },
-    ];
+    var list = [];
     if (api.ready.kokoro) {
       list.push(
         { id: "bm_lewis", label: "Kokoro · Lewis (UK male)" },
@@ -60,6 +55,12 @@
         { id: "bf_emma", label: "Kokoro · Emma (UK female)" }
       );
     }
+    list.push(
+      { id: "en-US", label: "Online neural · US" },
+      { id: "en-GB", label: "Online neural · British" },
+      { id: "en-AU", label: "Online neural · Australian" },
+      { id: "en-IN", label: "Online neural · Indian English" }
+    );
     return list;
   }
 
