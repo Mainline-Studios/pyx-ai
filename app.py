@@ -1751,142 +1751,31 @@ def moderator_check():
     return jsonify(_moderator_check_payload(text, threshold=threshold))
 
 
-_MARII_SYSTEM = (
-    "You are MARII — Mainline Artificial Realtime Instant Intelligence. "
-    "Be concise, clear, and helpful. Prefer short answers that feel instant. "
-    "When web snippets are provided, ground factual claims in them. "
-    "You power Pyx Assistant’s optional cloud boost. Stay safe for general audiences."
+# MARII is local-only (no cloud LLM). This route stays for API compatibility.
+_MARII_NO_AI_NOTE = (
+    "MARII does not use cloud AI. Answers are produced in-client from local packs and live feeds."
 )
-
-# MARII cloud ask must NOT use Groq. Prefer the Workers AI Worker.
-_MARII_WORKER_ASK_URL = (
-    os.environ.get("MARII_ASK_URL")
-    or "https://marii-ask.mainline-mi.workers.dev/ask"
-).strip()
-
-
-def _marii_ask_via_worker(text: str, *, mode: str = "fast", use_web: bool = False) -> tuple[str | None, str | None, str | None]:
-    """POST to MARII Worker (Workers AI). Returns (answer, model, error). Never calls Groq."""
-    payload = json.dumps(
-        {"text": text, "mode": mode, "use_web": bool(use_web)},
-        ensure_ascii=False,
-    ).encode("utf-8")
-    req = urllib.request.Request(
-        _MARII_WORKER_ASK_URL,
-        data=payload,
-        method="POST",
-        headers={
-            "Content-Type": "application/json; charset=utf-8",
-            "Accept": "application/json",
-            "User-Agent": "pyx-marii-ask/1.0",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            raw = resp.read().decode("utf-8", errors="replace")
-        data = json.loads(raw) if raw else {}
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", errors="replace")[:400]
-        return None, None, f"worker HTTP {e.code}: {detail}"
-    except Exception as e:
-        return None, None, str(e)
-    answer = data.get("answer") or data.get("reply")
-    if not isinstance(answer, str) or not answer.strip():
-        return None, None, data.get("error") or "empty worker answer"
-    model = data.get("model")
-    return answer.strip(), (model if isinstance(model, str) else None), None
 
 
 @app.route("/api/marii/ask", methods=["POST", "OPTIONS"])
 @app.route("/marii/ask", methods=["POST", "OPTIONS"])
 def marii_ask():
-    """Thin MARII ask: {text, mode?, use_web?} → {answer, source, latency_ms}.
-
-    Backend is Cloudflare Workers AI via the marii-ask Worker — not Groq.
-    """
+    """Compatibility endpoint — MARII is not an LLM backend."""
     if request.method == "OPTIONS":
         return "", 204
     if request.method != "POST":
         return jsonify({"error": "Method not allowed"}), 405
-    started = datetime.now(timezone.utc)
-    data = request.get_json(silent=True) or {}
-    text = data.get("text")
-    if text is None or not isinstance(text, str):
-        return jsonify({"error": "Missing \"text\" string"}), 400
-    text = text.strip()
-    if not text:
-        return jsonify({"error": "Empty text"}), 400
-    if len(text) > 4000:
-        return jsonify({"error": "Text too long"}), 413
-
-    user_mod = _moderator_check_payload(text, threshold=700)
-    if not user_mod.get("appropriate", True):
-        return (
-            jsonify(
-                {
-                    "error": "Request blocked by moderator",
-                    "appropriate": False,
-                    "score": user_mod.get("score"),
-                }
-            ),
-            400,
-        )
-
-    mode, mode_err = _normalize_talk_mode(data.get("mode") or "fast")
-    if mode_err:
-        mode = "fast"
-    use_web = _as_bool(data.get("use_web"))
-    # Optional web snippets prepended for the Worker (still no Groq).
-    do_web = use_web or _needs_live_web(text)
-    if do_web:
-        search_query = _enhance_talk_search_query(text)
-        snippets, _provider, werr = _talk_web_snippets(search_query)
-        if snippets:
-            text = (
-                "Use these web snippets when helpful; if they conflict or look stale, say so.\n\n"
-                "--- Web snippets ---\n"
-                + snippets
-                + "\n\n--- User question ---\n"
-                + text
-            )
-        elif werr:
-            text = f"(Search note: {werr})\n\n{text}"
-
-    reply, model_used, werr = _marii_ask_via_worker(text, mode=mode, use_web=False)
-    if not reply:
-        return (
-            jsonify(
-                {
-                    "error": "MARII Worker unavailable",
-                    "detail": werr or "empty answer",
-                    "hint": "Deploy workers/marii-ask (Workers AI binding). MARII does not use Groq.",
-                }
-            ),
-            503,
-        )
-
-    answer_mod = _moderator_check_payload(reply, threshold=700)
-    if not answer_mod.get("appropriate", True):
-        return (
-            jsonify(
-                {
-                    "error": "Answer blocked by moderator",
-                    "appropriate": False,
-                    "score": answer_mod.get("score"),
-                }
-            ),
-            400,
-        )
-
-    latency_ms = int((datetime.now(timezone.utc) - started).total_seconds() * 1000)
-    return jsonify(
-        {
-            "answer": reply,
-            "source": "marii",
-            "backend": "workers-ai",
-            "latency_ms": latency_ms,
-            "model": model_used,
-        }
+    return (
+        jsonify(
+            {
+                "error": "MARII does not use cloud AI",
+                "hint": _MARII_NO_AI_NOTE,
+                "source": "marii",
+                "backend": "none",
+                "ai": False,
+            }
+        ),
+        501,
     )
 
 

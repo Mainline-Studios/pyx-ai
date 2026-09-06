@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Pyx Assistant</title>
-  <meta name="description" content="Pyx Assistant — local-first MARII beta. Voice, jokes, math, sports, weather, optional cloud boost." />
+  <meta name="description" content="Pyx Assistant — local-first MARII beta. Voice, jokes, math, sports, weather. No cloud AI." />
   <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -78,9 +78,9 @@
         <label id="voiceLabel" for="voice">Speak replies</label>
         <input id="voice" type="checkbox" checked />
       </div>
-      <div class="toggle">
-        <label id="mariiBoostLabel" for="mariiBoost">Use MARII cloud boost</label>
-        <input id="mariiBoost" type="checkbox" checked />
+      <div class="toggle" hidden>
+        <label id="mariiBoostLabel" for="mariiBoost">MARII is local-only</label>
+        <input id="mariiBoost" type="checkbox" disabled />
       </div>
       <div class="field">
         <label id="modeLabel" for="mode">Voice</label>
@@ -101,7 +101,7 @@
       <div class="row-actions">
         <button type="button" class="ghost" id="sendSlack">Send last reply to Slack</button>
         <button type="button" class="ghost" id="sendDiscord">Send last reply to Discord</button>
-        <button type="button" class="ghost" id="openTalk">Local-first · MARII boost optional</button>
+        <button type="button" class="ghost" id="openTalk">Local-first MARII · no cloud AI</button>
         <button type="button" class="ghost" id="openData">See what I know about you</button>
         <button type="button" class="ghost" id="clearBtn">Clear conversation</button>
         <button type="button" class="ghost" id="forgetBtn">Forget me</button>
@@ -142,7 +142,7 @@
   <script src="/betas/pyxassistant/pyx-assistant-cookies.js?v=12"></script>
   <script src="/betas/pyxassistant/pyx-assistant-sports.js?v=12"></script>
   <script src="/betas/pyxassistant/pyx-assistant-weather.js?v=12"></script>
-  <script src="/betas/pyxassistant/pyx-assistant.js?v=13"></script>
+  <script src="/betas/pyxassistant/pyx-assistant.js?v=14"></script>
   <script src="/betas/pyxassistant/pyx-assistant-voice.js?v=17"></script>
 </body>
 </html>

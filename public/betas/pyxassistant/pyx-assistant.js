@@ -1,13 +1,10 @@
 /**
- * Pyx Assistant — local KB + math + sports + weather + optional MARII boost.
+ * Pyx Assistant — local KB + math + sports + weather (MARII = local, no cloud AI).
  */
 (function () {
   "use strict";
 
   var STORE_KEY = "pyx.assistant.v3";
-  var MARII_ASK_URL = "https://marii-ask.mainline-mi.workers.dev/ask";
-  var MARII_ASK_SAME_ORIGIN = "/api/marii/ask";
-  var MARII_TIMEOUT_MS = 1500;
   var slu = window.PyxAssistantSLU;
   var i18n = window.PyxAssistantI18n;
   var math = window.PyxAssistantMath;
@@ -23,7 +20,7 @@
     lang: "en",
     voice: true,
     voiceId: "en-GB",
-    mariiBoost: true,
+    mariiBoost: false,
     slack: "",
     discord: "",
     messages: [],
@@ -59,7 +56,7 @@
       if (o.theme) state.theme = o.theme;
       if (o.lang) state.lang = o.lang;
       if (typeof o.voice === "boolean") state.voice = o.voice;
-      if (typeof o.mariiBoost === "boolean") state.mariiBoost = o.mariiBoost;
+      if (typeof o.mariiBoost === "boolean") state.mariiBoost = false;
       if (o.voiceId) {
         state.voiceId = String(o.voiceId).indexOf("af_") === 0 ? "en-GB" : o.voiceId;
       }
@@ -432,44 +429,14 @@
     }
   }
 
-  async function fetchMariiAsk(url, text, signal) {
-    var res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: text, mode: "fast", use_web: true }),
-      signal: signal,
-    });
-    if (!res.ok) throw new Error("marii " + res.status);
-    var data = await res.json();
-    var answer = data && (data.answer || data.reply);
-    if (!answer || typeof answer !== "string") throw new Error("marii empty");
-    return answer.trim();
+  async function fetchMariiAsk() {
+    // MARII is local-only (no cloud LLM / no Groq / no Workers AI).
+    return null;
   }
 
-  async function askMarii(text) {
-    if (!state.mariiBoost) return null;
-    var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
-    var timer = setTimeout(function () {
-      if (ctrl) ctrl.abort();
-    }, MARII_TIMEOUT_MS);
-    var signal = ctrl ? ctrl.signal : undefined;
-    try {
-      var answer = null;
-      try {
-        answer = await fetchMariiAsk(MARII_ASK_URL, text, signal);
-      } catch (primaryErr) {
-        if (signal && signal.aborted) return null;
-        answer = await fetchMariiAsk(MARII_ASK_SAME_ORIGIN, text, signal);
-      }
-      if (!answer) return null;
-      var ok = await moderateOk(answer);
-      if (!ok) return null;
-      return answer;
-    } catch (e) {
-      return null;
-    } finally {
-      clearTimeout(timer);
-    }
+  async function askMarii() {
+    // Optional “boost” used to call a cloud LLM. That path is retired.
+    return null;
   }
 
   async function localReply(text) {
@@ -1032,7 +999,7 @@
     if (els.kbMeta) {
       els.kbMeta.hidden = false;
       els.kbMeta.setAttribute("data-base", n.toLocaleString() + " local replies · sports · weather");
-      els.kbMeta.setAttribute("data-voice", state.mariiBoost ? "MARII boost on" : "local-first");
+      els.kbMeta.setAttribute("data-voice", "local-first · no cloud AI");
       refreshKbMeta();
     }
     return n;
