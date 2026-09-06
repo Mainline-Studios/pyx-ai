@@ -538,6 +538,125 @@
     return side;
   }
 
+  function teamAliases(feed, side) {
+    var out = [];
+    function add(s) {
+      s = String(s || "")
+        .toLowerCase()
+        .trim();
+      if (!s || out.indexOf(s) !== -1) return;
+      out.push(s);
+      var parts = s.split(/\s+/).filter(Boolean);
+      if (parts.length > 1) {
+        var nick = parts[parts.length - 1];
+        if (nick.length > 2 && out.indexOf(nick) === -1) out.push(nick);
+      }
+    }
+    var box = (((feed || {}).liveData || {}).boxscore || {}).teams || {};
+    var bt = box[side] && box[side].team;
+    if (bt) {
+      add(bt.teamName);
+      add(bt.name);
+      add(bt.abbreviation);
+      add(bt.locationName);
+      add(bt.shortName);
+    }
+    var gd = ((feed || {}).gameData || {}).teams || {};
+    var g = gd[side];
+    if (g) {
+      add(g.teamName);
+      add(g.name);
+      add(g.abbreviation);
+      if (g.team) {
+        add(g.team.teamName);
+        add(g.team.name);
+        add(g.team.abbreviation);
+      }
+    }
+    add(teamLabel(feed, side));
+    return out;
+  }
+
+  function questionMentionsSide(q, feed, side) {
+    var t = String(q || "").toLowerCase();
+    return teamAliases(feed, side).some(function (a) {
+      if (a.length <= 3) return new RegExp("\\b" + a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b").test(t);
+      return t.indexOf(a) !== -1;
+    });
+  }
+
+  function liveSeasonRecord(feed, side) {
+    var gd = ((feed || {}).gameData || {}).teams || {};
+    var g = gd[side] || {};
+    var rec = g.record || (g.team && g.team.record) || {};
+    var league = rec.leagueRecord || rec;
+    var w = league.wins != null ? Number(league.wins) : null;
+    var l = league.losses != null ? Number(league.losses) : null;
+    if (w == null || l == null) return null;
+    return { w: w, l: l, pct: league.pct || null };
+  }
+
+  function formBlurb(label, form, seasonRec) {
+    var bits = [];
+    bits.push("MARII on " + label + ":");
+    if (seasonRec) {
+      bits.push(
+        "season mark " +
+          seasonRec.w +
+          "-" +
+          seasonRec.l +
+          (seasonRec.pct ? " (" + seasonRec.pct + ")" : "") +
+          "."
+      );
+    }
+    if (form && form.games) {
+      bits.push(
+        "Last " +
+          form.games +
+          " finals: " +
+          form.w +
+          "-" +
+          form.l +
+          ", averaging " +
+          round1(form.rpg) +
+          " RPG / " +
+          round1(form.rapg) +
+          " RA/G (recent stretch " +
+          round1(form.recentRpg) +
+          " / " +
+          round1(form.recentRapg) +
+          ")."
+      );
+      if (form.lastScores && form.lastScores.length) {
+        bits.push("Runs scored last " + form.lastScores.length + ": " + form.lastScores.join(", ") + ".");
+      }
+    } else {
+      bits.push("Not enough recent finals in the lookback window for a form line yet.");
+    }
+    return bits.join(" ");
+  }
+
+  async function answerFormAlgo(feed, q) {
+    var wantsAway = questionMentionsSide(q, feed, "away");
+    var wantsHome = questionMentionsSide(q, feed, "home");
+    var sides =
+      wantsAway && !wantsHome ? ["away"] : wantsHome && !wantsAway ? ["home"] : ["away", "home"];
+    try {
+      var hist = await loadHist(feed);
+      if (!hist) {
+        return "MARII couldn’t load recent finals yet — try again in a moment.";
+      }
+      var lines = sides.map(function (side) {
+        var form = side === "away" ? hist.awayForm : hist.homeForm;
+        return formBlurb(teamLabel(feed, side), form, liveSeasonRecord(feed, side));
+      });
+      lines.push("Game-scoped MARII form from the live board + recent finals — not a full season scouting report.");
+      return lines.join(" ");
+    } catch (err) {
+      return mariiUnknown();
+    }
+  }
+
   function teamBox(feed, side) {
     return ((((feed || {}).liveData || {}).boxscore || {}).teams || {})[side] || {};
   }
@@ -1273,6 +1392,15 @@
     }
   }
 
+  function wantsFormQuestion(t) {
+    var s = String(t || "").toLowerCase();
+    if (/\b(starter|pitch(er|ing)? line|on the mound|era tonight|pitch count)\b/.test(s)) return false;
+    if (/\b(season|record|standings|form|this year|playing lately|recent (games|form|stretch))\b/.test(s)) {
+      return true;
+    }
+    return /\bhow (are|have|is|'re|'ve)\b/.test(s) && /\b(team|they|clubs?|doing|looking|year)\b/.test(s);
+  }
+
   function isGameScopedQuestion(q, feed) {
     var t = String(q || "").toLowerCase().trim();
     if (!t) return false;
@@ -1284,22 +1412,14 @@
       return false;
     }
     if (
-      /\b(lineup|batting|pitch|batter|mound|inning|out|count|runner|score|bullpen|projection|project|predict|forecast|win|hot bat|starter|matchup|rbi|homer|plate|this game|tonight|box|standings|form|head.?to.?head|h2h|final)\b/i.test(
+      /\b(lineup|batting|pitch|batter|mound|inning|out|count|runner|score|bullpen|projection|project|predict|forecast|win|hot bat|starter|matchup|rbi|homer|plate|this game|tonight|box|standings|form|season|record|head.?to.?head|h2h|final)\b/i.test(
         t
       )
     ) {
       return true;
     }
-    var away = String(teamLabel(feed, "away") || "").toLowerCase();
-    var home = String(teamLabel(feed, "home") || "").toLowerCase();
-    if (away && t.indexOf(away.toLowerCase()) !== -1) return true;
-    if (home && t.indexOf(home.toLowerCase()) !== -1) return true;
-    // Full club names sometimes differ from teamName — also check gameData
-    var gd = ((feed || {}).gameData || {}).teams || {};
-    var an = String((gd.away && (gd.away.name || gd.away.teamName)) || "").toLowerCase();
-    var hn = String((gd.home && (gd.home.name || gd.home.teamName)) || "").toLowerCase();
-    if (an && t.indexOf(an) !== -1) return true;
-    if (hn && t.indexOf(hn) !== -1) return true;
+    if (wantsFormQuestion(t)) return true;
+    if (questionMentionsSide(q, feed, "away") || questionMentionsSide(q, feed, "home")) return true;
     return false;
   }
 
@@ -1345,6 +1465,7 @@
     if (/\b(projection|project|predict|win probability|who wins|forecast|plausible|who('?s| is) favored|final score)\b/.test(t)) {
       return null;
     }
+    if (wantsFormQuestion(t)) return null;
     return mariiUnknown();
   }
 
@@ -1387,9 +1508,15 @@
           t
         );
       if (wantsProj) {
-        showAskAnswer(question, "Running prior-games projection…");
+        showAskAnswer(question, "Running MARII projection…");
         var proj = await answerProjectionAlgo(state.lastFeed);
         showAskAnswer(question, proj);
+        return;
+      }
+      if (wantsFormQuestion(t)) {
+        showAskAnswer(question, "Asking MARII about form…");
+        var formAns = await answerFormAlgo(state.lastFeed, question);
+        showAskAnswer(question, formAns);
         return;
       }
       var local = localAskAnswer(question);
