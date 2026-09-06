@@ -244,7 +244,8 @@ assert(wiki.looksWikiWorthy("tell me a joke") === false, "wiki skips jokes");
 assert(wiki.extractTopic("who is Ada Lovelace") === "ada lovelace", "wiki topic extract");
 assert(wiki.titleMatchScore("ada lovelace", "Ada Lovelace") >= 0.95, "wiki exact title");
 assert(wiki.titleMatchScore("dogs", "Dog breeding") < 0.92, "wiki rejects loose title");
-assert(wiki.firstSentences("One. Two. Three.", 2) === "One. Two.", "wiki two sentences");
+assert(wiki.firstSentences("One. Two. Three.", 2) === "One. Two. Three.", "wiki intro keeps short para");
+assert(wiki.introBlurb("One. Two. Three. Four. Five.") === "One. Two.", "wiki long para → two sentences");
 
 if (failed) {
   console.error("\n" + failed + " failed");

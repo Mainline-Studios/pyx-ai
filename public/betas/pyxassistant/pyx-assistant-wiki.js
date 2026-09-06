@@ -97,22 +97,42 @@
     return 0;
   }
 
+  function introBlurb(extract) {
+    var s = String(extract || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!s) return "";
+    // First paragraph = the Wikipedia lead / hook (before a blank line if present).
+    var para = s.split(/\n{2,}/)[0].trim() || s;
+    var parts = para.match(/[^.!?]+[.!?]+(?:\s|$)/g);
+    if (!parts || !parts.length) {
+      return para.length > 520 ? para.slice(0, 517).trim() + "…" : para;
+    }
+    parts = parts.map(function (p) {
+      return p.trim();
+    });
+    // Prefer the whole intro paragraph when it’s a short hook; otherwise first two sentences.
+    if (parts.length <= 3 && para.length <= 520) {
+      return parts.join(" ");
+    }
+    return parts.slice(0, 2).join(" ");
+  }
+
+  // Back-compat alias used by tests.
   function firstSentences(extract, maxN) {
+    if (maxN === 2) return introBlurb(extract);
     var s = String(extract || "")
       .replace(/\s+/g, " ")
       .trim();
     if (!s) return "";
     var parts = s.match(/[^.!?]+[.!?]+/g);
-    if (!parts || !parts.length) {
-      return s.length > 220 ? s.slice(0, 217).trim() + "…" : s;
-    }
+    if (!parts || !parts.length) return s;
     return parts
       .slice(0, maxN || 2)
       .map(function (p) {
         return p.trim();
       })
-      .join(" ")
-      .trim();
+      .join(" ");
   }
 
   async function searchTitles(topic) {
@@ -132,6 +152,26 @@
     var res = await fetch(url, { headers: { Accept: "application/json" } });
     if (!res.ok) throw new Error("wiki summary " + res.status);
     return res.json();
+  }
+
+  async function leadParagraph(title) {
+    var url =
+      API +
+      "?action=query&prop=extracts&exintro=1&explaintext=1&redirects=1&titles=" +
+      encodeURIComponent(title) +
+      "&format=json&origin=*";
+    var res = await fetch(url);
+    if (!res.ok) throw new Error("wiki extract " + res.status);
+    var data = await res.json();
+    var pages = data && data.query && data.query.pages;
+    if (!pages) return "";
+    var id;
+    for (id in pages) {
+      if (Object.prototype.hasOwnProperty.call(pages, id) && pages[id] && pages[id].extract) {
+        return String(pages[id].extract || "").trim();
+      }
+    }
+    return "";
   }
 
   /**
@@ -163,7 +203,14 @@
     var resolvedScore = titleMatchScore(topic, resolvedTitle);
     if (resolvedScore < 0.92) return null;
 
-    var blurb = firstSentences(sum.extract || sum.description || "", 2);
+    var lead = "";
+    try {
+      lead = await leadParagraph(resolvedTitle);
+    } catch (e) {
+      lead = "";
+    }
+    var raw = lead || sum.extract || sum.description || "";
+    var blurb = introBlurb(raw);
     if (!blurb || blurb.length < 40) return null;
 
     return {
@@ -178,6 +225,7 @@
     extractTopic: extractTopic,
     titleMatchScore: titleMatchScore,
     firstSentences: firstSentences,
+    introBlurb: introBlurb,
     answer: answer,
   };
 
