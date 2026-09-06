@@ -2188,6 +2188,7 @@
       return;
     }
     voice.allowBrowserFallback = false;
+    voice.preferKokoroDefault = true;
     setVoiceId(state.voiceId);
     paintVoiceOptions();
     voice.onError = function () {

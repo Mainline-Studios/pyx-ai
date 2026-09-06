@@ -19,7 +19,7 @@
     theme: "aurora",
     lang: "en",
     voice: true,
-    voiceId: "en-GB",
+    voiceId: "en-US",
     mariiBoost: false,
     slack: "",
     discord: "",
@@ -60,7 +60,7 @@
       if (typeof o.voice === "boolean") state.voice = o.voice;
       if (typeof o.mariiBoost === "boolean") state.mariiBoost = false;
       if (o.voiceId) {
-        state.voiceId = String(o.voiceId).indexOf("af_") === 0 ? "en-GB" : o.voiceId;
+        state.voiceId = String(o.voiceId).indexOf("af_") === 0 ? "en-US" : o.voiceId;
       }
       if (typeof o.slack === "string") state.slack = o.slack;
       if (typeof o.discord === "string") state.discord = o.discord;
@@ -1084,23 +1084,10 @@
       setVoiceBootMsg("Kokoro still downloading in the background…");
     };
     voice.onKokoroReady = function () {
+      // Assistant stays on online neural US by default — only refresh the voice list.
       paintVoiceOptions();
-      var hadSavedVoice = false;
-      try {
-        var raw = localStorage.getItem(STORE_KEY);
-        var o = raw ? JSON.parse(raw) : null;
-        hadSavedVoice = !!(o && o.voiceId && o.voiceId !== "en-GB" && o.voiceId !== "en-US" && o.voiceId !== "am_fenrir");
-      } catch (e) {}
-      if (!hadSavedVoice) {
-        state.voiceId = voice.voiceId || "bm_lewis";
-        voice.setVoice(state.voiceId);
-        save();
-      } else {
-        voice.setVoice(state.voiceId);
-      }
-      paintVoiceOptions();
-      setVoiceBootMsg("Kokoro ready — using " + (state.voiceId === "bm_lewis" ? "Lewis" : state.voiceId) + ".");
-      toast("Kokoro voice ready.");
+      if (voice.setVoice) voice.setVoice(state.voiceId || "en-US");
+      setVoiceBootMsg("Kokoro available in Settings · still using online US.");
     };
     try {
       await voice.warmup(function (msg) {

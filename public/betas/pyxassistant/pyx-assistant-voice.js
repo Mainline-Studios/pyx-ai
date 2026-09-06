@@ -11,9 +11,11 @@
   var api = {
     ready: { stt: true, tts: true, kokoro: false },
     status: "idle",
-    voiceId: "en-GB",
+    voiceId: "en-US",
     /** When false, skip Web Speech TTS fallback (neural/Kokoro only). */
     allowBrowserFallback: true,
+    /** Announcer sets true so Kokoro Lewis becomes the default after load. */
+    preferKokoroDefault: false,
     onStatus: null,
     onPartial: null,
     onUtterance: null,
@@ -42,7 +44,12 @@
   }
 
   function listVoices() {
-    var list = [];
+    var list = [
+      { id: "en-US", label: "Online neural · US" },
+      { id: "en-GB", label: "Online neural · British" },
+      { id: "en-AU", label: "Online neural · Australian" },
+      { id: "en-IN", label: "Online neural · Indian English" },
+    ];
     if (api.ready.kokoro) {
       list.push(
         { id: "bm_lewis", label: "Kokoro · Lewis (UK male)" },
@@ -56,17 +63,11 @@
         { id: "bf_emma", label: "Kokoro · Emma (UK female)" }
       );
     }
-    list.push(
-      { id: "en-US", label: "Online neural · US" },
-      { id: "en-GB", label: "Online neural · British" },
-      { id: "en-AU", label: "Online neural · Australian" },
-      { id: "en-IN", label: "Online neural · Indian English" }
-    );
     return list;
   }
 
   function setVoice(id) {
-    api.voiceId = id || "en-GB";
+    api.voiceId = id || "en-US";
   }
 
   function isKokoroVoice(id) {
@@ -409,8 +410,10 @@
     api.ready.kokoro = true;
     api.kokoroDevice = device;
     api.kokoroDtype = dtype;
-    if (!api.voiceId || api.voiceId === "en-GB" || api.voiceId === "en-US" || api.voiceId === "am_fenrir") {
-      api.voiceId = "bm_lewis";
+    if (api.preferKokoroDefault) {
+      if (!api.voiceId || api.voiceId === "en-GB" || api.voiceId === "en-US" || api.voiceId === "am_fenrir") {
+        api.voiceId = "bm_lewis";
+      }
     }
     note("Kokoro ready (" + dtype + " · " + device + ").");
     if (typeof api.onKokoroReady === "function") {
@@ -424,7 +427,7 @@
   async function primeOnlineVoice(note) {
     note("Warming online neural voice…");
     try {
-      var v = api.voiceId && api.voiceId.indexOf("en-") === 0 ? api.voiceId : "en-GB";
+      var v = api.voiceId && api.voiceId.indexOf("en-") === 0 ? api.voiceId : "en-US";
       await soundOfTextUrl("Hi.", v);
       note("Online neural voice ready.");
       return true;
