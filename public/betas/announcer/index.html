@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;650;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/betas/pyxassistant/pyx-assistant.css?v=8" />
-  <link rel="stylesheet" href="/betas/announcer/announcer.css?v=2" />
+  <link rel="stylesheet" href="/betas/announcer/announcer.css?v=3" />
 </head>
 <body>
   <div class="stage announcer-stage">
@@ -66,7 +66,13 @@
           <div class="scoreboard__meta" id="metaLine">—</div>
         </div>
 
-        <p class="caption__status" id="status">Idle</p>
+        <div class="poll-status" id="pollStatus" aria-live="polite">
+          <span class="poll-spinner" id="pollSpinner" aria-hidden="true"></span>
+          <span class="caption__status" id="status">Idle</span>
+          <span class="poll-countdown is-hidden" id="pollCountdown" aria-hidden="true">
+            next in <strong id="pollSecs">7</strong>s
+          </span>
+        </div>
         <p class="caption__reply" id="lastCall">Select a game to start listening.</p>
 
         <div class="panel__row">
@@ -80,6 +86,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="/betas/pyxassistant/pyx-assistant-voice.js?v=13"></script>
-  <script src="/betas/announcer/announcer.js?v=3"></script>
+  <script src="/betas/announcer/announcer.js?v=4"></script>
 </body>
 </html>

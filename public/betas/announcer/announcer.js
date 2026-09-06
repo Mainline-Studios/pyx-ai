@@ -16,6 +16,8 @@
     gamePk: null,
     gameLabel: "",
     timer: 0,
+    countdownTimer: 0,
+    pollLeftMs: 0,
     lastAtBatIndex: -1,
     lastEventKey: "",
     lastScoreKey: "",
@@ -222,7 +224,7 @@
     els.status.textContent = "Speaking…";
     voice.onSpeakEnd = function () {
       state.speaking = false;
-      els.status.textContent = state.gamePk ? "Listening · polling every 7s" : "Idle";
+      refreshStatusLine();
       speakNext();
     };
     voice.speak(line, "en-US");
@@ -321,8 +323,50 @@
     return out;
   }
 
+  function setPollUi(kind, secs) {
+    if (!els.pollSpinner || !els.pollCountdown || !els.pollSecs) return;
+    var active = !!state.gamePk;
+    els.pollSpinner.classList.toggle("is-on", active);
+    els.pollSpinner.classList.toggle("is-fetch", kind === "fetch");
+    els.pollCountdown.classList.toggle("is-hidden", !active || kind === "idle");
+    if (typeof secs === "number") {
+      els.pollSecs.textContent = String(Math.max(0, Math.ceil(secs)));
+    }
+  }
+
+  function stopCountdown() {
+    clearInterval(state.countdownTimer);
+    state.countdownTimer = 0;
+    state.pollLeftMs = 0;
+    setPollUi("idle");
+  }
+
+  function startCountdown() {
+    stopCountdown();
+    if (!state.gamePk) return;
+    state.pollLeftMs = POLL_MS;
+    setPollUi("wait", POLL_MS / 1000);
+    state.countdownTimer = setInterval(function () {
+      state.pollLeftMs = Math.max(0, state.pollLeftMs - 250);
+      setPollUi(state.pollLeftMs <= 0 ? "fetch" : "wait", state.pollLeftMs / 1000);
+    }, 250);
+  }
+
+  function refreshStatusLine() {
+    if (state.speaking) {
+      els.status.textContent = "Speaking…";
+      return;
+    }
+    if (!state.gamePk) {
+      els.status.textContent = "Idle";
+      return;
+    }
+    els.status.textContent = "Listening";
+  }
+
   async function tick(bootstrap) {
     if (!state.gamePk) return;
+    setPollUi("fetch", 0);
     try {
       var feed = await fetchLive(state.gamePk);
       paintScoreboard(feed);
@@ -330,12 +374,11 @@
       updates.forEach(function (u) {
         enqueue(u.plain, u.kind);
       });
-      if (!state.speaking) {
-        els.status.textContent = "Listening · polling every 7s";
-      }
+      refreshStatusLine();
     } catch (err) {
       els.status.textContent = "Feed hiccup — retrying…";
     }
+    if (state.gamePk) startCountdown();
   }
 
   function stopPolling() {
@@ -344,6 +387,7 @@
     state.gamePk = null;
     state.started = false;
     state.queue = [];
+    stopCountdown();
     stopNeuralSpeak();
   }
 
@@ -359,6 +403,7 @@
     els.livePanel.classList.remove("is-hidden");
     els.status.textContent = "Connecting to live feed…";
     els.lastCall.textContent = "Warming up the booth…";
+    setPollUi("fetch", 0);
     tick(true);
     state.timer = setInterval(function () {
       tick(false);
@@ -563,6 +608,9 @@
       scoreLine: $("scoreLine"),
       metaLine: $("metaLine"),
       status: $("status"),
+      pollSpinner: $("pollSpinner"),
+      pollCountdown: $("pollCountdown"),
+      pollSecs: $("pollSecs"),
       lastCall: $("lastCall"),
       callLog: $("callLog"),
       clearLog: $("clearLog"),
