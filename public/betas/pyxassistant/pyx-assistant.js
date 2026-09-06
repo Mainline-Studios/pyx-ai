@@ -536,7 +536,11 @@
           var wikiHit = await wiki.answer(text);
           if (wikiHit && wikiHit.reply) {
             if (learn) learn.observe(text, "talk");
-            return { reply: learn ? learn.flavor(wikiHit.reply) : wikiHit.reply, source: "wiki" };
+            return {
+              reply: wikiHit.reply,
+              speak: wikiHit.speak || wikiHit.reply,
+              source: "wiki",
+            };
           }
         } catch (wikiErr) {
           // Fall through to warm local reply — wiki is optional.
@@ -570,6 +574,10 @@
     try {
       var result = await localReply(text);
       var reply = result && result.reply != null ? result.reply : "";
+      var speakText =
+        result && result.speak != null && String(result.speak).trim()
+          ? String(result.speak).trim()
+          : reply;
       var source = (result && result.source) || "local";
       if (kb) kb.remember(reply);
       if (!(slu.classify(text).intent === "clear")) {
@@ -583,7 +591,7 @@
       renderHistory();
       renderData();
       refreshKbMeta();
-      if (state.voice) speak(reply);
+      if (state.voice) speak(speakText);
       else setUi(state.session ? "listen" : "idle");
     } finally {
       handleInFlight = false;

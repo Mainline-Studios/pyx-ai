@@ -214,7 +214,13 @@
     if (!blurb || blurb.length < 40) return null;
 
     return {
-      reply: "From Wikipedia — " + resolvedTitle + ": " + blurb,
+      // On-screen lead-in; TTS should use `speak`, not this whole string.
+      reply:
+        "Pyx found a Wikipedia result. Reading it now.\n\n" +
+        resolvedTitle +
+        ": " +
+        blurb,
+      speak: blurb,
       title: resolvedTitle,
       score: resolvedScore,
     };
