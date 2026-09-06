@@ -94,11 +94,11 @@
 
         <aside class="panel ask-panel" id="askPanel" aria-label="Ask a question">
           <h2>Ask a question</h2>
-          <p class="hint">Lineups, pitcher vs batter, projections, and more — MARII from the live MLB feed only (no cloud AI).</p>
+          <p class="hint">Game-only MARII — lineup, matchups, bullpen, and algorithmic projections from recent finals + the live board. No cloud AI.</p>
           <div class="ask-chips" id="askChips" role="group" aria-label="Suggested questions">
             <button type="button" class="ask-chip" data-q="What's the lineup?">Lineup</button>
             <button type="button" class="ask-chip" data-q="Who's pitching and who's batting right now?">Pitcher / batter</button>
-            <button type="button" class="ask-chip" data-q="Give me a quick projection for this game from the current situation.">Projections</button>
+            <button type="button" class="ask-chip" data-q="Project the final score from recent games.">Projections</button>
             <button type="button" class="ask-chip" data-q="Summarize the bullpen and who might come in next.">Bullpen</button>
             <button type="button" class="ask-chip" data-q="Who's hot at the plate in this game so far?">Hot bats</button>
             <button type="button" class="ask-chip" data-q="What's the count, outs, and runners?">Situation</button>
@@ -107,7 +107,7 @@
             <label class="sr-only" for="askInput">Your question</label>
             <textarea id="askInput" rows="3" maxlength="500" placeholder="e.g. How has the starter looked tonight?"></textarea>
             <div class="ask-form__row">
-              <button type="submit" class="ask-submit" id="askSubmit">Ask MARII</button>
+              <button type="submit" class="ask-submit" id="askSubmit">Ask game MARII</button>
               <button type="button" class="ghost" id="askSpeak" disabled>Read aloud</button>
             </div>
           </form>
@@ -121,6 +121,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="/betas/pyxassistant/pyx-assistant-voice.js?v=17"></script>
-  <script src="/betas/announcer/announcer.js?v=12"></script>
+  <script src="/betas/announcer/announcer.js?v=13"></script>
 </body>
 </html>

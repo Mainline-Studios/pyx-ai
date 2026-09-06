@@ -17,6 +17,7 @@
     gamePk: null,
     gameLabel: "",
     lastFeed: null,
+    histCache: null,
     lastAskAnswer: "",
     asking: false,
     timer: 0,
@@ -405,6 +406,7 @@
     state.lastScoreKey = "";
     state.lastStatus = "";
     state.lastAskAnswer = "";
+    state.histCache = null;
     state.started = true;
     els.pickerPanel.classList.add("is-hidden");
     els.liveLayout.classList.remove("is-hidden");
@@ -923,15 +925,394 @@
     return bits.length ? bits.join(" ") : "Pitching lines aren’t in the feed yet.";
   }
 
+  function teamIds(feed) {
+    var gd = ((feed || {}).gameData || {}).teams || {};
+    var box = ((((feed || {}).liveData || {}).boxscore || {}).teams || {});
+    var away =
+      (gd.away && (gd.away.id || (gd.away.team && gd.away.team.id))) ||
+      (box.away && box.away.team && box.away.team.id) ||
+      null;
+    var home =
+      (gd.home && (gd.home.id || (gd.home.team && gd.home.team.id))) ||
+      (box.home && box.home.team && box.home.team.id) ||
+      null;
+    return { awayId: away, homeId: home };
+  }
+
+  function isoDaysAgo(n) {
+    var d = new Date();
+    d.setUTCDate(d.getUTCDate() - n);
+    var m = String(d.getUTCMonth() + 1).padStart(2, "0");
+    var day = String(d.getUTCDate()).padStart(2, "0");
+    return d.getUTCFullYear() + "-" + m + "-" + day;
+  }
+
+  async function mlbGet(path) {
+    var res = await fetch(MLB + path);
+    if (!res.ok) throw new Error("mlb " + res.status);
+    return res.json();
+  }
+
+  async function fetchFinalGames(teamId, days) {
+    if (!teamId) return [];
+    var data = await mlbGet(
+      "/schedule?sportId=1&teamId=" +
+        encodeURIComponent(teamId) +
+        "&startDate=" +
+        encodeURIComponent(isoDaysAgo(days || 28)) +
+        "&endDate=" +
+        encodeURIComponent(todayISO()) +
+        "&hydrate=linescore,team"
+    );
+    var out = [];
+    (data.dates || []).forEach(function (day) {
+      (day.games || []).forEach(function (g) {
+        var st = (g.status && g.status.detailedState) || "";
+        if (!/final|completed|game over/i.test(st)) return;
+        var a = g.teams && g.teams.away;
+        var h = g.teams && g.teams.home;
+        if (!a || !h || a.score == null || h.score == null) return;
+        out.push({
+          date: g.officialDate || day.date,
+          awayId: a.team && a.team.id,
+          homeId: h.team && h.team.id,
+          awayScore: Number(a.score),
+          homeScore: Number(h.score),
+          gamePk: g.gamePk,
+        });
+      });
+    });
+    return out;
+  }
+
+  function formFromGames(games, teamId) {
+    var scoredFor = [];
+    var scoredAgainst = [];
+    var w = 0;
+    var l = 0;
+    games.forEach(function (g) {
+      var mine = g.awayId === teamId ? g.awayScore : g.homeId === teamId ? g.homeScore : null;
+      var theirs = g.awayId === teamId ? g.homeScore : g.homeId === teamId ? g.awayScore : null;
+      if (mine == null || theirs == null) return;
+      scoredFor.push(mine);
+      scoredAgainst.push(theirs);
+      if (mine > theirs) w += 1;
+      else if (mine < theirs) l += 1;
+    });
+    function avg(arr) {
+      if (!arr.length) return 4.5;
+      return arr.reduce(function (s, x) { return s + x; }, 0) / arr.length;
+    }
+    var last5 = scoredFor.slice(-5);
+    var last5a = scoredAgainst.slice(-5);
+    return {
+      games: scoredFor.length,
+      w: w,
+      l: l,
+      rpg: avg(scoredFor),
+      rapg: avg(scoredAgainst),
+      recentRpg: avg(last5.length ? last5 : scoredFor),
+      recentRapg: avg(last5a.length ? last5a : scoredAgainst),
+      lastScores: scoredFor.slice(-5),
+    };
+  }
+
+  function h2hFromGames(gamesA, gamesB, awayId, homeId) {
+    var map = {};
+    gamesA.concat(gamesB).forEach(function (g) {
+      if (!g.gamePk) return;
+      map[g.gamePk] = g;
+    });
+    var pair = Object.keys(map)
+      .map(function (k) { return map[k]; })
+      .filter(function (g) {
+        return (
+          (g.awayId === awayId && g.homeId === homeId) ||
+          (g.awayId === homeId && g.homeId === awayId)
+        );
+      });
+    var awayRuns = [];
+    var homeRuns = [];
+    pair.forEach(function (g) {
+      if (g.awayId === awayId) {
+        awayRuns.push(g.awayScore);
+        homeRuns.push(g.homeScore);
+      } else {
+        awayRuns.push(g.homeScore);
+        homeRuns.push(g.awayScore);
+      }
+    });
+    function avg(arr) {
+      if (!arr.length) return null;
+      return arr.reduce(function (s, x) { return s + x; }, 0) / arr.length;
+    }
+    return {
+      n: pair.length,
+      awayAvg: avg(awayRuns),
+      homeAvg: avg(homeRuns),
+    };
+  }
+
+  function gameLeftFactor(s) {
+    // Rough fraction of a 9-inning game still to play (0–1).
+    var inn = Math.max(1, Math.min(12, s.inning || 1));
+    var state = (s.inningState || "").toLowerCase();
+    var within = 0.5;
+    if (/top/.test(state)) within = 0.85;
+    else if (/middle|mid/.test(state)) within = 0.5;
+    else if (/bottom|bot|end/.test(state)) within = 0.2;
+    var outs = s.outs != null ? Number(s.outs) : 0;
+    within = Math.max(0.05, within - outs * 0.12);
+    var leftInnings = Math.max(0, 9 - inn) + within;
+    if (/final/i.test(s.status)) return 0;
+    return Math.max(0, Math.min(1, leftInnings / 9));
+  }
+
+  function round1(n) {
+    return Math.round(n * 10) / 10;
+  }
+
+  async function loadHist(feed) {
+    var ids = teamIds(feed);
+    if (!ids.awayId || !ids.homeId) return null;
+    var key = ids.awayId + "-" + ids.homeId;
+    if (state.histCache && state.histCache.key === key && Date.now() - state.histCache.at < 5 * 60 * 1000) {
+      return state.histCache.data;
+    }
+    var pair = await Promise.all([
+      fetchFinalGames(ids.awayId, 28),
+      fetchFinalGames(ids.homeId, 28),
+    ]);
+    var data = {
+      awayId: ids.awayId,
+      homeId: ids.homeId,
+      awayForm: formFromGames(pair[0], ids.awayId),
+      homeForm: formFromGames(pair[1], ids.homeId),
+      h2h: h2hFromGames(pair[0], pair[1], ids.awayId, ids.homeId),
+    };
+    state.histCache = { key: key, at: Date.now(), data: data };
+    return data;
+  }
+
+  function projectFinalAlgo(feed, hist) {
+    var s = scoreSnap(feed);
+    var af = hist.awayForm;
+    var hf = hist.homeForm;
+    var left = gameLeftFactor(s);
+
+    // Expected runs/game from blend of season-ish window + recent form.
+    var awayOff = af.rpg * 0.45 + af.recentRpg * 0.55;
+    var homeOff = hf.rpg * 0.45 + hf.recentRpg * 0.55;
+    var awayDef = af.rapg * 0.45 + af.recentRapg * 0.55;
+    var homeDef = hf.rapg * 0.45 + hf.recentRapg * 0.55;
+
+    // Matchup expected full-game scoring (offense vs opponent defense), slight home bump.
+    var expAwayFull = (awayOff + homeDef) / 2;
+    var expHomeFull = (homeOff + awayDef) / 2 * 1.04;
+
+    if (hist.h2h.n >= 2 && hist.h2h.awayAvg != null) {
+      expAwayFull = expAwayFull * 0.7 + hist.h2h.awayAvg * 0.3;
+      expHomeFull = expHomeFull * 0.7 + hist.h2h.homeAvg * 0.3;
+    }
+
+    var remAway = expAwayFull * left;
+    var remHome = expHomeFull * left;
+
+    // Leverage: runners + outs nudge remaining offense for the batting side.
+    var offenseSide =
+      /bottom|bot/i.test(s.inningState) ? "home" : /top/i.test(s.inningState) ? "away" : null;
+    var runFactor = runnersText(s.offense) === "bases empty" ? 1 : 1.15;
+    if (offenseSide === "away") remAway *= runFactor;
+    if (offenseSide === "home") remHome *= runFactor;
+    if (s.outs >= 2) {
+      if (offenseSide === "away") remAway *= 0.85;
+      if (offenseSide === "home") remHome *= 0.85;
+    }
+
+    var predAway = s.ar + remAway;
+    var predHome = s.hr + remHome;
+
+    // Discrete final score (integers); avoid ties by leaning to projected edge.
+    var awayFinal = Math.max(s.ar, Math.round(predAway));
+    var homeFinal = Math.max(s.hr, Math.round(predHome));
+    if (awayFinal === homeFinal) {
+      if (predAway >= predHome) awayFinal += 1;
+      else homeFinal += 1;
+    }
+
+    var edge = predAway - predHome;
+    // Crude win chance from projected margin (not a market model).
+    var winAway = 1 / (1 + Math.exp(-edge * 0.55));
+    winAway = Math.max(0.08, Math.min(0.92, winAway));
+
+    var insights = [];
+    insights.push(
+      s.away +
+        " recent form (last " +
+        af.games +
+        " finals): " +
+        af.w +
+        "-" +
+        af.l +
+        ", " +
+        round1(af.recentRpg) +
+        " RPG / " +
+        round1(af.recentRapg) +
+        " RA/G."
+    );
+    insights.push(
+      s.home +
+        " recent form (last " +
+        hf.games +
+        " finals): " +
+        hf.w +
+        "-" +
+        hf.l +
+        ", " +
+        round1(hf.recentRpg) +
+        " RPG / " +
+        round1(hf.recentRapg) +
+        " RA/G."
+    );
+    if (hist.h2h.n) {
+      insights.push(
+        "Season head-to-head sample: " +
+          hist.h2h.n +
+          " game(s), avg score " +
+          s.away +
+          " " +
+          round1(hist.h2h.awayAvg) +
+          " – " +
+          s.home +
+          " " +
+          round1(hist.h2h.homeAvg) +
+          "."
+      );
+    } else {
+      insights.push("No recent head-to-head finals in the lookback window — using team form only.");
+    }
+    insights.push(
+      "Live board " +
+        s.ar +
+        "-" +
+        s.hr +
+        " with ~" +
+        Math.round(left * 100) +
+        "% of a regulation game left → remaining expected runs " +
+        s.away +
+        " +" +
+        round1(remAway) +
+        ", " +
+        s.home +
+        " +" +
+        round1(remHome) +
+        "."
+    );
+
+    return {
+      awayFinal: awayFinal,
+      homeFinal: homeFinal,
+      winAway: winAway,
+      insights: insights,
+      predAway: predAway,
+      predHome: predHome,
+    };
+  }
+
+  async function answerProjectionAlgo(feed) {
+    var s = scoreSnap(feed);
+    if (/final/i.test(s.status)) {
+      return (
+        "This one’s final: " +
+        s.away +
+        " " +
+        s.ar +
+        ", " +
+        s.home +
+        " " +
+        s.hr +
+        ". No projection left — only the box score."
+      );
+    }
+    try {
+      var hist = await loadHist(feed);
+      if (!hist || !hist.awayForm.games || !hist.homeForm.games) {
+        return answerProjection(feed) + " (Not enough prior finals yet for the full algorithm.)";
+      }
+      var p = projectFinalAlgo(feed, hist);
+      var fav = p.winAway >= 0.5 ? s.away : s.home;
+      var favPct = Math.round((p.winAway >= 0.5 ? p.winAway : 1 - p.winAway) * 100);
+      var lines = [];
+      lines.push(
+        "MARII game model (prior finals + live state): projected final " +
+          s.away +
+          " " +
+          p.awayFinal +
+          ", " +
+          s.home +
+          " " +
+          p.homeFinal +
+          "."
+      );
+      lines.push(
+        "Lean: " +
+          fav +
+          " (~" +
+          favPct +
+          "% from the margin model). Continuous mark " +
+          round1(p.predAway) +
+          "–" +
+          round1(p.predHome) +
+          "."
+      );
+      lines.push(p.insights.join(" "));
+      lines.push("Algorithmic booth color only — not betting advice.");
+      return lines.join(" ");
+    } catch (err) {
+      return answerProjection(feed) + " (History fetch failed — fell back to live-board color.)";
+    }
+  }
+
+  function isGameScopedQuestion(q, feed) {
+    var t = String(q || "").toLowerCase().trim();
+    if (!t) return false;
+    if (
+      /\b(weather|stock|recipe|code|python|politics|president|bitcoin|crypto|homework|math problem|who are you|what is ai|chatgpt|joke about (?!this game)|tell me a joke)\b/i.test(
+        t
+      )
+    ) {
+      return false;
+    }
+    if (
+      /\b(lineup|batting|pitch|batter|mound|inning|out|count|runner|score|bullpen|projection|project|predict|forecast|win|hot bat|starter|matchup|rbi|homer|plate|this game|tonight|box|standings|form|head.?to.?head|h2h|final)\b/i.test(
+        t
+      )
+    ) {
+      return true;
+    }
+    var away = String(teamLabel(feed, "away") || "").toLowerCase();
+    var home = String(teamLabel(feed, "home") || "").toLowerCase();
+    if (away && t.indexOf(away.toLowerCase()) !== -1) return true;
+    if (home && t.indexOf(home.toLowerCase()) !== -1) return true;
+    // Full club names sometimes differ from teamName — also check gameData
+    var gd = ((feed || {}).gameData || {}).teams || {};
+    var an = String((gd.away && (gd.away.name || gd.away.teamName)) || "").toLowerCase();
+    var hn = String((gd.home && (gd.home.name || gd.home.teamName)) || "").toLowerCase();
+    if (an && t.indexOf(an) !== -1) return true;
+    if (hn && t.indexOf(hn) !== -1) return true;
+    return false;
+  }
+
+  function mariiRefuse() {
+    return "I’m the game-only MARII for this matchup — I only talk about this MLB game (lineup, pitchers, situation, bullpen, form, and algorithmic projections). Ask something about the board.";
+  }
+
   function answerGeneral(feed, q) {
-    // Default booth brief for free-form asks — still 100% local feed.
     return (
       answerSituation(feed) +
       " " +
       answerMatchup(feed) +
-      (/\b(who|what|how|why|will|should|can)\b/i.test(q)
-        ? " For a projection-style take, tap Projections; for bats or pen, use Hot bats or Bullpen."
-        : "")
+      " Tap Projections for the prior-games algorithm, or ask about lineup / bullpen / hot bats."
     );
   }
 
@@ -939,6 +1320,7 @@
     var feed = state.lastFeed;
     if (!feed) return "Live feed isn’t ready yet — wait a second and ask again.";
     var t = String(q || "").toLowerCase();
+    if (!isGameScopedQuestion(q, feed)) return mariiRefuse();
 
     if (/\blineup|batting order|who('?s| is) (in the lineup|hitting)\b/.test(t)) {
       return answerLineup(feed);
@@ -959,14 +1341,15 @@
     if (/\b(bullpen|relief|reliever|who('?s| is) (next|coming in)|pitch count)\b/.test(t)) {
       return answerBullpen(feed);
     }
-    if (/\b(projection|project|predict|win probability|who wins|forecast|plausible|who('?s| is) favored)\b/.test(t)) {
-      return answerProjection(feed);
-    }
     if (/\b(starter|how has .* (looked|pitched)|pitching line|era tonight)\b/.test(t)) {
       return answerStarter(feed);
     }
     if (/\b(score|what('?s| is) the score)\b/.test(t)) {
       return answerSituation(feed);
+    }
+    // Projections handled async in handleAsk
+    if (/\b(projection|project|predict|win probability|who wins|forecast|plausible|who('?s| is) favored|final score)\b/.test(t)) {
+      return null;
     }
     return answerGeneral(feed, t);
   }
@@ -986,7 +1369,7 @@
     if (els.askSpeak) els.askSpeak.disabled = !answer;
   }
 
-  function handleAsk(raw) {
+  async function handleAsk(raw) {
     var question = String(raw || "").trim();
     if (!question) {
       toast("Type a question first.");
@@ -1000,8 +1383,23 @@
     state.asking = true;
     if (els.askSubmit) els.askSubmit.disabled = true;
     try {
-      // MARII here = live-feed heuristics only. No LLM / no cloud AI.
-      showAskAnswer(question, localAskAnswer(question));
+      if (!isGameScopedQuestion(question, state.lastFeed)) {
+        showAskAnswer(question, mariiRefuse());
+        return;
+      }
+      var t = question.toLowerCase();
+      var wantsProj =
+        /\b(projection|project|predict|win probability|who wins|forecast|plausible|who('?s| is) favored|final score)\b/.test(
+          t
+        );
+      if (wantsProj) {
+        showAskAnswer(question, "Running prior-games projection…");
+        var proj = await answerProjectionAlgo(state.lastFeed);
+        showAskAnswer(question, proj);
+        return;
+      }
+      var local = localAskAnswer(question);
+      showAskAnswer(question, local || answerGeneral(state.lastFeed, t));
     } finally {
       state.asking = false;
       if (els.askSubmit) els.askSubmit.disabled = false;
