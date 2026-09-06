@@ -49,12 +49,12 @@
     ];
     if (api.ready.kokoro) {
       list.push(
+        { id: "am_fenrir", label: "On-device · Fenrir (US male)" },
+        { id: "bm_lewis", label: "On-device · Lewis (UK male)" },
         { id: "am_michael", label: "On-device · Michael (US male)" },
         { id: "am_adam", label: "On-device · Adam (US male)" },
-        { id: "am_fenrir", label: "On-device · Fenrir (US male)" },
         { id: "am_onyx", label: "On-device · Onyx (US male)" },
         { id: "bm_george", label: "On-device · George (UK male)" },
-        { id: "bm_lewis", label: "On-device · Lewis (UK male)" },
         { id: "af_heart", label: "On-device · Heart (US female)" },
         { id: "af_bella", label: "On-device · Bella (US female)" },
         { id: "bf_emma", label: "On-device · Emma (UK female)" }
@@ -381,8 +381,8 @@
       // Prefer on-device voice once available unless user already picked a neural cloud id intentionally
       // and stored it — callers can keep their choice; we only auto-switch from default en-GB.
       if (!api.voiceId || api.voiceId === "en-GB") {
-        api.voiceId = "am_michael";
-        note("On-device Kokoro is ready — using Michael (US male).");
+        api.voiceId = "am_fenrir";
+        note("On-device Kokoro is ready — using Fenrir (US male).");
       } else {
         note("On-device Kokoro is ready — male & female voices in the picker.");
       }

@@ -801,8 +801,9 @@
         { id: "en-GB", label: "Online neural · British" },
         { id: "en-AU", label: "Online neural · Australian" },
         { id: "en-IN", label: "Online neural · Indian English" },
+        { id: "am_fenrir", label: "On-device · Fenrir (US male)" },
+        { id: "bm_lewis", label: "On-device · Lewis (UK male)" },
         { id: "am_michael", label: "On-device · Michael (US male)" },
-        { id: "am_adam", label: "On-device · Adam (US male)" },
         { id: "bm_george", label: "On-device · George (UK male)" },
       ];
     var cur = state.voiceId;
@@ -884,7 +885,7 @@
           } catch (e) {}
           // Prefer a booth-friendly male voice when Kokoro lands and user hasn’t locked a pick.
           if (!locked) {
-            state.voiceId = "am_michael";
+            state.voiceId = "am_fenrir";
             voice.setVoice(state.voiceId);
             paintVoiceOptions();
             els.voiceSelect.value = state.voiceId;
