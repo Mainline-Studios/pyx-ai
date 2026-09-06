@@ -740,17 +740,93 @@
     return runners.length ? runners.join(", ") : "bases empty";
   }
 
-  function answerLineup(feed) {
-    var away = teamLabel(feed, "away");
-    var home = teamLabel(feed, "home");
-    var a = lineupLines(feed, "away");
-    var h = lineupLines(feed, "home");
-    if (!a.length && !h.length) return "Lineups aren’t posted in the feed yet.";
-    return (
-      (a.length ? away + " batting order:\n" + a.join("\n") : "") +
-      (a.length && h.length ? "\n\n" : "") +
-      (h.length ? home + " batting order:\n" + h.join("\n") : "")
-    );
+  function preferredSides(q, feed) {
+    var wantsAway = questionMentionsSide(q, feed, "away");
+    var wantsHome = questionMentionsSide(q, feed, "home");
+    if (wantsAway && !wantsHome) return ["away"];
+    if (wantsHome && !wantsAway) return ["home"];
+    return ["away", "home"];
+  }
+
+  function teamStatPack(feed, side) {
+    var box = teamBox(feed, side);
+    var bat = (box.teamStats && box.teamStats.batting) || {};
+    var pit = (box.teamStats && box.teamStats.pitching) || {};
+    var fld = (box.teamStats && box.teamStats.fielding) || {};
+    return {
+      hits: Number(bat.hits || 0),
+      runs: Number(bat.runs || 0),
+      hr: Number(bat.homeRuns || 0),
+      bb: Number(bat.baseOnBalls || 0),
+      so: Number(bat.strikeOuts || 0),
+      lob: Number(bat.leftOnBase || 0),
+      avg: bat.avg || "",
+      er: Number(pit.earnedRuns || 0),
+      pitchSo: Number(pit.strikeOuts || 0),
+      pitchBb: Number(pit.baseOnBalls || 0),
+      hitsAllowed: Number(pit.hits || 0),
+      errors: Number(fld.errors || 0),
+    };
+  }
+
+  function findPlayersInFeed(feed, needle) {
+    var n = String(needle || "")
+      .toLowerCase()
+      .trim();
+    if (n.length < 2) return [];
+    var hits = [];
+    ["away", "home"].forEach(function (side) {
+      var box = teamBox(feed, side);
+      var players = box.players || {};
+      Object.keys(players).forEach(function (key) {
+        var p = players[key];
+        var name = playerName(p);
+        if (!name) return;
+        var low = name.toLowerCase();
+        var last = low.split(/\s+/).pop();
+        if (low.indexOf(n) === -1 && last !== n && n.indexOf(last) === -1) return;
+        if (n.length <= 2 && last !== n) return;
+        var bat = (p.stats && p.stats.batting) || {};
+        var pit = (p.stats && p.stats.pitching) || {};
+        hits.push({
+          side: side,
+          name: name,
+          pos: (p.position && (p.position.abbreviation || p.position.name)) || "",
+          bat: bat,
+          pit: pit,
+        });
+      });
+    });
+    return hits;
+  }
+
+  function extractPlayerNeedle(q, feed) {
+    var t = String(q || "");
+    var cleaned = t
+      .replace(/\b(how|what|who|where|when|is|are|was|were|the|a|an|about|for|with|of|on|in|this|that|game|tonight|today|doing|looking|stats?|line|box)\b/gi, " ")
+      .replace(/[?.!,]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    teamAliases(feed, "away")
+      .concat(teamAliases(feed, "home"))
+      .forEach(function (a) {
+        cleaned = cleaned.replace(new RegExp("\\b" + a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi"), " ");
+      });
+    cleaned = cleaned.replace(/\s+/g, " ").trim();
+    if (cleaned.length < 3) return "";
+    return cleaned;
+  }
+
+  function answerLineup(feed, q) {
+    var sides = preferredSides(q, feed);
+    var chunks = [];
+    sides.forEach(function (side) {
+      var lines = lineupLines(feed, side);
+      if (!lines.length) return;
+      chunks.push(teamLabel(feed, side) + " batting order:\n" + lines.join("\n"));
+    });
+    if (!chunks.length) return "Lineups aren’t posted in the feed yet.";
+    return chunks.join("\n\n");
   }
 
   function answerMatchup(feed) {
@@ -770,6 +846,21 @@
     if (onDeck) parts.push("On deck: " + onDeck + ".");
     if (inHole) parts.push("In the hole: " + inHole + ".");
     return parts.join(" ");
+  }
+
+  function answerDueUp(feed) {
+    var s = scoreSnap(feed);
+    var batter = (s.offense.batter && s.offense.batter.fullName) || "";
+    var onDeck = (s.offense.onDeck && s.offense.onDeck.fullName) || "";
+    var inHole = (s.offense.inHole && s.offense.inHole.fullName) || "";
+    if (!batter && !onDeck) return "Due-up order isn’t in the live feed yet.";
+    return (
+      "Due up: " +
+      (batter || "current batter n/a") +
+      (onDeck ? ", on deck " + onDeck : "") +
+      (inHole ? ", in the hole " + inHole : "") +
+      "."
+    );
   }
 
   function answerSituation(feed) {
@@ -795,8 +886,40 @@
     );
   }
 
-  function answerHotBats(feed) {
-    var sides = ["away", "home"];
+  function answerWhoWinning(feed) {
+    var s = scoreSnap(feed);
+    if (s.ar === s.hr) {
+      return (
+        "Tied " +
+        s.ar +
+        "-" +
+        s.hr +
+        " in the " +
+        ((s.inningState + " " + s.inningOrd).trim() || "current inning") +
+        "."
+      );
+    }
+    var leader = s.lead === "away" ? s.away : s.home;
+    return (
+      leader +
+      " lead " +
+      s.away +
+      " " +
+      s.ar +
+      ", " +
+      s.home +
+      " " +
+      s.hr +
+      " (" +
+      s.margin +
+      "-run game) — " +
+      ((s.inningState + " " + s.inningOrd).trim() || "inning n/a") +
+      "."
+    );
+  }
+
+  function answerHotBats(feed, q) {
+    var sides = preferredSides(q, feed);
     var all = [];
     sides.forEach(function (side) {
       battingEntries(feed, side).forEach(function (b) {
@@ -832,10 +955,95 @@
     return "Hot bats so far from the box score:\n" + lines.join("\n");
   }
 
-  function answerBullpen(feed) {
+  function answerColdBats(feed, q) {
+    var sides = preferredSides(q, feed);
+    var all = [];
+    sides.forEach(function (side) {
+      battingEntries(feed, side).forEach(function (b) {
+        if (!b.name || b.abs < 2) return;
+        all.push({ side: side, b: b, score: b.hits * 3 + b.hr * 4 + b.rbi - b.so });
+      });
+    });
+    all.sort(function (a, b) {
+      return a.score - b.score || b.b.abs - a.b.abs;
+    });
+    var cold = all.filter(function (x) {
+      return x.b.hits === 0 || x.score <= 0;
+    }).slice(0, 5);
+    if (!cold.length) return "No clear cold bats in the box yet.";
+    return (
+      "Quiet bats so far:\n" +
+      cold
+        .map(function (x) {
+          return (
+            x.b.name +
+            " (" +
+            teamLabel(feed, x.side) +
+            "): " +
+            x.b.hits +
+            "-" +
+            x.b.abs +
+            (x.b.so ? ", " + x.b.so + " K" : "")
+          );
+        })
+        .join("\n")
+    );
+  }
+
+  function answerLeaders(feed, q) {
+    var t = String(q || "").toLowerCase();
+    var kind = /\b(home ?runs?|homers?|hr)\b/.test(t)
+      ? "hr"
+      : /\b(rbi|ribbies)\b/.test(t)
+        ? "rbi"
+        : /\b(strikeouts?|punchouts?|k'?s)\b/.test(t)
+          ? "so"
+          : /\b(walks?|bb)\b/.test(t)
+            ? "bb"
+            : /\b(runs?\b)/.test(t)
+              ? "runs"
+              : "hits";
+    var sides = preferredSides(q, feed);
+    var all = [];
+    sides.forEach(function (side) {
+      battingEntries(feed, side).forEach(function (b) {
+        var v = Number(b[kind] || 0);
+        if (!v) return;
+        all.push({ side: side, b: b, v: v });
+      });
+    });
+    if (kind === "so" && !all.length) {
+      sides.forEach(function (side) {
+        pitchingEntries(feed, side).forEach(function (p) {
+          if (!p.so) return;
+          all.push({ side: side, b: { name: p.name, so: p.so }, v: p.so, pitching: true });
+        });
+      });
+    }
+    all.sort(function (a, b) {
+      return b.v - a.v;
+    });
+    if (!all.length) return "No " + kind.toUpperCase() + " leaders on the board yet.";
+    var label =
+      kind === "hr" ? "HR" : kind === "rbi" ? "RBI" : kind === "so" ? "K" : kind === "bb" ? "BB" : kind === "runs" ? "R" : "H";
+    return (
+      "Leaders (" +
+      label +
+      ") tonight:\n" +
+      all
+        .slice(0, 6)
+        .map(function (x) {
+          return x.b.name + " (" + teamLabel(feed, x.side) + "): " + x.v + " " + label;
+        })
+        .join("\n")
+    );
+  }
+
+  function answerBullpen(feed, q) {
     var s = scoreSnap(feed);
+    var sides = preferredSides(q, feed);
     var bits = [];
-    ["away", "home"].forEach(function (side) {
+    sides.forEach(function (side) {
       var staff = pitchingEntries(feed, side);
       if (!staff.length) return;
       var label = teamLabel(feed, side);
@@ -867,6 +1075,252 @@
     if (current) bits.unshift("Pitching now: " + current + ".");
     if (!bits.length) return "Bullpen detail isn’t in the feed yet.";
     return bits.join("\n\n");
+  }
+
+  function answerTeamBox(feed, q) {
+    var sides = preferredSides(q, feed);
+    var lines = sides.map(function (side) {
+      var st = teamStatPack(feed, side);
+      return (
+        teamLabel(feed, side) +
+        ": " +
+        st.runs +
+        " R, " +
+        st.hits +
+        " H, " +
+        st.errors +
+        " E, " +
+        st.hr +
+        " HR, " +
+        st.bb +
+        " BB, " +
+        st.so +
+        " K, " +
+        st.lob +
+        " LOB."
+      );
+    });
+    return "Team box tonight:\n" + lines.join("\n");
+  }
+
+  function answerLinescore(feed) {
+    var ls = ((feed || {}).liveData || {}).linescore || {};
+    var inns = ls.innings || [];
+    if (!inns.length) return "Inning-by-inning linescore isn’t posted yet.";
+    var s = scoreSnap(feed);
+    var header = "Inn " + inns.map(function (inn) { return inn.num; }).join(" ");
+    var away = s.away + " " + inns.map(function (inn) {
+      return inn.away && inn.away.runs != null ? inn.away.runs : "·";
+    }).join(" ") + " | R " + s.ar;
+    var home = s.home + " " + inns.map(function (inn) {
+      return inn.home && inn.home.runs != null ? inn.home.runs : "·";
+    }).join(" ") + " | R " + s.hr;
+    return "Linescore:\n" + header + "\n" + away + "\n" + home;
+  }
+
+  function answerVenue(feed) {
+    var gd = (feed && feed.gameData) || {};
+    var venue = (gd.venue && gd.venue.name) || "Venue n/a";
+    var loc = gd.venue && (gd.venue.location || {});
+    var city = loc.city || "";
+    var stateName = loc.stateAbbrev || loc.state || "";
+    var where = [city, stateName].filter(Boolean).join(", ");
+    var dt = gd.datetime || {};
+    var first = dt.time || dt.dateTime || "";
+    return (
+      "Ballpark: " +
+      venue +
+      (where ? " (" + where + ")" : "") +
+      "." +
+      (first ? " Listed first pitch / game time: " + first + "." : "")
+    );
+  }
+
+  function answerWeather(feed) {
+    var w = ((feed && feed.gameData) || {}).weather || {};
+    if (!w.condition && w.temp == null && !w.wind) {
+      return "Ballpark weather isn’t in this feed yet.";
+    }
+    return (
+      "Ballpark weather: " +
+      (w.condition || "n/a") +
+      (w.temp != null ? ", " + w.temp + "°" : "") +
+      (w.wind ? ", wind " + w.wind : "") +
+      "."
+    );
+  }
+
+  function answerProbables(feed) {
+    var gd = (feed && feed.gameData) || {};
+    var pp = gd.probablePitchers || {};
+    var away = (pp.away && (pp.away.fullName || pp.away.name)) || "";
+    var home = (pp.home && (pp.home.fullName || pp.home.name)) || "";
+    var bits = [];
+    if (away) bits.push(teamLabel(feed, "away") + " probable/listed: " + away);
+    if (home) bits.push(teamLabel(feed, "home") + " probable/listed: " + home);
+    if (!bits.length) {
+      return answerStarter(feed);
+    }
+    return bits.join(". ") + ". " + answerStarter(feed);
+  }
+
+  function answerLastPlay(feed) {
+    var plays = ((((feed || {}).liveData || {}).plays || {}).allPlays) || [];
+    var cur = ((((feed || {}).liveData || {}).plays || {}).currentPlay) || null;
+    var play = cur || plays[plays.length - 1];
+    if (!play) return "No play description in the feed yet.";
+    var result = (play.result && (play.result.description || play.result.event)) || "";
+    var about = play.about || {};
+    var half = about.halfInning || "";
+    var inn = about.inning != null ? about.inning : "";
+    return (
+      "Latest play" +
+      (inn ? " (" + half + " " + inn + ")" : "") +
+      ": " +
+      (result || "n/a") +
+      "."
+    );
+  }
+
+  function answerRecap(feed) {
+    return (
+      answerSituation(feed) +
+      " " +
+      answerMatchup(feed) +
+      " " +
+      answerTeamBox(feed, "") +
+      " Tap Projections for the MARII prior-games model, or Form for recent finals."
+    );
+  }
+
+  function answerDecisions(feed) {
+    var dec = ((((feed || {}).liveData || {}).decisions) || {});
+    var w = dec.winner && (dec.winner.fullName || dec.winner.name);
+    var l = dec.loser && (dec.loser.fullName || dec.loser.name);
+    var sv = dec.save && (dec.save.fullName || dec.save.name);
+    if (!w && !l) return "Win/loss/save decisions aren’t posted yet (usually after the final).";
+    return (
+      "Decisions: " +
+      (w ? "W " + w : "W n/a") +
+      ", " +
+      (l ? "L " + l : "L n/a") +
+      (sv ? ", S " + sv : "") +
+      "."
+    );
+  }
+
+  function answerUmpires(feed) {
+    var officials = ((((feed || {}).liveData || {}).boxscore || {}).officials) || [];
+    if (!officials.length) {
+      var gdOff = ((((feed || {}).gameData || {}).officials) || []);
+      officials = gdOff;
+    }
+    if (!officials.length) return "Umpire crew isn’t listed in the feed yet.";
+    return (
+      "Umpires: " +
+      officials
+        .map(function (o) {
+          var name = (o.official && o.official.fullName) || o.fullName || "n/a";
+          var type = o.officialType || o.type || "";
+          return name + (type ? " (" + type + ")" : "");
+        })
+        .join("; ") +
+      "."
+    );
+  }
+
+  function answerSeries(feed) {
+    var gd = (feed && feed.gameData) || {};
+    var series = gd.seriesDescription || gd.series || "";
+    var gNum = gd.gameNumber != null ? gd.gameNumber : null;
+    var gamesIn = gd.gamesInSeries != null ? gd.gamesInSeries : null;
+    var desc = [];
+    if (series) desc.push(String(series));
+    if (gNum != null && gamesIn != null) desc.push("game " + gNum + " of " + gamesIn);
+    else if (gNum != null) desc.push("game " + gNum);
+    if (!desc.length) return "Series metadata isn’t in this feed.";
+    return "Series: " + desc.join(", ") + ".";
+  }
+
+  function answerAttendance(feed) {
+    var gd = (feed && feed.gameData) || {};
+    var att = gd.attendance || (gd.gameInfo && gd.gameInfo.attendance);
+    if (att == null) return "Attendance isn’t posted in the feed yet.";
+    return "Attendance: " + att + ".";
+  }
+
+  function answerPlayer(feed, q) {
+    var needle = extractPlayerNeedle(q, feed);
+    if (!needle) return "";
+    var hits = findPlayersInFeed(feed, needle);
+    if (!hits.length) {
+      var parts = needle.split(/\s+/);
+      if (parts.length > 1) hits = findPlayersInFeed(feed, parts[parts.length - 1]);
+    }
+    if (!hits.length) return "";
+    return hits
+      .slice(0, 4)
+      .map(function (h) {
+        var bits = [h.name + " (" + teamLabel(feed, h.side) + (h.pos ? ", " + h.pos : "") + ")"];
+        if (h.bat && (h.bat.atBats != null || h.bat.hits != null)) {
+          bits.push(
+            "batting " +
+              (h.bat.hits != null ? h.bat.hits : "0") +
+              "-" +
+              (h.bat.atBats != null ? h.bat.atBats : "?") +
+              (h.bat.homeRuns ? ", " + h.bat.homeRuns + " HR" : "") +
+              (h.bat.rbi ? ", " + h.bat.rbi + " RBI" : "")
+          );
+        }
+        if (h.pit && (h.pit.inningsPitched != null || h.pit.pitchesThrown != null || h.pit.numberOfPitches != null)) {
+          bits.push(
+            "pitching " +
+              (h.pit.inningsPitched != null ? h.pit.inningsPitched + " IP" : "") +
+              ", " +
+              (h.pit.earnedRuns != null ? h.pit.earnedRuns : "?") +
+              " ER, " +
+              (h.pit.strikeOuts != null ? h.pit.strikeOuts : "?") +
+              " K" +
+              (h.pit.numberOfPitches || h.pit.pitchesThrown
+                ? ", " + (h.pit.numberOfPitches || h.pit.pitchesThrown) + " pitches"
+                : "")
+          );
+        }
+        return bits.join(" — ");
+      })
+      .join("\n");
+  }
+
+  async function answerH2H(feed) {
+    try {
+      var hist = await loadHist(feed);
+      if (!hist || !hist.h2h) return "No head-to-head sample in the lookback window.";
+      var s = scoreSnap(feed);
+      if (!hist.h2h.n) {
+        return (
+          "No recent " +
+          s.away +
+          " vs " +
+          s.home +
+          " finals in the MARII lookback. Use Form or Projections for team-level color."
+        );
+      }
+      return (
+        "MARII H2H (lookback finals): " +
+        hist.h2h.n +
+        " game(s), avg " +
+        s.away +
+        " " +
+        round1(hist.h2h.awayAvg) +
+        " – " +
+        s.home +
+        " " +
+        round1(hist.h2h.homeAvg) +
+        "."
+      );
+    } catch (err) {
+      return mariiUnknown();
+    }
   }
 
   function answerProjection(feed) {
@@ -1401,25 +1855,40 @@
     return /\bhow (are|have|is|'re|'ve)\b/.test(s) && /\b(team|they|clubs?|doing|looking|year)\b/.test(s);
   }
 
+  function wantsProjectionQuestion(t) {
+    return /\b(projection|project|predict|win probability|who wins|who('?s| is) (gonna|going to|favored)|forecast|plausible|final score|score prediction|who should win|pick (a |the )?winner)\b/i.test(
+      String(t || "")
+    );
+  }
+
+  function wantsH2HQuestion(t) {
+    return /\b(head.?to.?head|h2h|vs each other|against each other|when (they|these teams) (play|met|meet)|series history)\b/i.test(
+      String(t || "")
+    );
+  }
+
+  function isOffTopicQuestion(t) {
+    return /\b(stock market|nasdaq|recipe|cookbook|python code|javascript code|politics|president|bitcoin|crypto wallet|homework|math problem|chatgpt|write (me )?an essay|tell me a joke|who are you|what is ai)\b/i.test(
+      String(t || "")
+    );
+  }
+
   function isGameScopedQuestion(q, feed) {
     var t = String(q || "").toLowerCase().trim();
     if (!t) return false;
+    if (isOffTopicQuestion(t)) return false;
     if (
-      /\b(weather|stock|recipe|code|python|politics|president|bitcoin|crypto|homework|math problem|who are you|what is ai|chatgpt|joke about (?!this game)|tell me a joke)\b/i.test(
-        t
-      )
-    ) {
-      return false;
-    }
-    if (
-      /\b(lineup|batting|pitch|batter|mound|inning|out|count|runner|score|bullpen|projection|project|predict|forecast|win|hot bat|starter|matchup|rbi|homer|plate|this game|tonight|box|standings|form|season|record|head.?to.?head|h2h|final)\b/i.test(
+      /\b(lineup|batting|pitch|batter|mound|inning|out|count|runner|score|bullpen|projection|project|predict|forecast|win|hot bat|cold bat|starter|matchup|rbi|homer|plate|this game|tonight|box|standings|form|season|record|head.?to.?head|h2h|final|weather|ballpark|stadium|venue|umpire|attendance|series|linescore|recap|summar|due up|on deck|leading|ahead|behind|error|walk|strikeout|left on base|lob|probable|decision|save|winner|loser|play|at.?bat|diamond|mlb|baseball)\b/i.test(
         t
       )
     ) {
       return true;
     }
-    if (wantsFormQuestion(t)) return true;
+    if (wantsFormQuestion(t) || wantsProjectionQuestion(t) || wantsH2HQuestion(t)) return true;
     if (questionMentionsSide(q, feed, "away") || questionMentionsSide(q, feed, "home")) return true;
+    if (feed && extractPlayerNeedle(q, feed) && findPlayersInFeed(feed, extractPlayerNeedle(q, feed)).length) {
+      return true;
+    }
     return false;
   }
 
@@ -1431,42 +1900,113 @@
     return mariiUnknown();
   }
 
+  function classifyAskIntent(q) {
+    var t = String(q || "").toLowerCase();
+    var rules = [
+      { intent: "projection", re: /\b(projection|project|predict|win probability|who wins|who('?s| is) (gonna|going to|favored)|forecast|plausible|final score|score prediction|who should win|pick (a |the )?winner)\b/ },
+      { intent: "h2h", re: /\b(head.?to.?head|h2h|vs each other|against each other|when (they|these teams) (play|met|meet)|series history)\b/ },
+      { intent: "form", re: /\b(season|record|standings|form|this year|playing lately|recent (games|form|stretch))\b/ },
+      { intent: "form", re: /\bhow (are|have|is|'re|'ve)\b.*\b(team|they|clubs?|doing|looking|year)\b/ },
+      { intent: "lineup", re: /\b(lineup|batting order|who('?s| is) (in the lineup|hitting)|starting nine|batting order)\b/ },
+      { intent: "matchup", re: /\b(pitcher|mound|on the hill).*(batter|hitting|at bat)|batter.*pitcher|who('?s| is) (pitching|batting|at bat|up)|current matchup|who('?s| is) facing\b/ },
+      { intent: "dueup", re: /\b(due up|on deck|in the hole|who('?s| is) next|batting next)\b/ },
+      { intent: "situation", re: /\b(count|outs?|runners?|on base|situation|scoreboard|what('?s| is) (the )?score|score\??$|how('?s| is) it (going|looking)|game state|status of the game)\b/ },
+      { intent: "lead", re: /\b(who('?s| is) (winning|leading|ahead)|who('?s| is) behind|what('?s| is) the (lead|margin)|tied\b)/ },
+      { intent: "hot", re: /\b(hot|heating|best bat|who('?s| is) hitting|production at the plate|raking|torching)\b/ },
+      { intent: "cold", re: /\b(cold|quiet bat|ice cold|struggling at the plate|who('?s| is) (slumping|struggling))\b/ },
+      { intent: "leaders", re: /\b(who (has|leads|got|got the most)|most (hits|runs|rbi|home ?runs|homers|walks|strikeouts)|leader(board)?|home ?runs? tonight|homers? tonight)\b/ },
+      { intent: "bullpen", re: /\b(bullpen|relief|reliever|who('?s| is) (next|coming in)|pitch count|arms left)\b/ },
+      { intent: "starter", re: /\b(starter|probable|how has .* (looked|pitched)|pitching line|era tonight|listed pitcher|opening pitcher)\b/ },
+      { intent: "teambox", re: /\b(team (stats?|totals?|box)|hits and errors|left on base|\blob\b|errors?|team batting)\b/ },
+      { intent: "linescore", re: /\b(linescore|by inning|inning.?by.?inning|run chart)\b/ },
+      { intent: "venue", re: /\b(where|ballpark|stadium|venue|park name|playing at)\b/ },
+      { intent: "weather", re: /\b(weather|temperature|wind|how('?s| is) it outside|climate)\b/ },
+      { intent: "lastplay", re: /\b(last play|what just happened|latest play|previous play|what happened)\b/ },
+      { intent: "recap", re: /\b(recap|summar(y|ize)|overview|catch me up|what('?s| is) going on|brief me|big picture)\b/ },
+      { intent: "decisions", re: /\b(decision|who (got|earned) the (win|loss|save)|winning pitcher|losing pitcher|save\b)/ },
+      { intent: "umpires", re: /\b(umpire|ump crew|home plate ump|officials)\b/ },
+      { intent: "series", re: /\b(series|game number|how many games in)\b/ },
+      { intent: "attendance", re: /\b(attendance|crowd|how many (fans|people)|packed)\b/ },
+      { intent: "player", re: /\b(how (is|has|did)|stats? for|what about|tell me about|line for)\b/ },
+    ];
+    var i;
+    for (i = 0; i < rules.length; i++) {
+      if (rules[i].re.test(t)) {
+        if (rules[i].intent === "form" && /\b(starter|pitch(er|ing)? line|on the mound|era tonight)\b/.test(t)) {
+          continue;
+        }
+        return rules[i].intent;
+      }
+    }
+    return "unknown";
+  }
+
   function localAskAnswer(q) {
     var feed = state.lastFeed;
     if (!feed) return "Live feed isn’t ready yet — wait a second and ask again.";
-    var t = String(q || "").toLowerCase();
     if (!isGameScopedQuestion(q, feed)) return mariiRefuse();
 
-    if (/\blineup|batting order|who('?s| is) (in the lineup|hitting)\b/.test(t)) {
-      return answerLineup(feed);
+    var intent = classifyAskIntent(q);
+    switch (intent) {
+      case "projection":
+      case "h2h":
+      case "form":
+        return null;
+      case "lineup":
+        return answerLineup(feed, q);
+      case "matchup":
+        return answerMatchup(feed);
+      case "dueup":
+        return answerDueUp(feed);
+      case "situation":
+        return answerSituation(feed);
+      case "lead":
+        return answerWhoWinning(feed);
+      case "hot":
+        return answerHotBats(feed, q);
+      case "cold":
+        return answerColdBats(feed, q);
+      case "leaders":
+        return answerLeaders(feed, q);
+      case "bullpen":
+        return answerBullpen(feed, q);
+      case "starter":
+        return answerProbables(feed);
+      case "teambox":
+        return answerTeamBox(feed, q);
+      case "linescore":
+        return answerLinescore(feed);
+      case "venue":
+        return answerVenue(feed);
+      case "weather":
+        return answerWeather(feed);
+      case "lastplay":
+        return answerLastPlay(feed);
+      case "recap":
+        return answerRecap(feed);
+      case "decisions":
+        return answerDecisions(feed);
+      case "umpires":
+        return answerUmpires(feed);
+      case "series":
+        return answerSeries(feed);
+      case "attendance":
+        return answerAttendance(feed);
+      case "player": {
+        var playerAns = answerPlayer(feed, q);
+        return playerAns || mariiUnknown();
+      }
+      case "unknown": {
+        var byName = answerPlayer(feed, q);
+        if (byName) return byName;
+        return mariiUnknown();
+      }
+      default: {
+        var _exhaustive = intent;
+        void _exhaustive;
+        return mariiUnknown();
+      }
     }
-    if (
-      /\b(pitcher|mound|on the hill).*(batter|hitting|at bat)|batter.*pitcher|who('?s| is) (pitching|batting|at bat|up)|matchup\b/.test(
-        t
-      )
-    ) {
-      return answerMatchup(feed);
-    }
-    if (/\b(count|outs|runners|on base|situation|scoreboard)\b/.test(t)) {
-      return answerSituation(feed);
-    }
-    if (/\b(hot|heating|best bat|who('?s| is) hitting|production at the plate)\b/.test(t)) {
-      return answerHotBats(feed);
-    }
-    if (/\b(bullpen|relief|reliever|who('?s| is) (next|coming in)|pitch count)\b/.test(t)) {
-      return answerBullpen(feed);
-    }
-    if (/\b(starter|how has .* (looked|pitched)|pitching line|era tonight)\b/.test(t)) {
-      return answerStarter(feed);
-    }
-    if (/\b(score|what('?s| is) the score)\b/.test(t)) {
-      return answerSituation(feed);
-    }
-    if (/\b(projection|project|predict|win probability|who wins|forecast|plausible|who('?s| is) favored|final score)\b/.test(t)) {
-      return null;
-    }
-    if (wantsFormQuestion(t)) return null;
-    return mariiUnknown();
   }
 
   function showAskAnswer(question, answer) {
@@ -1498,25 +2038,28 @@
     state.asking = true;
     if (els.askSubmit) els.askSubmit.disabled = true;
     try {
+      if (!state.lastFeed) {
+        showAskAnswer(question, "Live feed isn’t ready yet — wait a second and ask again.");
+        return;
+      }
       if (!isGameScopedQuestion(question, state.lastFeed)) {
         showAskAnswer(question, mariiRefuse());
         return;
       }
-      var t = question.toLowerCase();
-      var wantsProj =
-        /\b(projection|project|predict|win probability|who wins|forecast|plausible|who('?s| is) favored|final score)\b/.test(
-          t
-        );
-      if (wantsProj) {
+      var intent = classifyAskIntent(question);
+      if (intent === "projection" || wantsProjectionQuestion(question)) {
         showAskAnswer(question, "Running MARII projection…");
-        var proj = await answerProjectionAlgo(state.lastFeed);
-        showAskAnswer(question, proj);
+        showAskAnswer(question, await answerProjectionAlgo(state.lastFeed));
         return;
       }
-      if (wantsFormQuestion(t)) {
+      if (intent === "h2h" || wantsH2HQuestion(question)) {
+        showAskAnswer(question, "Checking MARII head-to-head…");
+        showAskAnswer(question, await answerH2H(state.lastFeed));
+        return;
+      }
+      if (intent === "form" || wantsFormQuestion(question)) {
         showAskAnswer(question, "Asking MARII about form…");
-        var formAns = await answerFormAlgo(state.lastFeed, question);
-        showAskAnswer(question, formAns);
+        showAskAnswer(question, await answerFormAlgo(state.lastFeed, question));
         return;
       }
       var local = localAskAnswer(question);

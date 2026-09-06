@@ -94,7 +94,7 @@
 
         <aside class="panel ask-panel" id="askPanel" aria-label="Ask a question">
           <h2>Ask a question</h2>
-          <p class="hint">Game-only MARII — lineup, matchups, bullpen, and algorithmic projections from recent finals + the live board. No cloud AI.</p>
+          <p class="hint">Game-only MARII — lineup, matchups, bullpen, form, H2H, weather, linescore, player lines, and algorithmic projections. No cloud AI.</p>
           <div class="ask-chips" id="askChips" role="group" aria-label="Suggested questions">
             <button type="button" class="ask-chip" data-q="What's the lineup?">Lineup</button>
             <button type="button" class="ask-chip" data-q="Who's pitching and who's batting right now?">Pitcher / batter</button>
@@ -103,6 +103,11 @@
             <button type="button" class="ask-chip" data-q="Who's hot at the plate in this game so far?">Hot bats</button>
             <button type="button" class="ask-chip" data-q="How are these teams this season?">Form</button>
             <button type="button" class="ask-chip" data-q="What's the count, outs, and runners?">Situation</button>
+            <button type="button" class="ask-chip" data-q="Catch me up on this game.">Recap</button>
+            <button type="button" class="ask-chip" data-q="Show the linescore by inning.">Linescore</button>
+            <button type="button" class="ask-chip" data-q="What's the ballpark weather?">Weather</button>
+            <button type="button" class="ask-chip" data-q="What's the recent head-to-head?">H2H</button>
+            <button type="button" class="ask-chip" data-q="What just happened?">Last play</button>
           </div>
           <form class="ask-form" id="askForm">
             <label class="sr-only" for="askInput">Your question</label>
@@ -122,6 +127,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="/betas/pyxassistant/pyx-assistant-voice.js?v=17"></script>
-  <script src="/betas/announcer/announcer.js?v=15"></script>
+  <script src="/betas/announcer/announcer.js?v=16"></script>
 </body>
 </html>
