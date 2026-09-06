@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Pyx Betas</title>
-  <meta name="description" content="Early Pyx experiences. Right now: Pyx Assistant." />
+  <meta name="description" content="Early Pyx experiences — Pyx Assistant and Announcer, powered by MARII." />
   <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -28,6 +28,11 @@
       margin: 0 0 28px;
       color: var(--muted);
       max-width: 42ch;
+    }
+    .beta-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
     }
     .beta-card {
       display: grid;
@@ -62,6 +67,9 @@
       background: conic-gradient(from 40deg, var(--swirl-a), var(--swirl-c), var(--swirl-d), var(--swirl-b), var(--swirl-a));
       animation: swirlSpin 10s linear infinite;
       filter: blur(8px);
+    }
+    .mini-orb.is-mint::before {
+      background: conic-gradient(from 40deg, #99f6e4, #67e8f9, #a7f3d0, #bfdbfe, #99f6e4);
     }
     .beta-card h2 {
       margin: 0 0 4px;
@@ -111,15 +119,25 @@
   <main class="betas">
     <p><a class="chip" href="/studio.html">Studio</a></p>
     <h1>Betas</h1>
-    <p class="lede">Early surfaces we’re trying in public. Extremely early — still being improved. One for now — more later.</p>
-    <a class="beta-card" href="/betas/pyxassistant">
-      <span class="mini-orb" aria-hidden="true"></span>
-      <span>
-        <h2>Pyx Assistant</h2>
-        <p>Powered by MARII. Voice or text — our first public beta. Extremely early and still being improved.</p>
-      </span>
-      <span class="pill">Open</span>
-    </a>
+    <p class="lede">Early surfaces we’re trying in public. Extremely early — still being improved.</p>
+    <div class="beta-stack">
+      <a class="beta-card" href="/betas/pyxassistant">
+        <span class="mini-orb" aria-hidden="true"></span>
+        <span>
+          <h2>Pyx Assistant</h2>
+          <p>Powered by MARII. Voice or text — local-first with optional cloud boost.</p>
+        </span>
+        <span class="pill">Open</span>
+      </a>
+      <a class="beta-card" href="/betas/announcer">
+        <span class="mini-orb is-mint" aria-hidden="true"></span>
+        <span>
+          <h2>Announcer</h2>
+          <p>Powered by MARII. Live MLB play-by-play — normal or booth voice.</p>
+        </span>
+        <span class="pill">Open</span>
+      </a>
+    </div>
   </main>
 </body>
 </html>

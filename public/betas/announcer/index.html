@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="mint">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Announcer — Pyx Betas</title>
+  <meta name="description" content="Announcer — live MLB play-by-play, powered by MARII. Neural voice, normal or booth style." />
+  <link rel="icon" href="/brand/pyx-app-icon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/brand/pyx-app-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;650;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/betas/pyxassistant/pyx-assistant.css?v=8" />
+  <link rel="stylesheet" href="/betas/announcer/announcer.css?v=2" />
+</head>
+<body>
+  <div class="stage announcer-stage">
+    <div class="swirl" aria-hidden="true">
+      <div class="swirl__veil"></div>
+    </div>
+
+    <header class="topbar">
+      <a href="/betas">Betas</a>
+      <div class="brand-stack">
+        <div class="brand-mark">Announcer</div>
+        <div class="brand-sub">powered by MARII</div>
+      </div>
+      <button type="button" class="icon-btn" id="muteBtn" title="Mute" aria-label="Mute">🔊</button>
+    </header>
+
+    <main class="announcer-main">
+      <p class="lede">Pick an MLB game. We poll every 7 seconds and read updates with neural voice — plain, or like a booth announcer.</p>
+
+      <div class="voice-bar">
+        <label for="voiceSelect">Voice</label>
+        <select id="voiceSelect" aria-label="Neural voice">
+          <option value="en-US">Online neural · US</option>
+          <option value="en-GB">Online neural · British</option>
+          <option value="en-AU">Online neural · Australian</option>
+          <option value="en-IN">Online neural · Indian English</option>
+        </select>
+        <span class="voice-bar__hint" id="voiceHint">Warming up neural TTS…</span>
+      </div>
+
+      <section class="panel" id="pickerPanel">
+        <div class="panel__row">
+          <h2>Today’s games</h2>
+          <button type="button" class="ghost" id="refreshGames">Refresh</button>
+        </div>
+        <p class="hint" id="gamesHint">Loading schedule…</p>
+        <div class="game-list" id="gameList" role="list"></div>
+      </section>
+
+      <section class="panel is-hidden" id="livePanel">
+        <div class="panel__row">
+          <button type="button" class="ghost" id="backToGames">← Games</button>
+          <div class="mode-toggle" role="group" aria-label="Voice mode">
+            <button type="button" class="mode-btn is-on" data-mode="normal" id="modeNormal">Normal</button>
+            <button type="button" class="mode-btn" data-mode="announcer" id="modeAnnouncer">Announcer</button>
+          </div>
+        </div>
+
+        <div class="scoreboard" id="scoreboard" aria-live="polite">
+          <div class="scoreboard__matchup" id="matchup">—</div>
+          <div class="scoreboard__score" id="scoreLine">—</div>
+          <div class="scoreboard__meta" id="metaLine">—</div>
+        </div>
+
+        <p class="caption__status" id="status">Idle</p>
+        <p class="caption__reply" id="lastCall">Select a game to start listening.</p>
+
+        <div class="panel__row">
+          <h3>Call log</h3>
+          <button type="button" class="ghost" id="clearLog">Clear</button>
+        </div>
+        <ul class="call-log" id="callLog"></ul>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/betas/pyxassistant/pyx-assistant-voice.js?v=13"></script>
+  <script src="/betas/announcer/announcer.js?v=3"></script>
+</body>
+</html>

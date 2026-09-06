@@ -1,10 +1,13 @@
 /**
- * Pyx Assistant — local KB + math + continuous on-device voice.
+ * Pyx Assistant — local KB + math + sports + weather + optional MARII boost.
  */
 (function () {
   "use strict";
 
   var STORE_KEY = "pyx.assistant.v3";
+  var MARII_ASK_URL = "/api/marii/ask";
+  var MARII_ASK_FALLBACK = "https://marii-ask.mainline-mi.workers.dev/ask";
+  var MARII_TIMEOUT_MS = 1500;
   var slu = window.PyxAssistantSLU;
   var i18n = window.PyxAssistantI18n;
   var math = window.PyxAssistantMath;
@@ -12,6 +15,7 @@
   var learn = window.PyxAssistantLearn;
   var cookies = window.PyxAssistantCookies;
   var sports = window.PyxAssistantSports;
+  var weather = window.PyxAssistantWeather;
   var voice = null;
 
   var state = {
@@ -19,6 +23,7 @@
     lang: "en",
     voice: true,
     voiceId: "en-GB",
+    mariiBoost: true,
     slack: "",
     discord: "",
     messages: [],
@@ -54,6 +59,7 @@
       if (o.theme) state.theme = o.theme;
       if (o.lang) state.lang = o.lang;
       if (typeof o.voice === "boolean") state.voice = o.voice;
+      if (typeof o.mariiBoost === "boolean") state.mariiBoost = o.mariiBoost;
       if (o.voiceId) {
         state.voiceId = String(o.voiceId).indexOf("af_") === 0 ? "en-GB" : o.voiceId;
       }
@@ -76,6 +82,7 @@
           lang: state.lang,
           voice: state.voice,
           voiceId: state.voiceId,
+          mariiBoost: state.mariiBoost,
           slack: state.slack,
           discord: state.discord,
         })
@@ -231,6 +238,7 @@
     els.themeLabel.textContent = t("theme");
     els.langLabel.textContent = t("language");
     els.voiceLabel.textContent = t("voiceReplies");
+    if (els.mariiBoostLabel) els.mariiBoostLabel.textContent = t("mariiBoost");
     els.modeLabel.textContent = t("voiceName");
     els.slackLabel.textContent = t("slackWebhook");
     els.discordLabel.textContent = t("discordWebhook");
@@ -398,6 +406,72 @@
     }
   }
 
+  function setSourceChip(source) {
+    if (!els.sourceChip) return;
+    if (source === "marii") {
+      els.sourceChip.hidden = false;
+      els.sourceChip.textContent = t("mariiChip") || "marii";
+    } else {
+      els.sourceChip.hidden = true;
+    }
+  }
+
+  async function moderateOk(text) {
+    try {
+      var q = encodeURIComponent(String(text || "").slice(0, 400));
+      if (!q) return true;
+      var res = await fetch("/api/moderator/check/" + q + "?threshold=700", {
+        method: "GET",
+        cache: "no-store",
+      });
+      if (!res.ok) return true;
+      var data = await res.json();
+      return data.appropriate !== false;
+    } catch (e) {
+      return true;
+    }
+  }
+
+  async function fetchMariiAsk(url, text, signal) {
+    var res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text, mode: "fast", use_web: true }),
+      signal: signal,
+    });
+    if (!res.ok) throw new Error("marii " + res.status);
+    var data = await res.json();
+    var answer = data && (data.answer || data.reply);
+    if (!answer || typeof answer !== "string") throw new Error("marii empty");
+    return answer.trim();
+  }
+
+  async function askMarii(text) {
+    if (!state.mariiBoost) return null;
+    var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var timer = setTimeout(function () {
+      if (ctrl) ctrl.abort();
+    }, MARII_TIMEOUT_MS);
+    var signal = ctrl ? ctrl.signal : undefined;
+    try {
+      var answer = null;
+      try {
+        answer = await fetchMariiAsk(MARII_ASK_URL, text, signal);
+      } catch (primaryErr) {
+        if (signal && signal.aborted) return null;
+        answer = await fetchMariiAsk(MARII_ASK_FALLBACK, text, signal);
+      }
+      if (!answer) return null;
+      var ok = await moderateOk(answer);
+      if (!ok) return null;
+      return answer;
+    } catch (e) {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async function localReply(text) {
     if (sports && sports.clearBoard) sports.clearBoard();
     if (learn) {
@@ -409,45 +483,70 @@
           renderData();
           openSheet(els.dataSheet);
         }
-        return learn.flavor(extracted.reply);
+        return { reply: learn.flavor(extracted.reply), source: "local" };
       }
       if (fb === "pos" && kb && learn.profile.lastKind === "joke") {
-        return learn.flavor(kb.expandSpecial("__JOKE__"));
+        return { reply: learn.flavor(kb.expandSpecial("__JOKE__")), source: "local" };
       }
     }
     if (math && math.looksMath(text)) {
       var solved = math.answer(text);
       if (learn) learn.observe(text, "math");
-      if (solved) return learn ? learn.flavor(solved.reply) : solved.reply;
-      return "I couldn’t parse that as math. Try 15% of 80, 9 times 8, or 32 F to C.";
+      if (solved) {
+        return { reply: learn ? learn.flavor(solved.reply) : solved.reply, source: "local" };
+      }
+      return {
+        reply: "I couldn’t parse that as math. Try 15% of 80, 9 times 8, or 32 F to C.",
+        source: "local",
+      };
     }
     var understood = slu.classify(text);
     var resolved = slu.resolve(understood, { lang: state.lang, t: i18n.t });
     runAction(resolved.action);
-    if (resolved.action && resolved.action.type === "clear") return resolved.reply;
+    if (resolved.action && resolved.action.type === "clear") {
+      return { reply: resolved.reply, source: "local" };
+    }
     if (understood.intent === "greet") {
       var g = learn ? learn.greeting(resolved.reply) : resolved.reply;
       if (learn) learn.observe(text, "talk");
-      return g;
+      return { reply: g, source: "local" };
     }
     var kind = learn ? learn.kindFromIntent(understood.intent, null) : "talk";
     if (resolved.special && kb) {
       if (learn) learn.observe(text, kind);
-      return learn ? learn.flavor(kb.expandSpecial(resolved.special)) : kb.expandSpecial(resolved.special);
+      var special = kb.expandSpecial(resolved.special);
+      return { reply: learn ? learn.flavor(special) : special, source: "local" };
     }
     if (resolved.reply) {
       if (learn) learn.observe(text, kind);
-      return learn ? learn.flavor(resolved.reply) : resolved.reply;
+      return { reply: learn ? learn.flavor(resolved.reply) : resolved.reply, source: "local" };
+    }
+    if (weather && (resolved.useWeb || understood.intent === "weather")) {
+      try {
+        var weatherReply = await weather.answer(text);
+        if (weatherReply) {
+          if (learn) learn.observe(text, "talk");
+          return { reply: learn ? learn.flavor(weatherReply) : weatherReply, source: "weather" };
+        }
+      } catch (err) {
+        return {
+          reply: "I couldn’t reach live weather just now. Try again in a second. =)",
+          source: "weather",
+        };
+      }
     }
     if (sports && (understood.intent === "sports" || sports.looksSports(text))) {
       try {
         var sportReply = await sports.answer(text);
         if (sportReply) {
           if (learn) learn.observe(text, "talk");
-          return learn ? learn.flavor(sportReply) : sportReply;
+          return { reply: learn ? learn.flavor(sportReply) : sportReply, source: "sports" };
         }
       } catch (err) {
-        return "I couldn’t reach live sports just now. Try me again in a second. =)";
+        return {
+          reply: "I couldn’t reach live sports just now. Try me again in a second. =)",
+          source: "sports",
+        };
       }
     }
     if (kb) {
@@ -457,12 +556,19 @@
       if (hit) {
         var recKind = kb.family ? kb.family(hit.rec.kind) : hit.rec.kind;
         if (learn) learn.observe(text, learn.kindFromIntent(understood.intent, recKind));
-        return learn ? learn.flavor(hit.reply) : hit.reply;
+        return { reply: learn ? learn.flavor(hit.reply) : hit.reply, source: "local" };
+      }
+      var boost = await askMarii(text);
+      if (boost) {
+        if (learn) learn.observe(text, "talk");
+        return { reply: learn ? learn.flavor(boost) : boost, source: "marii" };
       }
       if (learn) learn.observe(text, "talk");
-      return learn ? learn.flavor(kb.warmFallback(text)) : kb.warmFallback(text);
+      return { reply: learn ? learn.flavor(kb.warmFallback(text)) : kb.warmFallback(text), source: "local" };
     }
-    return t("identity");
+    var lastBoost = await askMarii(text);
+    if (lastBoost) return { reply: lastBoost, source: "marii" };
+    return { reply: t("identity"), source: "local" };
   }
 
   async function handleUserText(raw, fromVoice) {
@@ -472,15 +578,18 @@
     els.userLine.textContent = text;
     kickSwirl();
     setUi("think");
+    setSourceChip(null);
     try {
-      var reply = await localReply(text);
-      if (reply == null) reply = "";
+      var result = await localReply(text);
+      var reply = result && result.reply != null ? result.reply : "";
+      var source = (result && result.source) || "local";
       if (kb) kb.remember(reply);
       if (!(slu.classify(text).intent === "clear")) {
         state.messages.push({ role: "user", content: text });
         if (reply) state.messages.push({ role: "assistant", content: reply });
       }
       els.reply.textContent = reply || t("greeting");
+      setSourceChip(source);
       paintField(sports && sports.board);
       save();
       renderHistory();
@@ -849,6 +958,12 @@
       state.voice = els.voice.checked;
       save();
     });
+    if (els.mariiBoost) {
+      els.mariiBoost.addEventListener("change", function () {
+        state.mariiBoost = els.mariiBoost.checked;
+        save();
+      });
+    }
     els.mode.addEventListener("change", function () {
       state.voiceId = els.mode.value;
       if (voice && voice.setVoice) voice.setVoice(state.voiceId);
@@ -916,8 +1031,8 @@
     var n = kb.load(data);
     if (els.kbMeta) {
       els.kbMeta.hidden = false;
-      els.kbMeta.setAttribute("data-base", n.toLocaleString() + " local replies · live sports");
-      els.kbMeta.setAttribute("data-voice", "neural British voice");
+      els.kbMeta.setAttribute("data-base", n.toLocaleString() + " local replies · sports · weather");
+      els.kbMeta.setAttribute("data-voice", state.mariiBoost ? "MARII boost on" : "local-first");
       refreshKbMeta();
     }
     return n;
@@ -965,6 +1080,9 @@
       theme: document.getElementById("theme"),
       lang: document.getElementById("lang"),
       voice: document.getElementById("voice"),
+      mariiBoost: document.getElementById("mariiBoost"),
+      mariiBoostLabel: document.getElementById("mariiBoostLabel"),
+      sourceChip: document.getElementById("sourceChip"),
       mode: document.getElementById("mode"),
       slack: document.getElementById("slack"),
       discord: document.getElementById("discord"),
@@ -991,6 +1109,7 @@
     paintLangOptions();
     paintVoiceOptions();
     els.voice.checked = state.voice;
+    if (els.mariiBoost) els.mariiBoost.checked = state.mariiBoost;
     els.slack.value = state.slack;
     els.discord.value = state.discord;
     paintChrome();

@@ -1418,26 +1418,31 @@
   }
 
   async function answer(text) {
-    var q = parse(text);
-    ctx.lastAsk = q.raw;
-    ctx.board = null;
-    if (q.kind === "other") return otherSportsReply(q);
-    if (q.kind === "scores") return scores(q);
-    if (q.kind === "standings") return standings(q);
-    if (q.kind === "leaders") {
-      if (q.league && q.league !== "mlb") {
-        return "Leaderboards are still MLB-first. Name a player and I’ll pull their " + (ESPN_BOARDS[q.league] && ESPN_BOARDS[q.league].label) + " page. =)";
+    try {
+      var q = parse(text);
+      ctx.lastAsk = q.raw;
+      ctx.board = null;
+      if (q.kind === "other") return otherSportsReply(q);
+      if (q.kind === "scores") return scores(q);
+      if (q.kind === "standings") return standings(q);
+      if (q.kind === "leaders") {
+        if (q.league && q.league !== "mlb") {
+          return "Leaderboards are still MLB-first. Name a player and I’ll pull their " + (ESPN_BOARDS[q.league] && ESPN_BOARDS[q.league].label) + " page. =)";
+        }
+        return leaders(q);
       }
-      return leaders(q);
-    }
-    if (q.kind === "compare") {
-      if (q.league && q.league !== "mlb") {
-        q.kind = "player";
-        return talkPlayer(q);
+      if (q.kind === "compare") {
+        if (q.league && q.league !== "mlb") {
+          q.kind = "player";
+          return talkPlayer(q);
+        }
+        return compare(q);
       }
-      return compare(q);
+      return talkPlayer(q);
+    } catch (err) {
+      ctx.board = null;
+      return "Live scoreboard unavailable right now. Try again in a moment. =)";
     }
-    return talkPlayer(q);
   }
 
   function reset() {

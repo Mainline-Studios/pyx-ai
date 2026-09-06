@@ -252,6 +252,24 @@ button, input, textarea {
   margin-top: 4px;
 }
 
+.caption__chip {
+  display: inline-block;
+  margin: 6px 0 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: var(--ink, #1a2430);
+  background: color-mix(in srgb, var(--swirl-d, #3dffb5) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--swirl-c, #41d6ff) 45%, transparent);
+}
+
+.caption__chip[hidden] {
+  display: none;
+}
+
 .field-sim {
   position: relative;
   z-index: 2;

@@ -1751,6 +1751,114 @@ def moderator_check():
     return jsonify(_moderator_check_payload(text, threshold=threshold))
 
 
+_MARII_SYSTEM = (
+    "You are MARII — Mainline Artificial Realtime Instant Intelligence. "
+    "Be concise, clear, and helpful. Prefer short answers that feel instant. "
+    "When web snippets are provided, ground factual claims in them. "
+    "You power Pyx Assistant’s optional cloud boost. Stay safe for general audiences."
+)
+
+
+@app.route("/api/marii/ask", methods=["POST", "OPTIONS"])
+@app.route("/marii/ask", methods=["POST", "OPTIONS"])
+def marii_ask():
+    """Thin MARII ask: {text, mode?, use_web?} → {answer, source, latency_ms}."""
+    if request.method == "OPTIONS":
+        return "", 204
+    if request.method != "POST":
+        return jsonify({"error": "Method not allowed"}), 405
+    started = datetime.now(timezone.utc)
+    data = request.get_json(silent=True) or {}
+    text = data.get("text")
+    if text is None or not isinstance(text, str):
+        return jsonify({"error": "Missing \"text\" string"}), 400
+    text = text.strip()
+    if not text:
+        return jsonify({"error": "Empty text"}), 400
+    if len(text) > 4000:
+        return jsonify({"error": "Text too long"}), 413
+
+    user_mod = _moderator_check_payload(text, threshold=700)
+    if not user_mod.get("appropriate", True):
+        return (
+            jsonify(
+                {
+                    "error": "Request blocked by moderator",
+                    "appropriate": False,
+                    "score": user_mod.get("score"),
+                }
+            ),
+            400,
+        )
+
+    mode, mode_err = _normalize_talk_mode(data.get("mode") or "fast")
+    if mode_err:
+        mode = "fast"
+    use_web = _as_bool(data.get("use_web"))
+    do_web = use_web or _needs_live_web(text)
+    web_context = ""
+    ground_web = False
+    if do_web:
+        search_query = _enhance_talk_search_query(text)
+        snippets, _provider, werr = _talk_web_snippets(search_query)
+        if snippets:
+            web_context = snippets
+            ground_web = True
+        elif werr:
+            web_context = f"(Search note: {werr})"
+
+    messages = [{"role": "user", "content": text}]
+    try:
+        reply, model_used = _groq_openai_chat(
+            messages,
+            mode=mode,
+            web_context=web_context,
+            ground_web=ground_web,
+            pyxel_instructions=_MARII_SYSTEM,
+        )
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[:800]
+        return jsonify({"error": "LLM request failed", "status": e.code, "detail": detail}), 502
+    except urllib.error.URLError as e:
+        return jsonify({"error": "LLM network error", "detail": str(e.reason)}), 502
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+    if not reply:
+        return (
+            jsonify(
+                {
+                    "error": "MARII is not configured on this server yet",
+                    "hint": "Set PYX_TALK_LLM_KEY (or PYX_TALK_LLM_URL for a local OpenAI-compatible API).",
+                }
+            ),
+            503,
+        )
+
+    answer_mod = _moderator_check_payload(reply, threshold=700)
+    if not answer_mod.get("appropriate", True):
+        return (
+            jsonify(
+                {
+                    "error": "Answer blocked by moderator",
+                    "appropriate": False,
+                    "score": answer_mod.get("score"),
+                }
+            ),
+            400,
+        )
+
+    latency_ms = int((datetime.now(timezone.utc) - started).total_seconds() * 1000)
+    return jsonify(
+        {
+            "answer": reply,
+            "source": "marii",
+            "latency_ms": latency_ms,
+            "model": model_used,
+        }
+    )
+
+
 @app.route("/api/mi/mailing/subscribe", methods=["POST", "OPTIONS"])
 @app.route("/mi/mailing/subscribe", methods=["POST", "OPTIONS"])
 def mi_mailing_subscribe():

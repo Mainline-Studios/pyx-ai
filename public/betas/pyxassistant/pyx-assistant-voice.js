@@ -12,6 +12,8 @@
     ready: { stt: true, tts: true, kokoro: false },
     status: "idle",
     voiceId: "en-GB",
+    /** When false, skip Web Speech TTS fallback (neural/Kokoro only). */
+    allowBrowserFallback: true,
     onStatus: null,
     onPartial: null,
     onUtterance: null,
@@ -39,10 +41,10 @@
 
   function listVoices() {
     var list = [
-      { id: "en-GB", label: "Neural British" },
-      { id: "en-US", label: "Neural US" },
-      { id: "en-AU", label: "Neural Australian" },
-      { id: "en-IN", label: "Neural Indian English" },
+      { id: "en-GB", label: "Online neural · British" },
+      { id: "en-US", label: "Online neural · US" },
+      { id: "en-AU", label: "Online neural · Australian" },
+      { id: "en-IN", label: "Online neural · Indian English" },
     ];
     if (api.ready.kokoro) list.push({ id: "af_heart", label: "On-device Kokoro" });
     return list;
@@ -209,7 +211,11 @@
         await speakNeural(text, lang);
       }
     } catch (e) {
-      if (!interruptFlag) await speakBrowser(text, lang || "en-GB");
+      if (!interruptFlag && api.allowBrowserFallback !== false) {
+        await speakBrowser(text, lang || "en-GB");
+      } else if (!interruptFlag && typeof api.onError === "function") {
+        api.onError(e || new Error("neural tts failed"));
+      }
     } finally {
       speaking = false;
       if (typeof api.onSpeakEnd === "function") api.onSpeakEnd(interruptFlag);
@@ -319,7 +325,7 @@
 
   async function warmup(onProgress) {
     var note = onProgress || function () {};
-    note("Voice ready — neural British TTS. Loading on-device Kokoro in the background…");
+    note("Voice ready — online neural TTS. Loading on-device Kokoro in the background…");
     emit("ready");
     try {
       var mod = await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm");
@@ -329,10 +335,17 @@
         device: "wasm",
       });
       api.ready.kokoro = true;
-      note("On-device Kokoro is ready — pick it in Settings.");
+      // Prefer on-device voice once available unless user already picked a neural cloud id intentionally
+      // and stored it — callers can keep their choice; we only auto-switch from default en-GB.
+      if (!api.voiceId || api.voiceId === "en-GB") {
+        api.voiceId = "af_heart";
+        note("On-device Kokoro is ready — using it by default.");
+      } else {
+        note("On-device Kokoro is ready — pick it in Settings.");
+      }
     } catch (e) {
       api.ready.kokoro = false;
-      note("Neural cloud voice is on. Kokoro didn’t load on this device.");
+      note("Online voice is on (Sound of Text). Kokoro didn’t load on this device.");
     }
     return api.ready;
   }

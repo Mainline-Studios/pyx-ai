@@ -1,8 +1,9 @@
 /**
  * Pyx Assistant — spoken language understanding (SLU).
  *
- * Modular pipeline: normalize → intent + slots → local handler or LLM.
- * Pattern-based NLU (DeepSpeech / cloud ASR is the speech front-end).
+ * Modular pipeline: normalize → intent + slots → local handler
+ * (UI may call optional MARII cloud boost on low confidence).
+ * Pattern-based NLU (Web Speech / typed text is the speech front-end).
  */
 (function (root) {
   "use strict";
@@ -44,6 +45,18 @@
     {
       intent: "identity",
       re: /\b(who are you|what('?s| is) your name|what are you|quién eres|qui es[- ]tu|wer bist du|あなたは誰|你是谁)\b/i,
+    },
+    {
+      intent: "marii",
+      re: /\b(what('?s| is)|who is|explain|about)\s+(marii|m\.?a\.?r\.?i\.?i)\b|\bmarii\b/i,
+    },
+    {
+      intent: "mi",
+      re: /\b(what('?s| is)|about)\s+(mainline intelligence|mi moderator)\b|mainline intelligence\b|\bmi moderator\b/i,
+    },
+    {
+      intent: "beta",
+      re: /\b(is this a beta|are you a beta|early (version|beta)|still (being )?improv)/i,
     },
     {
       intent: "help",
@@ -279,7 +292,8 @@
   }
 
   /**
-   * Local handlers return a string reply, or null to fall through to the LLM.
+   * Local handlers return a reply string, or leave reply null for the UI
+   * to try KB / live data / optional MARII boost.
    * `t` is i18n.t(lang, key). Actions are side-effect flags for the UI.
    */
   function resolve(result, opts) {
@@ -287,7 +301,7 @@
     var lang = opts.lang || "en";
     var t = opts.t;
     var intent = result.intent;
-    var out = { reply: null, action: null, useLlm: false, useWeb: false, special: null };
+    var out = { reply: null, action: null, useLlm: false, useWeb: false, special: null, confidence: 1 };
 
     switch (intent) {
       case "empty":
@@ -301,6 +315,18 @@
         return out;
       case "identity":
         out.reply = t ? t(lang, "identity") : "I’m Pyx Assistant.";
+        return out;
+      case "marii":
+        out.reply =
+          "MARII is Mainline Artificial Realtime Instant Intelligence — instant when it matters, realtime when the world moves. I’m the first public beta. Extremely early and still being improved.";
+        return out;
+      case "mi":
+        out.reply =
+          "Mainline Intelligence (MI) is the umbrella for the new wave of Pyx — moderator, MARII, MCI, and more. Home: https://pyx-ai.web.app/mainlineintelligence";
+        return out;
+      case "beta":
+        out.reply =
+          "Yes — this is an extremely early MARII beta and it’s still being improved. Rough edges are expected. Thanks for trying it.";
         return out;
       case "help":
         out.reply = t ? t(lang, "help") : "Ask me anything.";
@@ -366,10 +392,11 @@
           out.reply = (t ? t(lang, "calcPrefix") : "That’s") + " " + String(result.slots.value) + ". =)";
           return out;
         }
+        out.confidence = 0.4;
         return out;
       case "weather":
-        out.reply =
-          "I don’t have live weather here — I’m a local notebook, not a radar. Check the sky or an app, and I can still convert temperatures. =)";
+        out.useWeb = true;
+        out.confidence = 0.55;
         return out;
       case "joke":
         out.special = "__JOKE__";
@@ -390,14 +417,14 @@
         out.special = "__REPEAT__";
         return out;
       case "sports":
+        out.confidence = 0.55;
         return out;
       case "chat":
+        out.confidence = 0.35;
         return out;
-      default: {
-        var unused = intent;
-        void unused;
+      default:
+        out.confidence = 0.3;
         return out;
-      }
     }
   }
 

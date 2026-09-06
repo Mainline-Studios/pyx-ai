@@ -57,8 +57,12 @@ var chat = slu.resolve(slu.classify("explain gravity"), { lang: "en", t: i18n.t 
 assert(chat.useLlm === false, "open questions do not call Talk");
 
 var weather = slu.resolve(slu.classify("weather in paris"), { lang: "en", t: i18n.t });
-assert(weather.useWeb === false, "weather stays local");
-assert(/weather app|live weather/i.test(weather.reply), "weather is honest about no API");
+assert(weather.useWeb === true, "weather requests live data");
+assert(!weather.reply, "weather leaves reply to the live path");
+assert(slu.classify("what is MARII").intent === "marii", "slu: marii identity");
+assert(slu.classify("what is Mainline Intelligence").intent === "mi", "slu: mi identity");
+assert(/MARII|Mainline Artificial/i.test(slu.resolve(slu.classify("what is marii"), { lang: "en", t: i18n.t }).reply), "marii resolve");
+assert(/beta|early/i.test(slu.resolve(slu.classify("is this a beta"), { lang: "en", t: i18n.t }).reply), "beta honesty");
 
 var n = kb.load(data);
 assert(n >= 1000, "knowledge base has 1000+ records (" + n + ")");
@@ -75,7 +79,7 @@ assert(!haiku || /rain|orb|pastel/i.test(haiku.reply), "haiku does not steal the
 assert(kb.warmFallback("write a haiku about rain").length > 20, "unmatched still gets a warm reply");
 assert(i18n.t("en", "name") === "Pyx Assistant", "product name is Pyx Assistant");
 assert(i18n.t("es", "name") === "Pyx Assistant", "name stays Pyx Assistant in ES");
-assert(/on-device|local notebook|no cloud/i.test(i18n.t("en", "identity")), "identity says on-device");
+assert(/local-first|MARII|cloud boost/i.test(i18n.t("en", "identity")), "identity is local-first MARII");
 
 var learn = require("./pyx-assistant-learn.js");
 var cookies = require("./pyx-assistant-cookies.js");

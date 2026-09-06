@@ -83,6 +83,13 @@
         }
       },
       {
+        "source": "/api/marii/**",
+        "run": {
+          "serviceId": "pyxaiapi",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "/api/mi/**",
         "run": {
           "serviceId": "pyxaiapi",
@@ -201,6 +208,10 @@
       {
         "source": "/betas/pyxassistant",
         "destination": "/betas/pyxassistant/index.html"
+      },
+      {
+        "source": "/betas/announcer",
+        "destination": "/betas/announcer/index.html"
       }
     ]
   }

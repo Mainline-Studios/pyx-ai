@@ -1,24 +1,29 @@
 # Pyx Assistant
 
-Voice-first beta at `/betas/pyxassistant`. The betas index lives at `/betas`.
+Voice-first beta at `/betas/pyxassistant`. The betas index lives at `/betas`. Branded **powered by MARII** (Mainline Artificial Realtime Instant Intelligence) — local-first today, with an optional MARII cloud boost when the notebook misses.
 
-On-device only: no Pyx Talk. Pastel swirls stay. The name is **Pyx Assistant**.
+Pastel swirls stay. The name is **Pyx Assistant**.
 
 ## Architecture
 
 ```
-Mic → VAD → Whisper tiny.en (transformers.js) → SLU + math + KB retrieval → Kokoro TTS
-                                                                    ↘ keep listening
-Tap orb: start session / interrupt speech / pause
+Mic / type
+  → Web Speech STT (browser)  [or typed text]
+  → SLU (regex intents) + math + local KB retrieval (+ sports / weather APIs)
+  → optional MARII cloud ask when confidence is low (timeout ~1.5s, then warm fallback)
+  → Sound of Text neural TTS (default online) or on-device Kokoro when selected/loaded
 ```
 
 | File | Role |
 |------|------|
-| `kb/pyx-assistant-kb.json` | 1,300+ local replies (jokes, facts, trivia, riddles, quotes, how-tos, definitions, small talk) |
+| `kb/pyx-assistant-kb.json` | Local reply pack (jokes, facts, MI/MARII FAQ, …) |
 | `pyx-assistant-math.js` | Expression parser, word numbers, unit conversions |
 | `pyx-assistant-kb.js` | Keyword retrieval + warm fallback |
-| `pyx-assistant-slu.js` | Intents (never calls Talk) |
-| `pyx-assistant-voice.js` | Whisper STT + Kokoro TTS + continuous listen |
+| `pyx-assistant-slu.js` | Intents (local handlers; optional MARII boost from the UI) |
+| `pyx-assistant-voice.js` | Web Speech STT + Sound of Text TTS + optional Kokoro |
+| `pyx-assistant-sports.js` | Live MLB/ESPN scoreboards |
+| `pyx-assistant-weather.js` | Live weather via Open-Meteo |
+| `pyx-assistant.js` | App controller, reply pipeline, MARII boost toggle |
 | `scripts/build-pyx-assistant-kb.js` | Regenerates the knowledge pack |
 
 ## Testing
