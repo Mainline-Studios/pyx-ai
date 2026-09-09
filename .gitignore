@@ -25,6 +25,10 @@ firebase-debug.log
 !public/downloads/manifest.json
 !packaging/gguf_manifest.json
 
+# Generated Pyx Assistant pack — covered by *.json above. Do not allowlist.
+# Rebuild with: npm run build:pyx-assistant-kb
+# Hosting predeploy and npm run build both run that script.
+
 # Release CI stages installers here before Firebase deploy (large binaries — do not commit)
 public/downloads/*.dmg
 public/downloads/*.pkg

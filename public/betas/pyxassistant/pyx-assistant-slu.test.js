@@ -8,7 +8,13 @@ var slu = require("./pyx-assistant-slu.js");
 var i18n = require("./pyx-assistant-i18n.js");
 var math = require("./pyx-assistant-math.js");
 var kb = require("./pyx-assistant-kb.js");
-var data = require("./kb/pyx-assistant-kb.json");
+var data;
+try {
+  data = require("./kb/pyx-assistant-kb.json");
+} catch (e) {
+  console.error("Knowledge pack missing. Run: npm run build:pyx-assistant-kb");
+  process.exit(1);
+}
 
 var failed = 0;
 

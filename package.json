@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.js",
-    "build": "npm run build:trainer-auth",
+    "build": "npm run build:trainer-auth && npm run build:pyx-assistant-kb",
     "build:trainer-auth": "python3 scripts/build_trainer_auth.py",
+    "build:pyx-assistant-kb": "node scripts/build-pyx-assistant-kb.js",
+    "test:pyx-assistant": "npm run build:pyx-assistant-kb && node public/betas/pyxassistant/pyx-assistant-slu.test.js",
     "deploy:githubmessage": "bash scripts/git-deploy-commit.sh",
     "deploy": "bash scripts/run-deploy.sh all",
     "deploy:api": "bash scripts/run-deploy.sh api",

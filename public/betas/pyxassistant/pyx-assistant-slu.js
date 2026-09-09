@@ -1,8 +1,8 @@
 /**
  * Pyx Assistant — spoken language understanding (SLU).
  *
- * Modular pipeline: normalize → intent + slots → local handler
- * (UI may call optional MARII cloud boost on low confidence).
+ * Modular pipeline: normalize → intent + slots → local handler.
+ * MARII cloud boost is retired — UI stays on KB / live feeds / warm fallback.
  * Pattern-based NLU (Web Speech / typed text is the speech front-end).
  */
 (function (root) {
@@ -294,7 +294,7 @@
 
   /**
    * Local handlers return a reply string, or leave reply null for the UI
-   * to try KB / live data / optional MARII boost.
+   * to try KB / live data / warm fallback (no cloud MARII boost).
    * `t` is i18n.t(lang, key). Actions are side-effect flags for the UI.
    */
   function resolve(result, opts) {

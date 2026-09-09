@@ -1,8 +1,10 @@
 # MARII ask Worker
 
-Compatibility shim only. **MARII does not run an LLM here** (no Groq, no Workers AI).
+**Retired compatibility shim.** MARII does not run an LLM here (no Groq, no Workers AI).
 
-Client surfaces (Pyx Assistant, Announcer) answer locally from KB / live feeds.
+`POST /ask` and `POST /api/marii/ask` return **501** `{ error: "MARII does not use cloud AI", ai: false }`. Deploy is optional.
+
+Client surfaces (Pyx Assistant, Announcer) answer locally from KB / live feeds. Do not build new features on this Worker.
 
 ```bash
 cd workers/marii-ask

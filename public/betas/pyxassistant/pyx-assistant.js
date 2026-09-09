@@ -419,32 +419,6 @@
     }
   }
 
-  async function moderateOk(text) {
-    try {
-      var q = encodeURIComponent(String(text || "").slice(0, 400));
-      if (!q) return true;
-      var res = await fetch("/api/moderator/check/" + q + "?threshold=700", {
-        method: "GET",
-        cache: "no-store",
-      });
-      if (!res.ok) return true;
-      var data = await res.json();
-      return data.appropriate !== false;
-    } catch (e) {
-      return true;
-    }
-  }
-
-  async function fetchMariiAsk() {
-    // MARII is local-only (no cloud LLM / no Groq / no Workers AI).
-    return null;
-  }
-
-  async function askMarii() {
-    // Optional “boost” used to call a cloud LLM. That path is retired.
-    return null;
-  }
-
   async function localReply(text) {
     if (sports && sports.clearBoard) sports.clearBoard();
     if (learn) {
@@ -546,16 +520,10 @@
           // Fall through to warm local reply — wiki is optional.
         }
       }
-      var boost = await askMarii(text);
-      if (boost) {
-        if (learn) learn.observe(text, "talk");
-        return { reply: learn ? learn.flavor(boost) : boost, source: "marii" };
-      }
       if (learn) learn.observe(text, "talk");
       return { reply: learn ? learn.flavor(kb.warmFallback(text)) : kb.warmFallback(text), source: "local" };
     }
-    var lastBoost = await askMarii(text);
-    if (lastBoost) return { reply: lastBoost, source: "marii" };
+    // Cloud MARII boost is retired (no LLM). Identity / warm fallback only.
     return { reply: t("identity"), source: "local" };
   }
 
@@ -1032,7 +1000,8 @@
   }
 
   async function bootKnowledge() {
-    var res = await fetch("/betas/pyxassistant/kb/pyx-assistant-kb.json?v=3", { cache: "no-store" });
+    var res = await fetch("/betas/pyxassistant/kb/pyx-assistant-kb.json?v=4", { cache: "no-store" });
+    if (!res.ok) throw new Error("kb " + res.status);
     var data = await res.json();
     var n = kb.load(data);
     if (els.kbMeta) {
