@@ -9,7 +9,10 @@
   },
   "hosting": {
     "public": "public",
-    "predeploy": ["npm run build:trainer-auth"],
+    "predeploy": [
+      "npm run build:trainer-auth",
+      "npm run build:pyx-assistant-kb"
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",

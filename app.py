@@ -1751,7 +1751,7 @@ def moderator_check():
     return jsonify(_moderator_check_payload(text, threshold=threshold))
 
 
-# MARII is local-only (no cloud LLM). This route stays for API compatibility.
+# Retired: MARII is local-only (no cloud LLM). This route stays for API compatibility.
 _MARII_NO_AI_NOTE = (
     "MARII does not use cloud AI. Answers are produced in-client from local packs and live feeds."
 )

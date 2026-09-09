@@ -4,7 +4,7 @@ Practical map for shipping work on **Mainline Intelligence (MI)** and **Pyx Assi
 
 This is not a whole-repo tour. Other Pyx surfaces (Talk, Code, Studio, desktop packaging, the moderator engine internals) appear only as context when these two products call them.
 
-Companion product write-up: [`docs/pyx-assistant.md`](pyx-assistant.md) — **stale on MARII cloud boost**; trust the live files below over that section.
+Companion product write-up: [`docs/pyx-assistant.md`](pyx-assistant.md).
 
 ---
 
@@ -38,7 +38,7 @@ Mailing form  →  Cloudflare Worker mi-mailing (Resend + KV)
 
 Pyx Assistant  →  in-browser only
                  + public APIs: Wikipedia, Open-Meteo, MLB Stats, ESPN, Sound of Text
-                 + optional /api/moderator/check  (function exists, never called)
+                 + /api/moderator/check exists for the MI try-it; PA does not call it
                  + /api/marii/ask and workers/marii-ask  (both 501; boost retired)
 ```
 
@@ -142,14 +142,13 @@ Script load order in `index.html` (manual `?v=` cache-bust — bump when you shi
 5. **Sports** — MLB Stats API + ESPN scoreboards (`pyx-assistant-sports.js`); may paint `#fieldSim`
 6. **KB retrieve** — keyword index over the pack, threshold 0.62, optional learn priors
 7. **Wikipedia** — only if `looksWikiWorthy` (`pyx-assistant-wiki.js`); high title-match bar; on-screen reply vs shorter `speak` text
-8. **`askMarii()`** — **always `null`** (cloud boost retired)
-9. **Warm fallback** — `kb.warmFallback`
+8. **Warm fallback** — `kb.warmFallback` (cloud MARII boost is retired; no `askMarii()`)
 
-`moderateOk()` (GET `/api/moderator/check/…?threshold=700`) is **defined and never called**. Fail-open if it were: network errors return `true`.
+PA does **not** call `/api/moderator/check`. The MI home try-it is the only first-party UI that does.
 
 Voice: Web Speech STT + Sound of Text neural TTS (default `en-GB`); optional on-device Kokoro from jsDelivr. Chat is locked until `voiceReady` (or skip). Persistence: `localStorage` key `pyx.assistant.v3` + cookies (`pyx-assistant-cookies.js`, path `/betas/pyxassistant`).
 
-Settings still have a **hidden, disabled** “MARII is local-only” checkbox; load() forces `mariiBoost = false`.
+Settings still have a **hidden, disabled** “MARII is local-only” checkbox (retired boost control); load() forces `mariiBoost = false`.
 
 ### File map
 
@@ -187,7 +186,7 @@ Settings still have a **hidden, disabled** “MARII is local-only” checkbox; l
 - MI **home** is the marketing + API landing page; it links to the assistant and hosts the moderator try-it.
 - MI **about** (`/mainlineintelligence/pyx-assistant`) is the honest product page; the assistant settings link back here.
 - PA **SLU/KB** answer “what is MARII / Mainline Intelligence / MCI” from local strings (see `pyx-assistant-slu.js` and the KB builder FAQ).
-- Shared **moderator engine** is available to PA via `/api/moderator/check` but is unused. The MI try-it is the only first-party UI that calls it.
+- Shared **moderator engine** is unused by PA. The MI try-it is the only first-party UI that calls `/api/moderator/check`.
 - Shared **Firebase Hosting** deploy ships both. Moderator scoring changes require a **Cloud Run** (`pyxaiapi`) deploy, not hosting-only.
 - Shared **mailing** is MI-only; PA does not subscribe users.
 
@@ -197,22 +196,23 @@ Settings still have a **hidden, disabled** “MARII is local-only” checkbox; l
 
 ### 1. Knowledge pack (required for PA)
 
-Root `.gitignore` has `*.json`, so `kb/pyx-assistant-kb.json` is **not in git**. A clean clone 404s the pack until you generate it (assistant still does math/SLU; toast: “Knowledge pack didn’t load”).
+Root `.gitignore` has `*.json`, so `kb/pyx-assistant-kb.json` is **not in git**. Generate it before a local static serve (assistant still does math/SLU without it; toast: “Knowledge pack didn’t load”).
 
 ```bash
-node scripts/build-pyx-assistant-kb.js
+npm run build:pyx-assistant-kb
 # Wrote 1388 records to public/betas/pyxassistant/kb/pyx-assistant-kb.json
 ```
 
-Hosting predeploy (`npm run build` → trainer-auth only) does **not** run this. If the pack is missing on the machine that deploys Hosting, production Assistant loses local retrieval.
+Hosting predeploy and `npm run build` both run `build:pyx-assistant-kb`, so a Hosting deploy from a clean tree still ships the pack. `npm run dev` also regenerates it.
 
 ### 2. Assistant unit tests
 
 ```bash
-node public/betas/pyxassistant/pyx-assistant-slu.test.js
+npm run test:pyx-assistant
+# builds the pack, then: node public/betas/pyxassistant/pyx-assistant-slu.test.js
 ```
 
-Needs the generated JSON (`require("./kb/pyx-assistant-kb.json")`). Covers SLU golden set, math, KB retrieve, learn, cookies, sports heuristics, wiki helpers. No browser. Verified on current main after generating the pack: all tests passed (1388 records).
+Needs the generated JSON (`require("./kb/pyx-assistant-kb.json")`). Covers SLU golden set, math, KB retrieve, learn, cookies, sports heuristics, wiki helpers. No browser.
 
 ### 3. Serve the UI
 
@@ -252,7 +252,7 @@ npx wrangler dev
 
 | What you changed | Command |
 |------------------|---------|
-| MI pages, Assistant JS/CSS, newsletters | `npm run deploy:hosting` → `firebase deploy --only hosting` (project `pyx-ai`) |
+| MI pages, Assistant JS/CSS, newsletters | `npm run deploy:hosting` → Hosting predeploy builds trainer-auth + PA KB, then `firebase deploy --only hosting` (project `pyx-ai`) |
 | Moderator scoring / `app.py` check routes | `npm run deploy:api` → Cloud Build + `gcloud run deploy pyxaiapi` |
 | Both | `npm run deploy` |
 | Mailing Worker | `cd workers/mi-mailing && npx wrangler deploy` |
@@ -298,20 +298,17 @@ Example names only: `MI_MAILING.example.env`.
 
 Grounded in current main — not a whole-repo laundry list.
 
-1. **Knowledge pack is gitignored and not in Hosting predeploy.**  
-   `*.json` ignores `public/betas/pyxassistant/kb/pyx-assistant-kb.json`. Tests and `bootKnowledge()` require it. `firebase.json` predeploy only runs `build:trainer-auth`. A clean clone or a Hosting deploy from a clean tree ships a 404 pack. **Fix:** allowlist the JSON and/or add `node scripts/build-pyx-assistant-kb.js` to Hosting predeploy / `package.json`.
+1. **Knowledge pack is gitignored on purpose.**  
+   `*.json` still ignores `public/betas/pyxassistant/kb/pyx-assistant-kb.json`. **Fixed for deploy:** `npm run build` and Hosting predeploy run `build:pyx-assistant-kb`. Local static serve still needs `npm run build:pyx-assistant-kb` (or `npm run dev`).
 
-2. **Docs and dead MARII-boost stubs disagree with production.**  
-   `docs/pyx-assistant.md` still describes optional cloud boost (~1.5s timeout). Live: `askMarii` / `fetchMariiAsk` return `null`, checkbox hidden+disabled, `/api/marii/ask` and `workers/marii-ask` return 501. SLU comments still say “optional MARII boost”. **Fix:** update the assistant doc; delete or clearly mark the dead boost UI/API so the next change does not re-enable a 501.
+2. **MARII cloud boost is retired.**  
+   Docs and client stubs now say so. `/api/marii/ask` and `workers/marii-ask` remain 501 compatibility shims. Hidden settings checkbox is local-only / disabled. Do not re-enable a cloud LLM on these paths.
 
 3. **Two mailing backends + stale error copy.**  
    The live form posts to the Worker; Flask SMTP + Firestore + `data/mi_mailing/` still exist; Hosting still rewrites `/api/mi/**` to Cloud Run; the join-list JS still talks about Cloud Run when the body is HTML. **Fix:** pick one source of truth (Worker is what production uses), deprecate or proxy the Flask path, and fix the error string.
 
-4. **`moderateOk()` is unused.**  
-   Assistant is the kid-facing MARII beta and already has a same-origin moderator endpoint. The helper is never called from `handleUserText`. **Fix:** wire it in (fail-open is already written) or remove it so nobody assumes turns are filtered.
-
-5. **Manual `?v=` cache-bust on every assistant asset.**  
-   `index.html` pins `?v=11` … `?v=22` per file; KB fetch uses `?v=3`. Easy to ship JS that browsers still cache, or bump the wrong file. Hosting already sets `must-revalidate` on `/betas/**/*.js`. **Fix:** rely on Hosting headers, or one shared build stamp, and stop hand-editing a dozen query strings.
+4. **Manual `?v=` cache-bust on every assistant asset.**  
+   `index.html` pins `?v=11` … `?v=22` per file; KB fetch uses `?v=3`. Easy to ship JS that browsers still cache, or bump the wrong file. Hosting already sets `must-revalidate` on `/betas/**/*.js`. Left in place for local static servers that do not send those headers. **Fix later:** one shared build stamp, or drop query strings if you only ship via Hosting.
 
 ---
 

@@ -2,7 +2,7 @@
 "use strict";
 
 const path = require("path");
-const { spawn } = require("child_process");
+const { spawn, execSync } = require("child_process");
 const crypto = require("crypto");
 
 const fs = require("fs");
@@ -14,6 +14,12 @@ const venvWin = path.join(root, ".venv", "Scripts", "python.exe");
 let py = process.platform === "win32" ? "python" : "python3";
 if (fs.existsSync(venvUnix)) py = venvUnix;
 else if (fs.existsSync(venvWin)) py = venvWin;
+
+try {
+  execSync("node scripts/build-pyx-assistant-kb.js", { cwd: root, stdio: "inherit" });
+} catch (err) {
+  console.warn("Pyx Assistant KB build failed (pack may 404 locally):", err.message);
+}
 
 console.log("\n  Pyx API (dev)\n");
 console.log("  API key (use in your game / client):");
