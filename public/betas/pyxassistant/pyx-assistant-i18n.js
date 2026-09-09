@@ -110,6 +110,13 @@
       mariiBoost: "MARII is local-only",
       mariiChip: "marii",
       statusLocal: "Local-first MARII beta — no cloud AI.",
+      kbMissChip: "no strong local match",
+      kbLowChip: "low confidence",
+      kbPackChip: "pack missing",
+      kbMissStatus: "No strong local match — I won’t guess.",
+      kbPackStatus: "Knowledge pack missing — notebook unavailable.",
+      kbPackReply: "The local knowledge pack didn’t load, so I don’t have a notebook match. Math, jokes, sports, and weather still work — or refresh and try again.",
+      kbPackToast: "Knowledge pack didn’t load — math and built-ins still work.",
     },
     es: {
       name: "Pyx Assistant",

@@ -136,8 +136,7 @@
     return "talk";
   }
 
-  function retrieve(query, minScore, priors, likes) {
-    minScore = minScore == null ? 0.55 : minScore;
+  function rank(query, priors, likes) {
     priors = priors || {};
     likes = likes || [];
     var qt = tokens(query);
@@ -168,8 +167,80 @@
         best = rec;
       }
     });
-    if (!best || bestScore < minScore) return null;
-    return { rec: best, score: bestScore, reply: expandSpecial(best.a) };
+    return { rec: best, score: bestScore };
+  }
+
+  function probe(query, minScore, priors, likes) {
+    minScore = minScore == null ? 0.55 : minScore;
+    if (!state.records.length) {
+      return { hit: false, rec: null, score: 0, threshold: minScore, reason: "empty-pack", reply: null };
+    }
+    var qt = tokens(query);
+    if (!qt.length) {
+      return { hit: false, rec: null, score: 0, threshold: minScore, reason: "empty-query", reply: null };
+    }
+    var ranked = rank(query, priors, likes);
+    if (!ranked.rec || ranked.score <= 0) {
+      return {
+        hit: false,
+        rec: ranked.rec,
+        score: ranked.score,
+        threshold: minScore,
+        reason: "no-match",
+        reply: null,
+      };
+    }
+    if (ranked.score < minScore) {
+      return {
+        hit: false,
+        rec: ranked.rec,
+        score: ranked.score,
+        threshold: minScore,
+        reason: "low-score",
+        reply: null,
+      };
+    }
+    return {
+      hit: true,
+      rec: ranked.rec,
+      score: ranked.score,
+      threshold: minScore,
+      reason: "hit",
+      reply: expandSpecial(ranked.rec.a),
+    };
+  }
+
+  function retrieve(query, minScore, priors, likes) {
+    var found = probe(query, minScore, priors, likes);
+    if (!found.hit) return null;
+    return { rec: found.rec, score: found.score, reply: found.reply };
+  }
+
+  function honestFallback(query, reason) {
+    if (reason === "empty-pack") {
+      return (
+        "The local knowledge pack isn’t loaded, so I don’t have a notebook match. " +
+        "I can still do math, jokes, sports, and weather — or refresh and try again."
+      );
+    }
+    var q = String(query || "").toLowerCase();
+    if (/\b(joke|laugh|funny)\b/.test(q)) return expandSpecial("__JOKE__");
+    if (/\b(fact|interesting|trivia)\b/.test(q)) return expandSpecial("__FACT__");
+    if (/\b(riddle)\b/.test(q)) return expandSpecial("__RIDDLE__");
+    if (/\b(quote|inspire|inspiration)\b/.test(q)) return expandSpecial("__QUOTE__");
+    if (/\b(compliment|encourage|nice)\b/.test(q)) return expandSpecial("__COMPLIMENT__");
+    var bits = tokens(query).slice(0, 4).join(", ");
+    return (
+      "No strong local match" +
+      (bits ? " for “" + bits + "”" : "") +
+      ". I won’t guess from a weak hit. I can joke, do math, convert units, share facts, riddles, quotes, or how-tos — or try a clearer question. =)"
+    );
+  }
+
+  function missSource(reason) {
+    if (reason === "empty-pack") return "empty-pack";
+    if (reason === "low-score") return "low-confidence";
+    return "kb-miss";
   }
 
   function warmFallback(query) {
@@ -182,15 +253,7 @@
     if (/\b(weather|forecast|rain|temperature outside)\b/.test(q)) {
       return "I don’t have live weather in this beta — peek outside or a weather app. I can still convert °F and °C if you want. =)";
     }
-    if (/\b(poem|haiku|story|song)\b/.test(q)) {
-      return "I’m not a cloud writer anymore, but here’s a tiny one: pastel light / an orb that waits to listen / you, saying hello.";
-    }
-    var bits = tokens(query).slice(0, 4).join(", ");
-    return (
-      "I don’t have a perfect page for that, but I’m still here. " +
-      (bits ? "I heard “" + bits + ".” " : "") +
-      "I can joke, do math, convert units, share facts, riddles, quotes, or how-tos — or we can just talk. =)"
-    );
+    return honestFallback(query, "no-match");
   }
 
   function remember(reply) {
@@ -200,10 +263,13 @@
   var api = {
     load: load,
     retrieve: retrieve,
+    probe: probe,
     family: family,
     expandSpecial: expandSpecial,
     pickUnused: pickUnused,
     warmFallback: warmFallback,
+    honestFallback: honestFallback,
+    missSource: missSource,
     remember: remember,
     tokens: tokens,
     get size() {

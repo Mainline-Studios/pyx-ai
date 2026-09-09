@@ -83,9 +83,36 @@ assert(j1 && j2 && j1.length > 10, "jokes resolve from the pack");
 var haiku = kb.retrieve("write a haiku about rain", 0.62);
 assert(!haiku || /rain|orb|pastel/i.test(haiku.reply), "haiku does not steal the email how-to");
 assert(kb.warmFallback("write a haiku about rain").length > 20, "unmatched still gets a warm reply");
+assert(/no strong local match/i.test(kb.honestFallback("write a haiku about rain", "no-match")), "honest miss names the gap");
+assert(/won.?t guess/i.test(kb.honestFallback("write a haiku about rain", "low-score")), "low-score refuses to bluff");
+assert(kb.missSource("low-score") === "low-confidence", "low-score maps to low-confidence source");
+assert(kb.missSource("no-match") === "kb-miss", "no-match maps to kb-miss source");
+assert(kb.missSource("empty-pack") === "empty-pack", "empty-pack maps to empty-pack source");
+
+kb.load({
+  records: [
+    { id: "e1", q: "how to send email", a: "Open your mail app.", tags: ["email", "howto"], kind: "howto" },
+  ],
+});
+var low = kb.probe("please explain email rituals today", 0.62);
+assert(low && low.hit === false && low.reason === "low-score", "single-token overlap is low confidence");
+assert(low.score < 0.62 && low.rec && low.rec.id === "e1", "low-score still reports the weak rec");
+assert(kb.retrieve("please explain email rituals today", 0.62) === null, "retrieve stays null below threshold");
+var none = kb.probe("zzzzzyx notintable at all", 0.62);
+assert(none && none.hit === false && none.reason === "no-match", "unknown tokens are no-match");
+kb.load({ records: [] });
+var empty = kb.probe("what is gravity", 0.62);
+assert(empty && empty.hit === false && empty.reason === "empty-pack", "empty pack probe");
+assert(/pack isn.?t loaded|notebook match/i.test(kb.honestFallback("what is gravity", "empty-pack")), "empty pack honest reply");
+assert(kb.retrieve("what is gravity", 0.62) === null, "retrieve is null when pack is empty");
+kb.load(data);
+
 assert(i18n.t("en", "name") === "Pyx Assistant", "product name is Pyx Assistant");
 assert(i18n.t("es", "name") === "Pyx Assistant", "name stays Pyx Assistant in ES");
 assert(/local-first|MARII|cloud boost/i.test(i18n.t("en", "identity")), "identity is local-first MARII");
+assert(i18n.t("en", "kbLowChip") === "low confidence", "low-confidence chip string");
+assert(i18n.t("en", "kbMissChip") === "no strong local match", "kb-miss chip string");
+assert(i18n.t("en", "kbPackChip") === "pack missing", "pack-missing chip string");
 
 var learn = require("./pyx-assistant-learn.js");
 var cookies = require("./pyx-assistant-cookies.js");

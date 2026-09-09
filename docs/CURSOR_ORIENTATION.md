@@ -140,9 +140,9 @@ Script load order in `index.html` (manual `?v=` cache-bust — bump when you shi
 3. **SLU** — `pyx-assistant-slu.js` regex intents (`greet`, `marii`, `mi`, `weather`, `sports`, `joke`, …). Local handlers return a reply or set `useWeb` / `special` (`__JOKE__`, …)
 4. **Weather** — Open-Meteo geocode + forecast (`pyx-assistant-weather.js`)
 5. **Sports** — MLB Stats API + ESPN scoreboards (`pyx-assistant-sports.js`); may paint `#fieldSim`
-6. **KB retrieve** — keyword index over the pack, threshold 0.62, optional learn priors
+6. **KB retrieve** — keyword index over the pack, threshold 0.62, optional learn priors (`kb.probe` reports hit / low-score / no-match / empty-pack)
 7. **Wikipedia** — only if `looksWikiWorthy` (`pyx-assistant-wiki.js`); high title-match bar; on-screen reply vs shorter `speak` text
-8. **Warm fallback** — `kb.warmFallback` (cloud MARII boost is retired; no `askMarii()`)
+8. **Honest miss** — `kb.honestFallback` when retrieve is below threshold or the pack is missing (on-screen chip + status; no silent bluff). Cloud MARII boost is retired; no `askMarii()`
 
 PA does **not** call `/api/moderator/check`. The MI home try-it is the only first-party UI that does.
 
@@ -156,7 +156,7 @@ Settings still have a **hidden, disabled** “MARII is local-only” checkbox (r
 |------|------|
 | `pyx-assistant.js` | Controller, pipeline, UI, KB/voice boot |
 | `pyx-assistant-slu.js` | Normalize → intent + slots → local resolve |
-| `pyx-assistant-kb.js` | Load / retrieve / specials / warm fallback |
+| `pyx-assistant-kb.js` | Load / retrieve / probe / specials / honest miss fallback |
 | `pyx-assistant-math.js` | Expressions, word numbers, unit conversion |
 | `pyx-assistant-learn.js` | Preference model + profile |
 | `pyx-assistant-cookies.js` | Chat + model cookies |
