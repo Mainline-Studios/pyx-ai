@@ -13,7 +13,7 @@ Mic / type
   → Web Speech STT (browser)  [or typed text]
   → SLU (regex intents) + math + local KB retrieval
   → live sports / weather / high-confidence Wikipedia
-  → warm local fallback
+  → honest KB-miss / low-confidence fallback (visible chip + status; no silent bluff)
   → Sound of Text neural TTS (default online) or on-device Kokoro when selected/loaded
 ```
 

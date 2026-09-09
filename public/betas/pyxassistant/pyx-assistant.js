@@ -250,7 +250,8 @@
     if (!state.messages.length) {
       els.reply.textContent = learn ? learn.greeting(t("greeting")) : t("greeting");
       els.userLine.textContent = "";
-      els.status.textContent = t("hint");
+      els.status.textContent = kb && !kb.size ? t("kbPackStatus") : t("hint");
+      setSourceChip(kb && !kb.size ? "empty-pack" : null, kb && !kb.size ? "empty-pack" : null);
       paintField(null);
     }
     renderHistory();
@@ -406,14 +407,25 @@
     }
   }
 
-  function setSourceChip(source) {
+  function setSourceChip(source, reason) {
     if (!els.sourceChip) return;
+    els.sourceChip.classList.remove("is-warn");
+    els.sourceChip.removeAttribute("data-miss");
     if (source === "marii") {
       els.sourceChip.hidden = false;
       els.sourceChip.textContent = t("mariiChip") || "marii";
     } else if (source === "wiki") {
       els.sourceChip.hidden = false;
       els.sourceChip.textContent = "wikipedia";
+    } else if (source === "empty-pack" || source === "low-confidence" || source === "kb-miss") {
+      var key = "kbMissChip";
+      if (source === "empty-pack" || reason === "empty-pack") key = "kbPackChip";
+      else if (source === "low-confidence" || reason === "low-score") key = "kbLowChip";
+      els.sourceChip.hidden = false;
+      els.sourceChip.classList.add("is-warn");
+      els.sourceChip.textContent = t(key);
+      els.sourceChip.setAttribute("data-miss", reason || source);
+      els.sourceChip.setAttribute("aria-label", t(key));
     } else {
       els.sourceChip.hidden = true;
     }
@@ -499,8 +511,9 @@
     if (kb) {
       var priors = learn ? learn.priorsFor(text) : {};
       var likes = learn ? learn.profile.likes : [];
-      var hit = kb.retrieve(text, 0.62, priors, likes);
-      if (hit) {
+      var found = kb.probe ? kb.probe(text, 0.62, priors, likes) : null;
+      var hit = found ? (found.hit ? found : null) : kb.retrieve(text, 0.62, priors, likes);
+      if (hit && hit.reply) {
         var recKind = kb.family ? kb.family(hit.rec.kind) : hit.rec.kind;
         if (learn) learn.observe(text, learn.kindFromIntent(understood.intent, recKind));
         return { reply: learn ? learn.flavor(hit.reply) : hit.reply, source: "local" };
@@ -517,14 +530,26 @@
             };
           }
         } catch (wikiErr) {
-          // Fall through to warm local reply — wiki is optional.
+          // Fall through to honest miss — wiki is optional.
         }
       }
       if (learn) learn.observe(text, "talk");
-      return { reply: learn ? learn.flavor(kb.warmFallback(text)) : kb.warmFallback(text), source: "local" };
+      var reason = found && found.reason ? found.reason : !kb.size ? "empty-pack" : "no-match";
+      var missText = kb.honestFallback ? kb.honestFallback(text, reason) : kb.warmFallback(text);
+      var missSource = kb.missSource ? kb.missSource(reason) : "kb-miss";
+      return {
+        reply: learn ? learn.flavor(missText) : missText,
+        source: missSource,
+        missReason: reason,
+        uiHint: reason === "empty-pack" ? t("kbPackStatus") : t("kbMissStatus"),
+      };
     }
-    // Cloud MARII boost is retired (no LLM). Identity / warm fallback only.
-    return { reply: t("identity"), source: "local" };
+    // Cloud MARII boost is retired (no LLM). Pack-missing path, not a confident identity bluff.
+    return {
+      reply: t("kbPackReply"),
+      source: "empty-pack",
+      uiHint: t("kbPackStatus"),
+    };
   }
 
   async function handleUserText(raw, fromVoice) {
@@ -547,20 +572,23 @@
           ? String(result.speak).trim()
           : reply;
       var source = (result && result.source) || "local";
+      var missReason = result && result.missReason;
+      var uiHint = result && result.uiHint;
       if (kb) kb.remember(reply);
       if (!(slu.classify(text).intent === "clear")) {
         state.messages.push({ role: "user", content: text });
         if (reply) state.messages.push({ role: "assistant", content: reply });
       }
       els.reply.textContent = reply || t("greeting");
-      setSourceChip(source);
+      setSourceChip(source, missReason);
       paintField(sports && sports.board);
       save();
       renderHistory();
       renderData();
       refreshKbMeta();
       if (state.voice) speak(speakText);
-      else setUi(state.session ? "listen" : "idle");
+      else setUi(state.session ? "listen" : "idle", uiHint);
+
     } finally {
       handleInFlight = false;
     }
@@ -999,11 +1027,23 @@
     els.kbMeta.textContent = base + memoryCaption() + (voiceBit ? " · " + voiceBit : "");
   }
 
+  function markPackMissing() {
+    if (els.kbMeta) {
+      els.kbMeta.hidden = false;
+      els.kbMeta.setAttribute("data-base", "Knowledge pack missing");
+      els.kbMeta.setAttribute("data-voice", "math and built-ins still work");
+      refreshKbMeta();
+    }
+    setSourceChip("empty-pack", "empty-pack");
+    if (els.status) els.status.textContent = t("kbPackStatus");
+  }
+
   async function bootKnowledge() {
     var res = await fetch("/betas/pyxassistant/kb/pyx-assistant-kb.json?v=4", { cache: "no-store" });
     if (!res.ok) throw new Error("kb " + res.status);
     var data = await res.json();
     var n = kb.load(data);
+    if (!n) throw new Error("kb empty");
     if (els.kbMeta) {
       els.kbMeta.hidden = false;
       els.kbMeta.setAttribute("data-base", n.toLocaleString() + " local replies · sports · weather");
@@ -1177,7 +1217,8 @@
         }
       })
       .catch(function () {
-        toast("Knowledge pack didn’t load — math and built-ins still work.");
+        markPackMissing();
+        toast(t("kbPackToast"));
       });
     if (window.PyxAssistantVoice) bootVoice();
     else {

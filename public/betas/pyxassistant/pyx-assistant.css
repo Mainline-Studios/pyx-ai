@@ -271,6 +271,14 @@ button, input, textarea {
   display: none;
 }
 
+.caption__chip.is-warn {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  background: color-mix(in srgb, #fbbf24 28%, transparent);
+  border-color: color-mix(in srgb, #f59e0b 55%, transparent);
+}
+
 .field-sim {
   position: relative;
   z-index: 2;
