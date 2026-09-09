@@ -29,6 +29,7 @@
     session: false,
     warming: false,
     voiceReady: false,
+    kbPack: null,
   };
 
   var els = {};
@@ -250,8 +251,13 @@
     if (!state.messages.length) {
       els.reply.textContent = learn ? learn.greeting(t("greeting")) : t("greeting");
       els.userLine.textContent = "";
-      els.status.textContent = kb && !kb.size ? t("kbPackStatus") : t("hint");
-      setSourceChip(kb && !kb.size ? "empty-pack" : null, kb && !kb.size ? "empty-pack" : null);
+      if (state.kbPack === false) {
+        els.status.textContent = t("kbPackStatus");
+        setSourceChip("empty-pack", "empty-pack");
+      } else {
+        els.status.textContent = t("hint");
+        setSourceChip(null);
+      }
       paintField(null);
     }
     renderHistory();
@@ -1028,6 +1034,7 @@
   }
 
   function markPackMissing() {
+    state.kbPack = false;
     if (els.kbMeta) {
       els.kbMeta.hidden = false;
       els.kbMeta.setAttribute("data-base", "Knowledge pack missing");
@@ -1044,6 +1051,13 @@
     var data = await res.json();
     var n = kb.load(data);
     if (!n) throw new Error("kb empty");
+    state.kbPack = true;
+    if (els.sourceChip && els.sourceChip.getAttribute("data-miss") === "empty-pack") {
+      setSourceChip(null);
+      if (els.status && els.status.textContent === t("kbPackStatus")) {
+        els.status.textContent = t("hint");
+      }
+    }
     if (els.kbMeta) {
       els.kbMeta.hidden = false;
       els.kbMeta.setAttribute("data-base", n.toLocaleString() + " local replies · sports · weather");
