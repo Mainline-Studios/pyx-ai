@@ -9,6 +9,12 @@
     it: 1, me: 1, my: 1, you: 1, your: 1, we: 1, do: 1, did: 1, does: 1, be: 1,
     are: 1, was: 1, were: 1, with: 1, at: 1, as: 1, that: 1, this: 1, from: 1,
     just: 1, can: 1, please: 1, about: 1, tell: 1, what: 1, whats: 1,
+    also: 1, why: 1, when: 1, where: 1, will: 1, have: 1, has: 1, had: 1,
+    hey: 1, really: 1, very: 1, actually: 1, maybe: 1, perhaps: 1,
+    stuff: 1, thing: 1, things: 1, today: 1, yesterday: 1, tomorrow: 1,
+    now: 1, still: 1, even: 1, yet: 1, around: 1, through: 1, versus: 1,
+    then: 1, than: 1, them: 1, they: 1, their: 1, into: 1, after: 1, before: 1,
+    while: 1, during: 1, could: 1, would: 1, should: 1, might: 1, am: 1, im: 1,
   };
 
   var state = {
@@ -101,9 +107,10 @@
     return text;
   }
 
-  function score(query, rec) {
+  function overlapStats(query, rec) {
     var qt = tokens(query);
-    if (!qt.length) return 0;
+    var empty = { qt: qt, hit: 0, extra: 0, cover: 0, exact: false };
+    if (!qt.length || !rec) return empty;
     var hay = tokens(rec.q).concat(rec.tags || []);
     var set = {};
     hay.forEach(function (w) {
@@ -117,11 +124,30 @@
         extra += 1 / set[w];
       }
     });
-    if (!hit) return 0;
-    var cover = hit / qt.length;
-    var bonus = rec.q.toLowerCase() === String(query || "").toLowerCase() ? 2 : 0;
-    var s = cover * 3 + extra + bonus + Math.min(hit, 4) * 0.15;
-    if (hit === 1 && qt.length >= 3 && bonus < 1) s *= 0.25;
+    return {
+      qt: qt,
+      hit: hit,
+      extra: extra,
+      cover: hit / qt.length,
+      exact: String(rec.q || "").toLowerCase() === String(query || "").toLowerCase(),
+    };
+  }
+
+  // Long questions that only share a minority of tokens are coincidences, not answers.
+  function isSparseQueryOverlap(query, rec) {
+    var st = overlapStats(query, rec);
+    if (!st.qt.length || st.exact) return false;
+    return st.qt.length >= 5 && st.cover < 0.5;
+  }
+
+  function score(query, rec) {
+    var st = overlapStats(query, rec);
+    if (!st.qt.length || !st.hit) return 0;
+    var s = st.cover * 3 + st.extra + (st.exact ? 2 : 0) + Math.min(st.hit, 4) * 0.15;
+    if (!st.exact) {
+      if (st.hit === 1 && st.qt.length >= 3) s *= 0.25;
+      else if (isSparseQueryOverlap(query, rec)) s *= 0.2;
+    }
     return s;
   }
 
@@ -153,14 +179,18 @@
     var bestScore = 0;
     candidates.forEach(function (rec) {
       var s = score(query, rec);
-      var fam = family(rec.kind);
-      if (priors[fam]) s += priors[fam] * 0.45;
-      if (likes.length) {
-        var blob = (rec.q + " " + (rec.tags || []).join(" ")).toLowerCase();
-        likes.forEach(function (like) {
-          var L = String(like || "").toLowerCase().trim();
-          if (L.length > 2 && blob.indexOf(L) !== -1) s += 0.4;
-        });
+      var sparse = isSparseQueryOverlap(query, rec);
+      // Priors / likes must not promote a long weak overlap into a confident hit.
+      if (!sparse) {
+        var fam = family(rec.kind);
+        if (priors[fam]) s += priors[fam] * 0.45;
+        if (likes.length) {
+          var blob = (rec.q + " " + (rec.tags || []).join(" ")).toLowerCase();
+          likes.forEach(function (like) {
+            var L = String(like || "").toLowerCase().trim();
+            if (L.length > 2 && blob.indexOf(L) !== -1) s += 0.4;
+          });
+        }
       }
       if (s > bestScore) {
         bestScore = s;
@@ -190,11 +220,13 @@
         reply: null,
       };
     }
-    if (ranked.score < minScore) {
+    var sparse = isSparseQueryOverlap(query, ranked.rec);
+    var effective = sparse ? Math.min(ranked.score, minScore * 0.5) : ranked.score;
+    if (effective < minScore) {
       return {
         hit: false,
         rec: ranked.rec,
-        score: ranked.score,
+        score: effective,
         threshold: minScore,
         reason: "low-score",
         reply: null,

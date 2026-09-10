@@ -107,6 +107,34 @@ assert(/pack isn.?t loaded|notebook match/i.test(kb.honestFallback("what is grav
 assert(kb.retrieve("what is gravity", 0.62) === null, "retrieve is null when pack is empty");
 kb.load(data);
 
+var gravHit = kb.probe("what is gravity", 0.62);
+assert(gravHit && gravHit.hit === true && /gravity/i.test(gravHit.rec.q), "clear gravity FAQ still hits");
+assert(kb.probe("tell me a joke", 0.62).hit === true, "joke prompt still hits");
+assert(kb.probe("what is marii", 0.62).hit === true, "MARII identity still hits");
+assert(kb.probe("who are you", 0.62).hit === true, "who-are-you identity still hits");
+assert(kb.probe("fact about honey", 0.62).hit === true, "honey fact still hits");
+assert(kb.probe("how to make coffee", 0.62).hit === true, "clear howto still hits");
+
+var longWeak =
+  "hey can you walk me through how people handle email stuff in weird office rituals today versus yesterday";
+var longMiss = kb.probe(longWeak, 0.62);
+assert(longMiss && longMiss.hit === false, "long weak overlap is not a confident hit");
+assert(longMiss.reason === "low-score" || longMiss.reason === "no-match", "long weak overlap is miss/low-score");
+assert(longMiss.score < 0.62, "long weak overlap stays under the retrieve bar");
+assert(kb.retrieve(longWeak, 0.62) === null, "retrieve refuses long weak overlap");
+assert(/no strong local match/i.test(kb.honestFallback(longWeak, longMiss.reason)), "long weak overlap uses honestFallback");
+
+var bluffMix =
+  "what is the meaning of life and also how do I send email to my boss about lunch rituals";
+var mixMiss = kb.probe(bluffMix, 0.62);
+assert(mixMiss && mixMiss.hit === false, "long mixed leftover words miss");
+assert(mixMiss.reason === "low-score" || mixMiss.reason === "no-match", "mixed leftover words are low-confidence");
+assert(kb.retrieve(bluffMix, 0.62) === null, "retrieve refuses mixed leftover words");
+assert(/no strong local match|won.?t guess/i.test(kb.honestFallback(bluffMix, mixMiss.reason)), "mixed leftover words stay honest");
+
+assert(slu.classify("how's Ohtani doing").intent === "sports", "Ohtani stays on the sports path");
+assert(slu.classify("Judge vs Soto").intent === "sports", "Judge vs Soto stays on the sports path");
+
 assert(i18n.t("en", "name") === "Pyx Assistant", "product name is Pyx Assistant");
 assert(i18n.t("es", "name") === "Pyx Assistant", "name stays Pyx Assistant in ES");
 assert(/local-first|MARII|cloud boost/i.test(i18n.t("en", "identity")), "identity is local-first MARII");
