@@ -84,3 +84,6 @@ Customize `learning_rate`, `hidden_size`, `BAN_LINE`, `DATA_DIR`, and `TRAINING_
 ---
 
 **Mainline Studios** — Maintained for Pixel Place. Contributions welcome.
+
+## Source
+Yeah, it's open source. Duh.
