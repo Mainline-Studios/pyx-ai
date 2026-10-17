@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>marii ask</title>
+  <meta name="robots" content="noindex" />
+  <style>
+    html, body { margin: 0; background: #0d1117; color: #e6edf3; }
+    pre {
+      margin: 0;
+      padding: 1rem;
+      font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+  <script src="/js/marii-ask.js?v=1"></script>
+</head>
+<body>
+  <pre id="out">{}</pre>
+  <script>
+    (function () {
+      var q = window.MariiAsk.requestFromLocation(location);
+      var data = window.MariiAsk.ask(q);
+      var json = JSON.stringify(data, null, 2);
+      document.getElementById("out").textContent = json;
+      document.title = data.ok ? "marii ask" : "marii ask · error";
+    })();
+  </script>
+</body>
+</html>

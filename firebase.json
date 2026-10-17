@@ -86,11 +86,20 @@
         }
       },
       {
-        "source": "/api/marii/**",
-        "run": {
-          "serviceId": "pyxaiapi",
-          "region": "us-central1"
-        }
+        "source": "/api/marii/ask",
+        "destination": "/marii-ask.html"
+      },
+      {
+        "source": "/api/marii/ask/**",
+        "destination": "/marii-ask.html"
+      },
+      {
+        "source": "/marii/ask",
+        "destination": "/marii-ask.html"
+      },
+      {
+        "source": "/marii/ask/**",
+        "destination": "/marii-ask.html"
       },
       {
         "source": "/api/mi/**",

@@ -4,7 +4,7 @@ GET `/api/marii/ask/<request>` (also `/marii/ask/<request>` and `/ask/<request>`
 
 `POST /ask` and `POST /api/marii/ask` still return **501** `{ error: "MARII does not use cloud AI", ai: false }`.
 
-The live site path is served by Cloud Run (`app.py`) via the Hosting rewrite for `/api/marii/**`. This Worker is optional.
+The live site path is Hosting-only (`/marii-ask.html` + `public/js/marii-ask.js`). This Worker is optional.
 
 ```bash
 cd workers/marii-ask
