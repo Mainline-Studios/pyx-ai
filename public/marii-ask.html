@@ -15,17 +15,29 @@
       word-break: break-word;
     }
   </style>
-  <script src="/js/marii-ask.js?v=1"></script>
+  <script src="/betas/pyxassistant/pyx-assistant-i18n.js?v=13"></script>
+  <script src="/betas/pyxassistant/pyx-assistant-slu.js?v=13"></script>
+  <script src="/betas/pyxassistant/pyx-assistant-math.js?v=12"></script>
+  <script src="/betas/pyxassistant/pyx-assistant-kb.js?v=14"></script>
+  <script src="/betas/pyxassistant/pyx-assistant-sports.js?v=13"></script>
+  <script src="/betas/pyxassistant/pyx-assistant-weather.js?v=12"></script>
+  <script src="/betas/pyxassistant/pyx-assistant-wiki-rephrase.js?v=1"></script>
+  <script src="/betas/pyxassistant/pyx-assistant-wiki.js?v=5"></script>
+  <script src="/js/marii-ask.js?v=3"></script>
 </head>
 <body>
-  <pre id="out">{}</pre>
+  <pre id="out">// asking…</pre>
   <script>
     (function () {
+      var out = document.getElementById("out");
       var q = window.MariiAsk.requestFromLocation(location);
-      var data = window.MariiAsk.ask(q);
-      var json = JSON.stringify(data, null, 2);
-      document.getElementById("out").textContent = json;
-      document.title = data.ok ? "marii ask" : "marii ask · error";
+      window.MariiAsk.ask(q).then(function (data) {
+        out.textContent = JSON.stringify(data, null, 2);
+        document.title = data.ok ? "marii ask" : "marii ask · error";
+      }).catch(function (err) {
+        out.textContent = JSON.stringify({ ok: false, error: String(err && err.message || err) }, null, 2);
+        document.title = "marii ask · error";
+      });
     })();
   </script>
 </body>
