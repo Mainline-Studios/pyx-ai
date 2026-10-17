@@ -37,3 +37,16 @@ curl -s -X POST https://mi-mailing.mainline-mi.workers.dev/subscribe \
   -H 'origin: https://pyx-ai.web.app' \
   -d '{"email":"you@icloud.com","source":"curl"}'
 ```
+
+## Broadcast latest issue
+
+Staff-only. Header must match the `BROADCAST_SECRET` wrangler secret.
+
+```bash
+curl -s -X POST https://mi-mailing.mainline-mi.workers.dev/broadcast \
+  -H 'content-type: application/json' \
+  -H "X-Broadcast-Secret: $BROADCAST_SECRET" \
+  -d '{"issue":"003"}'
+```
+
+Current issue is **003** (`mi-newsletter-003.pdf`). Subscribers already flagged `newsletter_003` are skipped.
