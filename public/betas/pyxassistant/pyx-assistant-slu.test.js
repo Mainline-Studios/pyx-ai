@@ -308,6 +308,27 @@ assert(wiki.titleMatchScore("dogs", "Dog breeding") < 0.92, "wiki rejects loose 
 assert(wiki.firstSentences("One. Two. Three.", 2) === "One. Two. Three.", "wiki intro keeps short para");
 assert(wiki.introBlurb("One. Two. Three. Four. Five.") === "One. Two.", "wiki long para → two sentences");
 
+var rephrase = require("./pyx-assistant-wiki-rephrase.js");
+var popcornLead =
+  "Popcorn (also called popped corn, popcorns or pop-corn) is a variety of corn kernel which expands and puffs up when heated; the popped kernels form a light, fluffy, and crunchy snack.";
+var popcornShort = rephrase.shorten(popcornLead, "Popcorn");
+assert(popcornShort.length > 20, "wiki rephrase returns text");
+assert(!/Reading it now/i.test(popcornShort), "wiki rephrase is not the stub");
+assert(/popcorn/i.test(popcornShort), "wiki rephrase keeps popcorn");
+assert(/puff|heat|corn|snack/i.test(popcornShort), "wiki rephrase keeps the fact");
+assert(popcornShort.length < popcornLead.length, "wiki rephrase is shorter than the lead");
+assert(popcornShort.length <= rephrase.MAX_CHARS, "wiki rephrase stays under the cap");
+assert(!/\(also called/i.test(popcornShort), "wiki rephrase drops also-called parens");
+assert(!/;/.test(popcornShort), "wiki rephrase does not keep a second clause after a semicolon");
+assert(/kind of corn|puffs up/i.test(popcornShort), "wiki rephrase uses the short popcorn line");
+
+var adaLead =
+  "Augusta Ada King, Countess of Lovelace (née Byron; 10 December 1815 – 27 November 1852) was an English mathematician and writer, chiefly known for her work on Charles Babbage's proposed mechanical general-purpose computer, the Analytical Engine.";
+var adaShort = rephrase.shorten(adaLead, "Ada Lovelace");
+assert(/lovelace|ada/i.test(adaShort), "ada rephrase keeps the name");
+assert(adaShort.length < adaLead.length, "ada rephrase is shorter");
+assert(adaShort.length <= rephrase.MAX_CHARS, "ada rephrase stays under the cap");
+
 if (failed) {
   console.error("\n" + failed + " failed");
   process.exit(1);

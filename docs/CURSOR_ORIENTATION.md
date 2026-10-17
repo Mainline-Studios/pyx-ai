@@ -144,7 +144,7 @@ Script load order in `index.html` (manual `?v=` cache-bust — bump when you shi
 4. **Weather** — Open-Meteo geocode + forecast (`pyx-assistant-weather.js`)
 5. **Sports** — MLB Stats API + ESPN scoreboards (`pyx-assistant-sports.js`); may paint `#fieldSim`
 6. **KB retrieve** — keyword index over the pack, threshold 0.62, optional learn priors (`kb.probe` reports hit / low-score / no-match / empty-pack)
-7. **Wikipedia** — only if `looksWikiWorthy` (`pyx-assistant-wiki.js`); high title-match bar; on-screen reply vs shorter `speak` text
+7. **Wikipedia** — only if `looksWikiWorthy` (`pyx-assistant-wiki.js`); high title-match bar; `reply` is a local short rephrase of the lead (`pyx-assistant-wiki-rephrase.js`), not a “reading it now” stub
 8. **Honest miss** — `kb.honestFallback` when retrieve is below threshold or the pack is missing (on-screen chip + status; no silent bluff). Cloud MARII boost is retired; no `askMarii()`
 
 PA does **not** call `/api/moderator/check`. The MI home try-it is the only first-party UI that does.

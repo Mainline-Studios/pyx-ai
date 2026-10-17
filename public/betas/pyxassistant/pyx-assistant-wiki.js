@@ -7,6 +7,14 @@
 
   var API = "https://en.wikipedia.org/w/api.php";
   var REST = "https://en.wikipedia.org/api/rest_v1/page/summary/";
+  var rephrase = root.PyxAssistantWikiRephrase;
+  if (!rephrase && typeof require === "function") {
+    try {
+      rephrase = require("./pyx-assistant-wiki-rephrase.js");
+    } catch (e) {
+      rephrase = null;
+    }
+  }
 
   function norm(s) {
     return String(s || "")
@@ -213,10 +221,13 @@
     var blurb = introBlurb(raw);
     if (!blurb || blurb.length < 40) return null;
 
+    var short = rephrase && rephrase.shorten ? rephrase.shorten(blurb, resolvedTitle) : blurb;
+    if (!short || short.length < 24) short = blurb;
+
     return {
-      // Keep the on-screen reply short so long leads don’t blow up the caption.
-      reply: "Pyx found a Wikipedia result. Reading it now.",
-      speak: blurb,
+      reply: short,
+      speak: short,
+      extract: blurb,
       title: resolvedTitle,
       score: resolvedScore,
     };
