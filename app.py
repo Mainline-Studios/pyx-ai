@@ -1525,7 +1525,12 @@ def _require_api_key():
     # Allow GET/HEAD /health and GET/HEAD / without a key so load balancers can check;
     # allow GET/HEAD that map to real files under ./public (HTML + assets for local dev).
     if request.method in ("GET", "HEAD"):
-        if request.path in ("/", "/health"):
+        if request.path in ("/", "/health", "/api/health"):
+            return None
+        path = request.path or ""
+        if path == "/api/marii/ask" or path.startswith("/api/marii/ask/"):
+            return None
+        if path == "/marii/ask" or path.startswith("/marii/ask/"):
             return None
         if _public_file_for_path(request.path) is not None:
             return None
@@ -1751,20 +1756,96 @@ def moderator_check():
     return jsonify(_moderator_check_payload(text, threshold=threshold))
 
 
-# Retired: MARII is local-only (no cloud LLM). This route stays for API compatibility.
+# POST /api/marii/ask stays a 501 shim (no cloud LLM).
+# GET /api/marii/ask/<request> is the public path API used by the MI home try-it.
 _MARII_NO_AI_NOTE = (
     "MARII does not use cloud AI. Answers are produced in-client from local packs and live feeds."
 )
+_MARII_ASK_MAX = 4000
+
+_MARII_ASK_FAQ = (
+    (
+        re.compile(r"\bwhat(?:'s| is) marii\b|\bwho is marii\b", re.I),
+        "MARII is Mainline Artificial Realtime Instant Intelligence — instant when it matters, realtime when the world moves. No cloud LLM on this path.",
+    ),
+    (
+        re.compile(r"\bwhat(?:'s| is) (?:mi|mainline intelligence)\b", re.I),
+        "Mainline Intelligence (MI) is the umbrella for moderator, MARII, MCI, and the rest of the new Pyx wave.",
+    ),
+    (
+        re.compile(r"\bwhat(?:'s| is) mci\b", re.I),
+        "MCI is Mainline Conversational Intelligence — coming soon. Studio-grade dialogue for teams that ship.",
+    ),
+    (
+        re.compile(r"\bwho are you\b|\bwhat are you\b", re.I),
+        "I'm the MARII ask API. Send GET /api/marii/ask/<request> and I'll return your request plus a short local reply.",
+    ),
+)
 
 
-@app.route("/api/marii/ask", methods=["POST", "OPTIONS"])
-@app.route("/marii/ask", methods=["POST", "OPTIONS"])
-def marii_ask():
-    """Compatibility endpoint — MARII is not an LLM backend."""
+def _marii_ask_reply(text):
+    """Local reply for the path API. Known FAQ first; otherwise echo the request."""
+    q = " ".join(str(text or "").strip().split())
+    if not q:
+        return ""
+    low = q.lower()
+    if low in ("hi", "hello", "hey", "yo"):
+        return "hi — marii ask is live. drop a request on /api/marii/ask/<request>."
+    for pat, ans in _MARII_ASK_FAQ:
+        if pat.search(q):
+            return ans
+    return q
+
+
+def _marii_ask_payload(text):
+    q = " ".join(str(text or "").strip().split())
+    reply = _marii_ask_reply(q)
+    return {
+        "ok": True,
+        "request": q,
+        "reply": reply,
+        "echo": q,
+        "source": "marii",
+        "backend": "local",
+        "ai": False,
+    }
+
+
+def _marii_ask_from_text(raw):
+    decoded = urllib.parse.unquote(raw or "").strip()
+    if not decoded:
+        return jsonify({"error": "Missing request in path", "ok": False}), 400
+    if len(decoded) > _MARII_ASK_MAX:
+        return jsonify({"error": "Request too long", "ok": False}), 413
+    return jsonify(_marii_ask_payload(decoded))
+
+
+@app.route("/api/marii/ask/<path:ask_text>", methods=["GET", "OPTIONS"])
+@app.route("/marii/ask/<path:ask_text>", methods=["GET", "OPTIONS"])
+def marii_ask_path(ask_text):
+    """GET /api/marii/ask/<request> — public MARII ask path API."""
     if request.method == "OPTIONS":
         return "", 204
-    if request.method != "POST":
-        return jsonify({"error": "Method not allowed"}), 405
+    return _marii_ask_from_text(ask_text)
+
+
+@app.route("/api/marii/ask", methods=["GET", "POST", "OPTIONS"])
+@app.route("/marii/ask", methods=["GET", "POST", "OPTIONS"])
+def marii_ask():
+    """GET ?request= for longer strings. POST stays a no-LLM compatibility shim."""
+    if request.method == "OPTIONS":
+        return "", 204
+    if request.method == "GET":
+        raw = request.args.get("request")
+        if raw is None:
+            raw = request.args.get("q")
+        if raw is None:
+            raw = request.args.get("text")
+        if raw is None:
+            return jsonify({"error": "Missing \"request\"", "ok": False}), 400
+        if not isinstance(raw, str):
+            return jsonify({"error": "\"request\" must be a string", "ok": False}), 400
+        return _marii_ask_from_text(raw)
     return (
         jsonify(
             {

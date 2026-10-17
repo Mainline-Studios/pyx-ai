@@ -106,12 +106,16 @@ Scoring (when you touch moderator behavior): `BAN_LINE`, `TRAINING_GROUNDS_PHRAS
 
 These lists do **not** automatically stay in sync. The MI page error copy still mentions Cloud Run even though the form posts to the Worker.
 
-### MARII ask (retired)
+### MARII ask
 
-Compatibility only — do not build new features on this:
+Public path API (no cloud LLM):
 
-- `app.py` `POST /api/marii/ask` and `/marii/ask` → **501** `{error: "MARII does not use cloud AI", ai: false}`
-- `workers/marii-ask/` — same 501; README says deploy is optional
+- `GET /api/marii/ask/<request>` and `GET /marii/ask/<request>` → `{ok, request, reply, echo, source, backend, ai}`
+- `GET /api/marii/ask?request=` for longer strings
+- Known FAQ (what is MARII / MI / MCI) gets a short local reply; anything else is echoed
+- `POST /api/marii/ask` still **501** `{error: "MARII does not use cloud AI", ai: false}`
+- MI home try-it: `#marii-ask` on `/mainlineintelligence`
+- `workers/marii-ask/` mirrors the GET path; Hosting still rewrites `/api/marii/**` to Cloud Run
 
 ---
 
