@@ -11,11 +11,14 @@ const DEFAULT_FROM = "Mainline Intelligence <no-reply@pixelplaceofficial.com>";
 const REPLY_TO = "support@pixelplaceofficial.com";
 const NOTIFY_TO = "support@pixelplaceofficial.com";
 const DEFAULT_NEWSLETTER_PDF =
-  "https://pyx-ai.web.app/mainlineintelligence/newsletters/mi-newsletter-002.pdf";
-const NEWSLETTER_FILENAME = "mi-newsletter-002.pdf";
-const NEWSLETTER_ISSUE = "002";
+  "https://pyx-ai.web.app/mainlineintelligence/newsletters/mi-newsletter-003.pdf";
+const NEWSLETTER_FILENAME = "mi-newsletter-003.pdf";
+const NEWSLETTER_ISSUE = "003";
+const NEWSLETTER_KV_FLAG = "newsletter_003";
 const NEWSLETTER_WEB =
-  "https://pyx-ai.web.app/mainlineintelligence/newsletters/mi-newsletter-002.html";
+  "https://pyx-ai.web.app/mainlineintelligence/newsletters/mi-newsletter-003.html";
+const NEWSLETTER_SUBJECT =
+  "mainline intelligence — issue 003 (marii ask + pyx assistant)";
 
 const ALLOWED_ORIGINS = new Set([
   "https://pyx-ai.web.app",
@@ -82,7 +85,7 @@ function welcomeHtml(email, { withNewsletter }) {
   const safe = escapeHtml(email);
   const pdfNote = withNewsletter
     ? `<tr><td style="padding-top:14px;line-height:1.55;color:#4a8a92;font-size:0.95rem;">
-        issue <strong style="color:#0d7377">${NEWSLETTER_ISSUE}</strong> is attached as a pdf — announcer, game-only marii, and algorithmic projections.
+        issue <strong style="color:#0d7377">${NEWSLETTER_ISSUE}</strong> is attached as a pdf — marii ask now runs on the same local pipeline as pyx assistant.
       </td></tr>`
     : "";
   return `<!DOCTYPE html>
@@ -100,13 +103,19 @@ function welcomeHtml(email, { withNewsletter }) {
           here's what's happening in the new wave of pyx:
         </td></tr>
         <tr><td style="padding-top:14px;line-height:1.55;color:#1a4a52;font-size:0.95rem;">
+          <strong style="color:#0d7377;">marii ask — same engine as pyx assistant</strong><br/>
+          <code style="color:#2ec4b6;">/api/marii/ask/&lt;request&gt;</code> now runs slu, math, live sports, weather, kb, and wiki in the browser.
+          try <a href="https://pyx-ai.web.app/api/marii/ask/how%20is%20judge" style="color:#2ec4b6;">/api/marii/ask/how is judge</a>.
+          no cloud run. no cloud llm.
+        </td></tr>
+        <tr><td style="padding-top:12px;line-height:1.55;color:#1a4a52;font-size:0.95rem;">
           <strong style="color:#0d7377;">mi moderator — live</strong><br/>
           check chat/game text via <code style="color:#2ec4b6;">/moderator/check/&lt;text&gt;</code>.
           you get <code style="color:#2ec4b6;">{"appropriate":false,"score":"700"}</code>. threshold defaults to 700.
         </td></tr>
         <tr><td style="padding-top:12px;line-height:1.55;color:#1a4a52;font-size:0.95rem;">
-          <strong style="color:#0d7377;">marii — beta (local / game-scoped)</strong><br/>
-          no cloud llm. pyx assistant stays local-first. announcer ask is game-only with algorithmic projections from recent finals.
+          <strong style="color:#0d7377;">announcer + game-only marii</strong><br/>
+          live mlb booth, neural/kokoro voices, algorithmic projections from recent finals.
         </td></tr>
         <tr><td style="padding-top:12px;line-height:1.55;color:#1a4a52;font-size:0.95rem;">
           <strong style="color:#0d7377;">mci — coming soon</strong><br/>
@@ -138,8 +147,10 @@ function welcomeText(email, { withNewsletter }) {
   return (
     `hey ${email} — you're on the mainline intelligence list.\n\n` +
     `latest:\n` +
+    `- marii ask now runs on the pyx assistant pipeline (no cloud run / no cloud llm)\n` +
+    `  https://pyx-ai.web.app/api/marii/ask/how%20is%20judge\n` +
     `- mi moderator is live (/moderator/check/<text>)\n` +
-    `- marii beta — local / game-scoped (no cloud llm); announcer projections from recent finals\n` +
+    `- announcer + game-only marii — mlb booth + projections from recent finals\n` +
     `- mci coming soon — industrial conversational pyx\n` +
     `- betas: pyx assistant + announcer — extremely early\n` +
     `  https://pyx-ai.web.app/betas/pyxassistant\n` +
@@ -152,37 +163,34 @@ function welcomeText(email, { withNewsletter }) {
   );
 }
 
-function issue002Html() {
+function issueHtml() {
   return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>mi newsletter 002</title></head>
+<html lang="en"><head><meta charset="utf-8"><title>mi newsletter ${NEWSLETTER_ISSUE}</title></head>
 <body style="margin:0;padding:0;background:#e8f7f4;font-family:system-ui,-apple-system,sans-serif;color:#1a4a52;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 12px;">
     <tr><td align="center">
       <table role="presentation" width="520" style="max-width:520px;width:100%;background:#fff;border-radius:16px;padding:28px;border:1px solid rgba(46,196,182,0.28);">
-        <tr><td style="font-size:0.8rem;letter-spacing:0.04em;color:#7aadb4;">newsletter · issue 002</td></tr>
+        <tr><td style="font-size:0.8rem;letter-spacing:0.04em;color:#7aadb4;">newsletter · issue ${NEWSLETTER_ISSUE}</td></tr>
         <tr><td style="padding-top:6px;font-size:1.4rem;font-weight:700;letter-spacing:-0.03em;color:#0d7377;">mainline intelligence</td></tr>
         <tr><td style="padding-top:14px;line-height:1.55;color:#4a8a92;font-size:0.98rem;">
-          a quick drop from the new wave of pyx — announcer is live, and marii stays local.
+          marii ask now runs on the same local pipeline as pyx assistant. no cloud run. no cloud llm.
         </td></tr>
         <tr><td style="padding-top:14px;line-height:1.55;color:#1a4a52;font-size:0.95rem;">
-          <strong style="color:#0d7377;">announcer beta</strong><br/>
-          live mlb play-by-play every 7s, neural/kokoro voices, normal vs booth.
-          <a href="https://pyx-ai.web.app/betas/announcer" style="color:#2ec4b6;">open announcer →</a>
+          <strong style="color:#0d7377;">marii ask</strong><br/>
+          <code style="color:#2ec4b6;">/api/marii/ask/&lt;request&gt;</code> answers from slu, math, live sports, weather, kb, and wiki.
+          try <a href="https://pyx-ai.web.app/api/marii/ask/how%20is%20judge" style="color:#2ec4b6;">how is judge</a>
+          or the box on <a href="https://pyx-ai.web.app/mainlineintelligence#marii-ask" style="color:#2ec4b6;">mi home</a>.
         </td></tr>
         <tr><td style="padding-top:12px;line-height:1.55;color:#1a4a52;font-size:0.95rem;">
-          <strong style="color:#0d7377;">game-only marii</strong><br/>
-          ask about lineup, matchups, bullpen, and hot bats. no cloud llm. off-topic questions get a beta shrug while we climb leagues.
+          <strong style="color:#0d7377;">hosting-only</strong><br/>
+          a tiny static page runs the assistant in the browser. if cloud run is down, ask still answers.
         </td></tr>
         <tr><td style="padding-top:12px;line-height:1.55;color:#1a4a52;font-size:0.95rem;">
-          <strong style="color:#0d7377;">algorithmic projections</strong><br/>
-          recent finals + head-to-head + live board → projected final score. math, not an llm. not betting advice.
-        </td></tr>
-        <tr><td style="padding-top:12px;line-height:1.55;color:#1a4a52;font-size:0.95rem;">
-          <strong style="color:#0d7377;">pyx assistant</strong><br/>
-          still local-first. <a href="https://pyx-ai.web.app/betas/pyxassistant" style="color:#2ec4b6;">try it →</a>
+          <strong style="color:#0d7377;">announcer + moderator</strong><br/>
+          booth is still live. chat/game check is still live. mci is still coming.
         </td></tr>
         <tr><td style="padding-top:16px;line-height:1.55;color:#4a8a92;font-size:0.92rem;">
-          read / download: <a href="${NEWSLETTER_WEB}" style="color:#2ec4b6;">issue 002 on the web</a>
+          read / download: <a href="${NEWSLETTER_WEB}" style="color:#2ec4b6;">issue ${NEWSLETTER_ISSUE} on the web</a>
           · pdf attached.
         </td></tr>
         <tr><td style="padding-top:14px;line-height:1.55;color:#0d7377;font-size:0.95rem;font-weight:600;">
@@ -197,15 +205,14 @@ function issue002Html() {
 </body></html>`;
 }
 
-function issue002Text() {
+function issueText() {
   return (
-    `mainline intelligence — newsletter issue 002\n\n` +
-    `announcer beta is live (mlb play-by-play + neural/kokoro voices).\n` +
-    `https://pyx-ai.web.app/betas/announcer\n\n` +
-    `game-only marii: lineup, matchups, bullpen, hot bats — no cloud llm.\n` +
-    `algorithmic projections from recent finals + live board.\n\n` +
-    `pyx assistant stays local-first.\n` +
-    `https://pyx-ai.web.app/betas/pyxassistant\n\n` +
+    `mainline intelligence — newsletter issue ${NEWSLETTER_ISSUE}\n\n` +
+    `marii ask now runs on the same local pipeline as pyx assistant.\n` +
+    `https://pyx-ai.web.app/api/marii/ask/how%20is%20judge\n\n` +
+    `hosting-only — no cloud run, no cloud llm.\n` +
+    `try the box: https://pyx-ai.web.app/mainlineintelligence#marii-ask\n\n` +
+    `announcer + mi moderator still live. mci still coming.\n\n` +
     `web: ${NEWSLETTER_WEB}\n` +
     `pdf attached.\n\n` +
     `no ads. we pinky-swear.\n`
@@ -226,7 +233,34 @@ async function listSubscriberEmails(env) {
   return emails;
 }
 
-async function broadcastIssue002(env) {
+async function subscriberAlreadyGotIssue(env, email) {
+  if (!env.SUBSCRIBERS) return false;
+  const prev = await env.SUBSCRIBERS.get(email);
+  if (!prev) return false;
+  try {
+    const row = JSON.parse(prev);
+    return Boolean(row && row[NEWSLETTER_KV_FLAG]);
+  } catch {
+    return false;
+  }
+}
+
+async function markSubscriberIssue(env, email) {
+  if (!env.SUBSCRIBERS) return;
+  const prev = await env.SUBSCRIBERS.get(email);
+  let row = {};
+  try {
+    row = prev ? JSON.parse(prev) : {};
+  } catch {
+    row = { email };
+  }
+  row.email = email;
+  row[NEWSLETTER_KV_FLAG] = true;
+  row.updated_at = new Date().toISOString();
+  await env.SUBSCRIBERS.put(email, JSON.stringify(row));
+}
+
+async function broadcastLatest(env) {
   const emails = await listSubscriberEmails(env);
   let pdfContent = null;
   try {
@@ -244,28 +278,22 @@ async function broadcastIssue002(env) {
       ]
     : [];
   const results = [];
+  let skipped = 0;
   for (const email of emails) {
     try {
+      if (await subscriberAlreadyGotIssue(env, email)) {
+        skipped += 1;
+        results.push({ email, ok: true, skipped: true });
+        continue;
+      }
       await sendResend(env, {
         to: email,
-        subject: "mainline intelligence — issue 002 (announcer + game-only marii)",
-        html: issue002Html(),
-        text: issue002Text(),
+        subject: NEWSLETTER_SUBJECT,
+        html: issueHtml(),
+        text: issueText(),
         attachments,
       });
-      if (env.SUBSCRIBERS) {
-        const prev = await env.SUBSCRIBERS.get(email);
-        let row = {};
-        try {
-          row = prev ? JSON.parse(prev) : {};
-        } catch {
-          row = { email };
-        }
-        row.email = email;
-        row.newsletter_002 = true;
-        row.updated_at = new Date().toISOString();
-        await env.SUBSCRIBERS.put(email, JSON.stringify(row));
-      }
+      await markSubscriberIssue(env, email);
       results.push({ email, ok: true });
     } catch (e) {
       results.push({
@@ -275,7 +303,12 @@ async function broadcastIssue002(env) {
       });
     }
   }
-  return { sent: results.filter((r) => r.ok).length, total: emails.length, results };
+  return {
+    sent: results.filter((r) => r.ok && !r.skipped).length,
+    skipped,
+    total: emails.length,
+    results,
+  };
 }
 
 async function fetchNewsletterPdfBase64(env) {
@@ -363,7 +396,7 @@ export default {
         return json({ ok: false, error: "unsupported issue" }, 400, origin);
       }
       try {
-        const out = await broadcastIssue002(env);
+        const out = await broadcastLatest(env);
         try {
           await sendResend(env, {
             to: NOTIFY_TO,
@@ -411,25 +444,40 @@ export default {
 
     const now = new Date().toISOString();
     let already = false;
+    let prevRow;
     if (env.SUBSCRIBERS) {
       const prev = await env.SUBSCRIBERS.get(email);
       already = Boolean(prev);
+      prevRow = prev;
+    }
+    // New subscribers get welcome + latest news + issue PDF.
+    // Re-joins get a short note without re-attaching the PDF.
+    const withNewsletter = !already;
+    if (env.SUBSCRIBERS) {
+      let subscribedAt = now;
+      let alreadyGotLatest = false;
+      if (already && prevRow) {
+        try {
+          const parsed = JSON.parse(prevRow);
+          subscribedAt = parsed.subscribed_at || now;
+          alreadyGotLatest = Boolean(parsed[NEWSLETTER_KV_FLAG]);
+        } catch {
+          subscribedAt = now;
+        }
+      }
       await env.SUBSCRIBERS.put(
         email,
         JSON.stringify({
           email,
           source,
-          subscribed_at: already && prev ? JSON.parse(prev).subscribed_at || now : now,
+          subscribed_at: subscribedAt,
           updated_at: now,
           newsletter_001: true,
-          newsletter_002: withNewsletter ? true : undefined,
+          newsletter_002: true,
+          [NEWSLETTER_KV_FLAG]: withNewsletter || alreadyGotLatest || undefined,
         })
       );
     }
-
-    // New subscribers get welcome + latest news + issue 001 PDF.
-    // Re-joins get a short note without re-attaching the PDF.
-    const withNewsletter = !already;
     let mailed = false;
     let mail_warning;
     let pdf_attached = false;

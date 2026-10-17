@@ -1,163 +1,165 @@
 /**
- * MARII ask Worker — no LLM / no Groq / no Workers AI.
- *
- * GET /api/marii/ask/<request> (and /marii/ask/<request>, /ask/<request>)
- * returns the request plus a short local reply.
- * POST /ask and POST /api/marii/ask stay 501 (no cloud LLM).
+ * MARII ask Worker — same pipeline as Pyx Assistant.
+ * GET returns JSON. No Groq, no Workers AI, no Cloud Run.
  */
-const ALLOWED_ORIGINS = new Set([
-  "https://pyx-ai.web.app",
-  "https://pyx-ai.firebaseapp.com",
-  "http://localhost:5000",
-  "http://127.0.0.1:5000",
-  "http://localhost:8080",
-  "http://127.0.0.1:8080",
-]);
+import * as i18nMod from "../../../public/betas/pyxassistant/pyx-assistant-i18n.js";
+import * as sluMod from "../../../public/betas/pyxassistant/pyx-assistant-slu.js";
+import * as mathMod from "../../../public/betas/pyxassistant/pyx-assistant-math.js";
+import * as kbMod from "../../../public/betas/pyxassistant/pyx-assistant-kb.js";
+import * as sportsMod from "../../../public/betas/pyxassistant/pyx-assistant-sports.js";
+import * as weatherMod from "../../../public/betas/pyxassistant/pyx-assistant-weather.js";
+import * as wikiRephraseMod from "../../../public/betas/pyxassistant/pyx-assistant-wiki-rephrase.js";
+import * as wikiMod from "../../../public/betas/pyxassistant/pyx-assistant-wiki.js";
+import * as askMod from "../../../public/js/marii-ask.js";
+
+function bind(mod) {
+  if (!mod) return mod;
+  if (mod.default) return mod.default;
+  return mod;
+}
+
+const i18n = bind(i18nMod);
+const slu = bind(sluMod);
+const math = bind(mathMod);
+const kb = bind(kbMod);
+const sports = bind(sportsMod);
+const weather = bind(weatherMod);
+const wikiRephrase = bind(wikiRephraseMod);
+const wiki = bind(wikiMod);
+const ask = bind(askMod);
+
+globalThis.PyxAssistantI18n = i18n;
+globalThis.PyxAssistantSLU = slu;
+globalThis.PyxAssistantMath = math;
+globalThis.PyxAssistantKB = kb;
+globalThis.PyxAssistantSports = sports;
+globalThis.PyxAssistantWeather = weather;
+globalThis.PyxAssistantWikiRephrase = wikiRephrase;
+globalThis.PyxAssistantWiki = wiki;
+globalThis.MARII_ASK_KB_URL =
+  "https://pyx-ai.web.app/betas/pyxassistant/kb/pyx-assistant-kb.json?v=4";
 
 const ASK_MAX = 4000;
+const SKIP_BARE = new Set(["", "health", "favicon.ico", "robots.txt"]);
 
-function corsHeaders(origin) {
-  const allow =
-    origin && ALLOWED_ORIGINS.has(origin) ? origin : "https://pyx-ai.web.app";
+function corsHeaders() {
   return {
-    "Access-Control-Allow-Origin": allow,
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "86400",
-    Vary: "Origin",
   };
 }
 
-function json(body, status, origin) {
+function json(body, status) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      ...corsHeaders(origin),
+      "Cache-Control": "no-store",
+      ...corsHeaders(),
     },
   });
 }
 
-function localReply(text) {
-  const q = String(text || "").trim().replace(/\s+/g, " ");
-  if (!q) return "";
-  const low = q.toLowerCase();
-  if (low === "hi" || low === "hello" || low === "hey" || low === "yo") {
-    return "hi — marii ask is live. drop a request on /api/marii/ask/<request>.";
-  }
-  if (/\bwhat(?:'s| is) marii\b|\bwho is marii\b/i.test(q)) {
-    return "MARII is Mainline Artificial Realtime Instant Intelligence — instant when it matters, realtime when the world moves. No cloud LLM on this path.";
-  }
-  if (/\bwhat(?:'s| is) (?:mi|mainline intelligence)\b/i.test(q)) {
-    return "Mainline Intelligence (MI) is the umbrella for moderator, MARII, MCI, and the rest of the new Pyx wave.";
-  }
-  if (/\bwhat(?:'s| is) mci\b/i.test(q)) {
-    return "MCI is Mainline Conversational Intelligence — coming soon. Studio-grade dialogue for teams that ship.";
-  }
-  if (/\bwho are you\b|\bwhat are you\b/i.test(q)) {
-    return "I'm the MARII ask API. Send GET /api/marii/ask/<request> and I'll return your request plus a short local reply.";
-  }
-  return q;
-}
-
-function askPayload(text) {
-  const q = String(text || "").trim().replace(/\s+/g, " ");
-  return {
-    ok: true,
-    request: q,
-    reply: localReply(q),
-    echo: q,
-    source: "marii",
-    backend: "local",
-    ai: false,
-  };
-}
-
-function askFromText(raw, origin) {
-  let decoded = "";
+function decodeRequest(raw) {
+  let s = String(raw == null ? "" : raw);
   try {
-    decoded = decodeURIComponent(String(raw || "")).trim();
-  } catch (e) {
-    decoded = String(raw || "").trim();
-  }
-  if (!decoded) {
-    return json({ error: "Missing request in path", ok: false }, 400, origin);
-  }
-  if (decoded.length > ASK_MAX) {
-    return json({ error: "Request too long", ok: false }, 413, origin);
-  }
-  return json(askPayload(decoded), 200, origin);
+    s = decodeURIComponent(s.replace(/\+/g, " "));
+  } catch (e) {}
+  return s.trim().replace(/\s+/g, " ");
 }
 
 function pathRequest(pathname) {
+  const path = String(pathname || "");
   const prefixes = ["/api/marii/ask/", "/marii/ask/", "/ask/"];
   for (const prefix of prefixes) {
-    if (pathname.startsWith(prefix)) {
-      return pathname.slice(prefix.length);
-    }
+    if (path.startsWith(prefix)) return path.slice(prefix.length);
+  }
+  if (path === "/" || path === "/health") return null;
+  if (path === "/api/marii/ask" || path === "/marii/ask" || path === "/ask") {
+    return "";
+  }
+  if (path.charAt(0) === "/") {
+    const bare = path.slice(1);
+    if (!SKIP_BARE.has(bare) && bare.indexOf(".") === -1) return bare;
   }
   return null;
 }
 
 export default {
-  async fetch(request, env) {
-    const origin = request.headers.get("Origin") || "";
+  async fetch(request) {
     const url = new URL(request.url);
 
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders(origin) });
+      return new Response(null, { status: 204, headers: corsHeaders() });
     }
 
-    if (url.pathname === "/health" || url.pathname === "/") {
+    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
       return json(
         {
           ok: true,
           service: "marii-ask",
-          backend: "local",
+          backend: "pyx-assistant",
           ai: false,
           groq: false,
-          note: "GET /api/marii/ask/<request> returns the request plus a local reply. No LLM.",
+          curl: 'curl -sS "https://marii-ask.mainline-mi.workers.dev/how%20is%20judge"',
+          engines: {
+            slu: typeof slu.classify === "function",
+            math: typeof math.looksMath === "function",
+            sports: typeof sports.answer === "function",
+            wiki: typeof wiki.looksWikiWorthy === "function",
+            ask: typeof ask.ask === "function",
+          },
         },
-        200,
-        origin
+        200
       );
     }
 
-    if (request.method === "GET") {
-      const fromPath = pathRequest(url.pathname);
-      if (fromPath != null) {
-        return askFromText(fromPath, origin);
-      }
-      if (
-        url.pathname === "/api/marii/ask" ||
-        url.pathname === "/marii/ask" ||
-        url.pathname === "/ask"
-      ) {
-        const raw = url.searchParams.get("request") || url.searchParams.get("q") || url.searchParams.get("text");
-        if (raw == null) {
-          return json({ error: 'Missing "request"', ok: false }, 400, origin);
-        }
-        return askFromText(raw, origin);
-      }
+    if (request.method !== "GET") {
+      return json(
+        {
+          ok: false,
+          error: "MARII does not use cloud AI",
+          hint: 'Use GET. Example: curl -sS "https://marii-ask.mainline-mi.workers.dev/how%20is%20judge"',
+          ai: false,
+        },
+        501
+      );
     }
 
-    if (
-      request.method !== "POST" ||
-      (url.pathname !== "/ask" && url.pathname !== "/api/marii/ask")
-    ) {
-      return json({ error: "Not found" }, 404, origin);
+    let raw = pathRequest(url.pathname);
+    if (raw == null) {
+      return json({ ok: false, error: "not found" }, 404);
+    }
+    if (!raw) {
+      raw =
+        url.searchParams.get("request") ||
+        url.searchParams.get("q") ||
+        url.searchParams.get("text") ||
+        "";
+    }
+    const q = decodeRequest(raw);
+    if (!q) {
+      return json({ ok: false, error: "Missing request in path" }, 400);
+    }
+    if (q.length > ASK_MAX) {
+      return json({ ok: false, error: "Request too long" }, 413);
     }
 
-    return json(
-      {
-        error: "MARII does not use cloud AI",
-        hint: "Use GET /api/marii/ask/<request>. No Groq, no Workers AI.",
-        source: "marii",
-        backend: "none",
-        ai: false,
-      },
-      501,
-      origin
-    );
+    try {
+      const data = await ask.ask(q);
+      return json(data, data && data.ok === false ? 400 : 200);
+    } catch (err) {
+      return json(
+        {
+          ok: false,
+          error: String(err && err.message ? err.message : err).slice(0, 300),
+          backend: "pyx-assistant",
+          ai: false,
+        },
+        502
+      );
+    }
   },
 };

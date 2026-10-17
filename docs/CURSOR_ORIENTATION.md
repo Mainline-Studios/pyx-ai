@@ -32,7 +32,7 @@ Browser  →  Firebase Hosting (public/)
               ├─ /betas/pyxassistant         Pyx Assistant (static JS)
               ├─ /moderator/**, /api/moderator/**  ──rewrite──► Cloud Run pyxaiapi (app.py)
               └─ /api/mi/**                        ──rewrite──► Cloud Run pyxaiapi
-                /api/marii/ask/**                  ──rewrite──► /marii-ask.html (Hosting, no Cloud Run)
+                /api/marii/ask/**                  ──302──► marii-ask Worker (JSON, no Cloud Run)
 
 Mailing form  →  Cloudflare Worker mi-mailing (Resend + KV)
                  (Flask /api/mi/mailing/subscribe still exists; the live form does not use it)
@@ -40,7 +40,7 @@ Mailing form  →  Cloudflare Worker mi-mailing (Resend + KV)
 Pyx Assistant  →  in-browser only
                  + public APIs: Wikipedia, Open-Meteo, MLB Stats, ESPN, Sound of Text
                  + /api/moderator/check exists for the MI try-it; PA does not call it
-                 + /api/marii/ask and workers/marii-ask  (both 501; boost retired)
+                 + workers/marii-ask GET JSON (same pipeline; POST still 501)
 ```
 
 The rest of the repo is the older Pyx stack: `Pyx_ai_moderator.py` (trainable filter), `app.py` (Cloud Run `pyxaiapi` — Talk, Code, Speak, Studio, …), `pyx_server.py` / `pyx_serverless.py` / `functions/` (narrow score-only HTTP, largely superseded by Cloud Run), `public/` studio apps, `packaging/` desktop. MI Moderator is the only MI/PA feature that still depends on that backend.
@@ -59,7 +59,7 @@ Production Hosting rewrites in `firebase.json` send API paths to Cloud Run servi
 | `/mainlineintelligence` | `public/mainlineintelligence/index.html` | MI home: hero, MARII/MCI copy, mailing form, moderator try-it, integrate snippet, “dev’s corner”. |
 | `/mainlineintelligence/pyx-assistant` | `public/mainlineintelligence/pyx-assistant/index.html` | About Pyx Assistant (what it is / isn’t). |
 | `/mainlineintelligence/pyx-assistant.html` | `public/mainlineintelligence/pyx-assistant.html` | Redirect stub → `/mainlineintelligence/pyx-assistant`. |
-| `/mainlineintelligence/newsletters/` | `mi-newsletter-002.html` + `.pdf` (also `mi-newsletter-001.pdf`) | Static newsletter assets. Issue **002** is what the mailing Worker attaches. |
+| `/mainlineintelligence/newsletters/` | `mi-newsletter-003.html` + `.pdf` (also 001/002) | Static newsletter assets. Issue **003** is what the mailing Worker attaches. |
 | `/betas` | `public/betas/index.html` | Betas index (Assistant + Announcer). Hosting rewrite → `index.html`. |
 
 Firebase Hosting serves these as static files. Directory URLs `/mainlineintelligence` and `/betas/pyxassistant` are rewritten in `firebase.json` only for the betas; MI home is a folder with `index.html` (works as a directory index).
@@ -111,11 +111,10 @@ These lists do **not** automatically stay in sync. The MI page error copy still 
 
 Public path API (no cloud LLM):
 
-- Hosting-only: `/api/marii/ask/<request>` rewrites to `/marii-ask.html` + `public/js/marii-ask.js` (no Cloud Run)
-- MI home try-it (`#marii-ask`) calls `MariiAsk.ask()` in the page
-- Known FAQ (what is MARII / MI / MCI) gets a short local reply; anything else is echoed
+- Curl / machines: `GET https://marii-ask.mainline-mi.workers.dev/<request>` returns JSON (Worker runs the PA pipeline)
+- Site path `/api/marii/ask/<request>` 302s to that Worker (use `curl -sSL` to follow)
+- Browser try-it (`#marii-ask`) still calls `MariiAsk.ask()` in-page
 - Flask `GET /api/marii/ask/<request>` still exists if Cloud Run is up; Hosting no longer routes there
-- `POST /api/marii/ask` on Flask still **501**
 
 ---
 
@@ -145,7 +144,7 @@ Script load order in `index.html` (manual `?v=` cache-bust — bump when you shi
 4. **Weather** — Open-Meteo geocode + forecast (`pyx-assistant-weather.js`)
 5. **Sports** — MLB Stats API + ESPN scoreboards (`pyx-assistant-sports.js`); may paint `#fieldSim`
 6. **KB retrieve** — keyword index over the pack, threshold 0.62, optional learn priors (`kb.probe` reports hit / low-score / no-match / empty-pack)
-7. **Wikipedia** — only if `looksWikiWorthy` (`pyx-assistant-wiki.js`); high title-match bar; on-screen reply vs shorter `speak` text
+7. **Wikipedia** — only if `looksWikiWorthy` (`pyx-assistant-wiki.js`); high title-match bar; `reply` is a local short rephrase of the lead (`pyx-assistant-wiki-rephrase.js`), not a “reading it now” stub
 8. **Honest miss** — `kb.honestFallback` when retrieve is below threshold or the pack is missing (on-screen chip + status; no silent bluff). Cloud MARII boost is retired; no `askMarii()`
 
 PA does **not** call `/api/moderator/check`. The MI home try-it is the only first-party UI that does.
@@ -260,7 +259,7 @@ npx wrangler dev
 | Moderator scoring / `app.py` check routes | `npm run deploy:api` → Cloud Build + `gcloud run deploy pyxaiapi` |
 | Both | `npm run deploy` |
 | Mailing Worker | `cd workers/mi-mailing && npx wrangler deploy` |
-| marii-ask Worker | `cd workers/marii-ask && npx wrangler deploy` (optional; 501 only) |
+| marii-ask Worker | `cd workers/marii-ask && npx wrangler deploy` (required for curl JSON) |
 
 `firebase.json` Hosting: `public/`, HTML `Cache-Control: max-age=0`, `/betas/**/*.{js,css,json}` also no-cache. Assistant still uses manual `?v=` query strings.
 
@@ -276,7 +275,7 @@ npx wrangler dev
 |------|--------|
 | `RESEND_API_KEY` | Wrangler secret (required to send) |
 | `RESEND_FROM` | Optional var (default From header) |
-| `NEWSLETTER_PDF_URL` | Optional; default Hosting URL for issue 002 PDF |
+| `NEWSLETTER_PDF_URL` | Optional; default Hosting URL for issue 003 PDF |
 | `BROADCAST_SECRET` | Secret; required for `POST /broadcast` |
 | `SUBSCRIBERS` | KV namespace binding (id in `wrangler.toml`) |
 
@@ -306,7 +305,7 @@ Grounded in current main — not a whole-repo laundry list.
    `*.json` still ignores `public/betas/pyxassistant/kb/pyx-assistant-kb.json`. **Fixed for deploy:** `npm run build` and Hosting predeploy run `build:pyx-assistant-kb`. Local static serve still needs `npm run build:pyx-assistant-kb` (or `npm run dev`).
 
 2. **MARII cloud boost is retired.**  
-   Docs and client stubs now say so. `/api/marii/ask` and `workers/marii-ask` remain 501 compatibility shims. Hidden settings checkbox is local-only / disabled. Do not re-enable a cloud LLM on these paths.
+   Docs and client stubs now say so. `POST /api/marii/ask` stays 501. `GET` on the marii-ask Worker runs the local PA pipeline (no LLM). Hidden settings checkbox is local-only / disabled. Do not re-enable a cloud LLM on these paths.
 
 3. **Two mailing backends + stale error copy.**  
    The live form posts to the Worker; Flask SMTP + Firestore + `data/mi_mailing/` still exist; Hosting still rewrites `/api/mi/**` to Cloud Run; the join-list JS still talks about Cloud Run when the body is HTML. **Fix:** pick one source of truth (Worker is what production uses), deprecate or proxy the Flask path, and fix the error string.
