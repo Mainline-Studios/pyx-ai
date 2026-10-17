@@ -488,29 +488,25 @@
 
     <section id="marii-ask">
       <h2>marii ask</h2>
-      <p>live path api. put your request in the url. you get back <code>{"ok":true,"request":"…","reply":"…"}</code>. known questions get a short local note. everything else is echoed — it returns what you sent. no cloud llm.</p>
+      <p>local path api — no cloud run, no llm. put your request in the url or the box. you get back <code>{"ok":true,"request":"…","reply":"…"}</code>. known questions get a short note. everything else is echoed.</p>
       <p class="endpoint">get https://pyx-ai.web.app/api/marii/ask/&lt;request&gt;</p>
 
       <div class="try">
         <div>
           <label for="mariiAsk">request</label>
           <textarea id="mariiAsk" placeholder="what is marii">what is marii</textarea>
-          <p class="hint">url-encode the text. longer strings can use <code>?request=</code>.</p>
+          <p class="hint">runs in the page. open the path url to see the same json.</p>
           <button class="check" type="button" id="runMariiAsk">ask →</button>
         </div>
         <div class="result" id="mariiAskResult" aria-live="polite">// response shows up here</div>
       </div>
 
-      <pre id="mariiAskSnippet">fetch("https://pyx-ai.web.app/api/marii/ask/" + encodeURIComponent(request))
-  .then(async (r) => {
-    const raw = await r.text();
-    try { return JSON.parse(raw); }
-    catch { throw new Error(r.status + " " + raw.slice(0, 80)); }
-  })
-  .then((data) => {
-    // { "ok": true, "request": "what is marii", "reply": "…" }
-    console.log(data.reply);
-  });</pre>
+      <pre id="mariiAskSnippet">// in-page (no server):
+MariiAsk.ask("what is marii")
+// { "ok": true, "request": "what is marii", "reply": "…" }
+
+// or open:
+// https://pyx-ai.web.app/api/marii/ask/what%20is%20marii</pre>
     </section>
 
     <section id="mailing">
@@ -580,7 +576,7 @@
       <ul class="tool-list">
         <li>
           <a href="#marii-ask">marii ask try-it</a>
-          <span>path ask · <code>/api/marii/ask/&lt;request&gt;</code></span>
+          <span>local path ask · <code>/api/marii/ask/&lt;request&gt;</code></span>
         </li>
         <li>
           <a href="#moderator">mi moderator try-it</a>
@@ -653,6 +649,7 @@
     </footer>
   </div>
 
+  <script src="/js/marii-ask.js?v=1"></script>
   <script>
     (function () {
       var phrase = document.getElementById("phrase");
@@ -749,26 +746,20 @@
       var mariiAskResult = document.getElementById("mariiAskResult");
       var runMariiAsk = document.getElementById("runMariiAsk");
 
-      async function askMarii() {
+      function askMarii() {
         var text = (mariiAsk.value || "").trim();
         if (!text) {
           mariiAskResult.textContent = "// enter a request first";
           mariiAskResult.className = "result";
           return;
         }
-        mariiAskResult.textContent = "// asking…";
+        var data = window.MariiAsk
+          ? window.MariiAsk.ask(text)
+          : { ok: false, error: "marii ask script missing" };
+        mariiAskResult.textContent = JSON.stringify(data, null, 2);
         mariiAskResult.className = "result";
-        try {
-          var url = "/api/marii/ask/" + encodeURIComponent(text);
-          var res = await fetch(url);
-          var data = await parseJsonResponse(res);
-          mariiAskResult.textContent = JSON.stringify(data, null, 2);
-          if (data && data.ok === true) mariiAskResult.classList.add("ok");
-          else if (data && data.error) mariiAskResult.classList.add("bad");
-        } catch (err) {
-          mariiAskResult.textContent = JSON.stringify({ error: String(err && err.message || err) }, null, 2);
-          mariiAskResult.classList.add("bad");
-        }
+        if (data && data.ok === true) mariiAskResult.classList.add("ok");
+        else mariiAskResult.classList.add("bad");
       }
 
       runMariiAsk.addEventListener("click", askMarii);

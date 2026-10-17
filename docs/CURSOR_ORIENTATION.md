@@ -31,7 +31,8 @@ Browser  →  Firebase Hosting (public/)
               ├─ /mainlineintelligence/*     static MI site
               ├─ /betas/pyxassistant         Pyx Assistant (static JS)
               ├─ /moderator/**, /api/moderator/**  ──rewrite──► Cloud Run pyxaiapi (app.py)
-              └─ /api/marii/**, /api/mi/**          ──rewrite──► Cloud Run pyxaiapi
+              └─ /api/mi/**                        ──rewrite──► Cloud Run pyxaiapi
+                /api/marii/ask/**                  ──rewrite──► /marii-ask.html (Hosting, no Cloud Run)
 
 Mailing form  →  Cloudflare Worker mi-mailing (Resend + KV)
                  (Flask /api/mi/mailing/subscribe still exists; the live form does not use it)
@@ -110,12 +111,11 @@ These lists do **not** automatically stay in sync. The MI page error copy still 
 
 Public path API (no cloud LLM):
 
-- `GET /api/marii/ask/<request>` and `GET /marii/ask/<request>` → `{ok, request, reply, echo, source, backend, ai}`
-- `GET /api/marii/ask?request=` for longer strings
+- Hosting-only: `/api/marii/ask/<request>` rewrites to `/marii-ask.html` + `public/js/marii-ask.js` (no Cloud Run)
+- MI home try-it (`#marii-ask`) calls `MariiAsk.ask()` in the page
 - Known FAQ (what is MARII / MI / MCI) gets a short local reply; anything else is echoed
-- `POST /api/marii/ask` still **501** `{error: "MARII does not use cloud AI", ai: false}`
-- MI home try-it: `#marii-ask` on `/mainlineintelligence`
-- `workers/marii-ask/` mirrors the GET path; Hosting still rewrites `/api/marii/**` to Cloud Run
+- Flask `GET /api/marii/ask/<request>` still exists if Cloud Run is up; Hosting no longer routes there
+- `POST /api/marii/ask` on Flask still **501**
 
 ---
 
