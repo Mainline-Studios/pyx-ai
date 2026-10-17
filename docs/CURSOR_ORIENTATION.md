@@ -111,11 +111,10 @@ These lists do **not** automatically stay in sync. The MI page error copy still 
 
 Public path API (no cloud LLM):
 
-- Hosting-only: `/api/marii/ask/<request>` rewrites to `/marii-ask.html` + `public/js/marii-ask.js` (no Cloud Run)
-- MI home try-it (`#marii-ask`) calls `MariiAsk.ask()` in the page
-- Known FAQ (what is MARII / MI / MCI) gets a short local reply; anything else is echoed
+- Hosting-only: `/api/marii/ask/<request>` rewrites to `/marii-ask.html` (no Cloud Run)
+- Same client pipeline as Pyx Assistant: SLU → math → sports → weather → KB → wiki → honest miss (`public/js/marii-ask.js`)
+- MI home try-it (`#marii-ask`) loads the assistant modules and calls `MariiAsk.ask()`
 - Flask `GET /api/marii/ask/<request>` still exists if Cloud Run is up; Hosting no longer routes there
-- `POST /api/marii/ask` on Flask still **501**
 
 ---
 
