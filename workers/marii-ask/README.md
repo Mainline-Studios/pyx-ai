@@ -1,10 +1,10 @@
 # MARII ask Worker
 
-**Retired compatibility shim.** MARII does not run an LLM here (no Groq, no Workers AI).
+GET `/api/marii/ask/<request>` (also `/marii/ask/<request>` and `/ask/<request>`) returns `{ ok, request, reply, echo }` from a local helper. No Groq, no Workers AI.
 
-`POST /ask` and `POST /api/marii/ask` return **501** `{ error: "MARII does not use cloud AI", ai: false }`. Deploy is optional.
+`POST /ask` and `POST /api/marii/ask` still return **501** `{ error: "MARII does not use cloud AI", ai: false }`.
 
-Client surfaces (Pyx Assistant, Announcer) answer locally from KB / live feeds. Do not build new features on this Worker.
+The live site path is served by Cloud Run (`app.py`) via the Hosting rewrite for `/api/marii/**`. This Worker is optional.
 
 ```bash
 cd workers/marii-ask

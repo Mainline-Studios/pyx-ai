@@ -460,6 +460,7 @@
       <div class="links">
         <a href="/betas/pyxassistant">try pyx assistant</a>
         <a href="/mainlineintelligence/pyx-assistant">about the beta</a>
+        <a href="#marii-ask">marii ask</a>
         <a href="#moderator">mi moderator</a>
         <a href="#mailing">mailing list</a>
       </div>
@@ -474,7 +475,7 @@
         <h3>mainline artificial realtime instant intelligence (marii)</h3>
         <p>instant when it matters. realtime when the world moves. this is mainline’s leap into ai that keeps up — responses that feel native to the moment, built for creators and players who will not wait on a spinner.</p>
         <p class="tagline">instant responses. real data. all free.</p>
-        <p>first public beta: <a href="/betas/pyxassistant">pyx assistant</a> (powered by marii) — local-first in the browser, no cloud llm. extremely early and still being improved. read the honest overview: <a href="/mainlineintelligence/pyx-assistant">about pyx assistant</a>. browse all betas at <a href="/betas/">/betas</a>.</p>
+        <p>first public beta: <a href="/betas/pyxassistant">pyx assistant</a> (powered by marii) — local-first in the browser, no cloud llm. extremely early and still being improved. path api preview: <a href="#marii-ask"><code>/api/marii/ask/&lt;request&gt;</code></a>. read the honest overview: <a href="/mainlineintelligence/pyx-assistant">about pyx assistant</a>. browse all betas at <a href="/betas/">/betas</a>.</p>
         <p>related: <a href="/betas/announcer">announcer</a> — live mlb play-by-play with game-scoped marii ask.</p>
       </div>
 
@@ -483,6 +484,33 @@
         <h3>mainline conversational intelligence (mci)</h3>
         <p>the industrial evolution of pyx — conversation engineered for serious work. deeper context, stronger reliability, and studio-grade dialogue for teams and products that need ai they can actually ship with.</p>
       </div>
+    </section>
+
+    <section id="marii-ask">
+      <h2>marii ask</h2>
+      <p>live path api. put your request in the url. you get back <code>{"ok":true,"request":"…","reply":"…"}</code>. known questions get a short local note. everything else is echoed — it returns what you sent. no cloud llm.</p>
+      <p class="endpoint">get https://pyx-ai.web.app/api/marii/ask/&lt;request&gt;</p>
+
+      <div class="try">
+        <div>
+          <label for="mariiAsk">request</label>
+          <textarea id="mariiAsk" placeholder="what is marii">what is marii</textarea>
+          <p class="hint">url-encode the text. longer strings can use <code>?request=</code>.</p>
+          <button class="check" type="button" id="runMariiAsk">ask →</button>
+        </div>
+        <div class="result" id="mariiAskResult" aria-live="polite">// response shows up here</div>
+      </div>
+
+      <pre id="mariiAskSnippet">fetch("https://pyx-ai.web.app/api/marii/ask/" + encodeURIComponent(request))
+  .then(async (r) => {
+    const raw = await r.text();
+    try { return JSON.parse(raw); }
+    catch { throw new Error(r.status + " " + raw.slice(0, 80)); }
+  })
+  .then((data) => {
+    // { "ok": true, "request": "what is marii", "reply": "…" }
+    console.log(data.reply);
+  });</pre>
     </section>
 
     <section id="mailing">
@@ -550,6 +578,10 @@
       <p>hooks, trainers, and studio tools for pyx + mi. poke around, wire stuff up, or jump the mci waitlist.</p>
 
       <ul class="tool-list">
+        <li>
+          <a href="#marii-ask">marii ask try-it</a>
+          <span>path ask · <code>/api/marii/ask/&lt;request&gt;</code></span>
+        </li>
         <li>
           <a href="#moderator">mi moderator try-it</a>
           <span>live word check · <code>/moderator/check/&lt;text&gt;</code></span>
@@ -711,6 +743,37 @@
       runCheck.addEventListener("click", check);
       phrase.addEventListener("keydown", function (e) {
         if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) check();
+      });
+
+      var mariiAsk = document.getElementById("mariiAsk");
+      var mariiAskResult = document.getElementById("mariiAskResult");
+      var runMariiAsk = document.getElementById("runMariiAsk");
+
+      async function askMarii() {
+        var text = (mariiAsk.value || "").trim();
+        if (!text) {
+          mariiAskResult.textContent = "// enter a request first";
+          mariiAskResult.className = "result";
+          return;
+        }
+        mariiAskResult.textContent = "// asking…";
+        mariiAskResult.className = "result";
+        try {
+          var url = "/api/marii/ask/" + encodeURIComponent(text);
+          var res = await fetch(url);
+          var data = await parseJsonResponse(res);
+          mariiAskResult.textContent = JSON.stringify(data, null, 2);
+          if (data && data.ok === true) mariiAskResult.classList.add("ok");
+          else if (data && data.error) mariiAskResult.classList.add("bad");
+        } catch (err) {
+          mariiAskResult.textContent = JSON.stringify({ error: String(err && err.message || err) }, null, 2);
+          mariiAskResult.classList.add("bad");
+        }
+      }
+
+      runMariiAsk.addEventListener("click", askMarii);
+      mariiAsk.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) askMarii();
       });
 
       async function joinMailingList() {
