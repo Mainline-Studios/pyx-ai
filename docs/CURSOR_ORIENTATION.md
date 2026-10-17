@@ -32,7 +32,7 @@ Browser  →  Firebase Hosting (public/)
               ├─ /betas/pyxassistant         Pyx Assistant (static JS)
               ├─ /moderator/**, /api/moderator/**  ──rewrite──► Cloud Run pyxaiapi (app.py)
               └─ /api/mi/**                        ──rewrite──► Cloud Run pyxaiapi
-                /api/marii/ask/**                  ──rewrite──► /marii-ask.html (Hosting, no Cloud Run)
+                /api/marii/ask/**                  ──302──► marii-ask Worker (JSON, no Cloud Run)
 
 Mailing form  →  Cloudflare Worker mi-mailing (Resend + KV)
                  (Flask /api/mi/mailing/subscribe still exists; the live form does not use it)
@@ -40,7 +40,7 @@ Mailing form  →  Cloudflare Worker mi-mailing (Resend + KV)
 Pyx Assistant  →  in-browser only
                  + public APIs: Wikipedia, Open-Meteo, MLB Stats, ESPN, Sound of Text
                  + /api/moderator/check exists for the MI try-it; PA does not call it
-                 + /api/marii/ask and workers/marii-ask  (both 501; boost retired)
+                 + workers/marii-ask GET JSON (same pipeline; POST still 501)
 ```
 
 The rest of the repo is the older Pyx stack: `Pyx_ai_moderator.py` (trainable filter), `app.py` (Cloud Run `pyxaiapi` — Talk, Code, Speak, Studio, …), `pyx_server.py` / `pyx_serverless.py` / `functions/` (narrow score-only HTTP, largely superseded by Cloud Run), `public/` studio apps, `packaging/` desktop. MI Moderator is the only MI/PA feature that still depends on that backend.
@@ -111,9 +111,9 @@ These lists do **not** automatically stay in sync. The MI page error copy still 
 
 Public path API (no cloud LLM):
 
-- Hosting-only: `/api/marii/ask/<request>` rewrites to `/marii-ask.html` (no Cloud Run)
-- Same client pipeline as Pyx Assistant: SLU → math → sports → weather → KB → wiki → honest miss (`public/js/marii-ask.js`)
-- MI home try-it (`#marii-ask`) loads the assistant modules and calls `MariiAsk.ask()`
+- Curl / machines: `GET https://marii-ask.mainline-mi.workers.dev/<request>` returns JSON (Worker runs the PA pipeline)
+- Site path `/api/marii/ask/<request>` 302s to that Worker (use `curl -sSL` to follow)
+- Browser try-it (`#marii-ask`) still calls `MariiAsk.ask()` in-page
 - Flask `GET /api/marii/ask/<request>` still exists if Cloud Run is up; Hosting no longer routes there
 
 ---
@@ -259,7 +259,7 @@ npx wrangler dev
 | Moderator scoring / `app.py` check routes | `npm run deploy:api` → Cloud Build + `gcloud run deploy pyxaiapi` |
 | Both | `npm run deploy` |
 | Mailing Worker | `cd workers/mi-mailing && npx wrangler deploy` |
-| marii-ask Worker | `cd workers/marii-ask && npx wrangler deploy` (optional; 501 only) |
+| marii-ask Worker | `cd workers/marii-ask && npx wrangler deploy` (required for curl JSON) |
 
 `firebase.json` Hosting: `public/`, HTML `Cache-Control: max-age=0`, `/betas/**/*.{js,css,json}` also no-cache. Assistant still uses manual `?v=` query strings.
 
@@ -305,7 +305,7 @@ Grounded in current main — not a whole-repo laundry list.
    `*.json` still ignores `public/betas/pyxassistant/kb/pyx-assistant-kb.json`. **Fixed for deploy:** `npm run build` and Hosting predeploy run `build:pyx-assistant-kb`. Local static serve still needs `npm run build:pyx-assistant-kb` (or `npm run dev`).
 
 2. **MARII cloud boost is retired.**  
-   Docs and client stubs now say so. `/api/marii/ask` and `workers/marii-ask` remain 501 compatibility shims. Hidden settings checkbox is local-only / disabled. Do not re-enable a cloud LLM on these paths.
+   Docs and client stubs now say so. `POST /api/marii/ask` stays 501. `GET` on the marii-ask Worker runs the local PA pipeline (no LLM). Hidden settings checkbox is local-only / disabled. Do not re-enable a cloud LLM on these paths.
 
 3. **Two mailing backends + stale error copy.**  
    The live form posts to the Worker; Flask SMTP + Firestore + `data/mi_mailing/` still exist; Hosting still rewrites `/api/mi/**` to Cloud Run; the join-list JS still talks about Cloud Run when the body is HTML. **Fix:** pick one source of truth (Worker is what production uses), deprecate or proxy the Flask path, and fix the error string.

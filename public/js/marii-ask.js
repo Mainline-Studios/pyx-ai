@@ -6,8 +6,17 @@
   "use strict";
 
   var ASK_MAX = 4000;
-  var KB_URL = "/betas/pyxassistant/kb/pyx-assistant-kb.json?v=4";
   var kbLoad = null;
+
+  function kbUrl() {
+    if (root.MARII_ASK_KB_URL) return String(root.MARII_ASK_KB_URL);
+    try {
+      if (typeof location !== "undefined" && location.origin && location.origin !== "null") {
+        return location.origin + "/betas/pyxassistant/kb/pyx-assistant-kb.json?v=4";
+      }
+    } catch (e) {}
+    return "https://pyx-ai.web.app/betas/pyxassistant/kb/pyx-assistant-kb.json?v=4";
+  }
 
   function normalize(text) {
     return String(text || "").trim().replace(/\s+/g, " ");
@@ -82,7 +91,7 @@
       return Promise.resolve();
     }
     if (kbLoad) return kbLoad;
-    kbLoad = fetch(KB_URL, { cache: "no-store" })
+    kbLoad = fetch(kbUrl(), { cache: "no-store" })
       .then(function (res) {
         if (!res.ok) throw new Error("kb " + res.status);
         return res.json();

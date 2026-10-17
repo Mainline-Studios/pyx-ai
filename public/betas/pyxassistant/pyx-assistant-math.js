@@ -291,6 +291,7 @@
     var n = String(text || "").toLowerCase();
     if (convert(n)) return true;
     if (/\b(percent of|square root|times|divided by|plus|minus|to the power)\b/.test(n) && /\d|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty/.test(n)) return true;
+    if (/\d\s*%\s*of\s+/i.test(n)) return true;
     if (/[\d)]\s*[+\-*/^x×÷]\s*[\d(]/.test(n)) return true;
     if (/\b(calculate|compute|what(?:'s| is))\b/.test(n) && /\d/.test(n)) return true;
     return false;

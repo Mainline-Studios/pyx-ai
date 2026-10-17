@@ -41,6 +41,7 @@ assert(slu.classify("tell me a joke").intent === "joke", "joke intent");
 assert(slu.classify("fun fact").intent === "fact", "fact intent");
 assert(math.evalText("9*8") === 72, "9*8 = 72");
 assert(math.evalText("fifteen percent of 80") === 12, "15% of 80 = 12");
+assert(math.looksMath("15% of 80") === true, "15% of 80 looks like math");
 assert(math.evalText("square root of 144") === 12, "sqrt 144");
 assert(math.evalText("twenty plus twenty two") === 42, "word numbers");
 assert(math.answer("32 f to c").value === 0, "32 F → 0 C");

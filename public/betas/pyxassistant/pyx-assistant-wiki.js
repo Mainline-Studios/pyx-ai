@@ -7,13 +7,22 @@
 
   var API = "https://en.wikipedia.org/w/api.php";
   var REST = "https://en.wikipedia.org/api/rest_v1/page/summary/";
-  var rephrase = root.PyxAssistantWikiRephrase;
-  if (!rephrase && typeof require === "function") {
-    try {
-      rephrase = require("./pyx-assistant-wiki-rephrase.js");
-    } catch (e) {
-      rephrase = null;
+  var WIKI_UA =
+    "PyxAssistant/1.0 (https://pyx-ai.web.app/mainlineintelligence; support@pixelplaceofficial.com)";
+
+  function getRephrase() {
+    if (root.PyxAssistantWikiRephrase) return root.PyxAssistantWikiRephrase;
+    if (typeof require === "function") {
+      try {
+        return require("./pyx-assistant-wiki-rephrase.js");
+      } catch (e) {}
     }
+    return null;
+  }
+
+  function wikiFetch(url, extra) {
+    var headers = Object.assign({ "User-Agent": WIKI_UA }, extra && extra.headers);
+    return fetch(url, Object.assign({}, extra, { headers: headers }));
   }
 
   function norm(s) {
@@ -149,7 +158,7 @@
       "?action=opensearch&search=" +
       encodeURIComponent(topic) +
       "&limit=5&namespace=0&format=json&origin=*";
-    var res = await fetch(url);
+    var res = await wikiFetch(url);
     if (!res.ok) throw new Error("wiki search " + res.status);
     var data = await res.json();
     return (data && data[1]) || [];
@@ -157,7 +166,7 @@
 
   async function summaryForTitle(title) {
     var url = REST + encodeURIComponent(title.replace(/ /g, "_")) + "?redirect=true";
-    var res = await fetch(url, { headers: { Accept: "application/json" } });
+    var res = await wikiFetch(url, { headers: { Accept: "application/json" } });
     if (!res.ok) throw new Error("wiki summary " + res.status);
     return res.json();
   }
@@ -168,7 +177,7 @@
       "?action=query&prop=extracts&exintro=1&explaintext=1&redirects=1&titles=" +
       encodeURIComponent(title) +
       "&format=json&origin=*";
-    var res = await fetch(url);
+    var res = await wikiFetch(url);
     if (!res.ok) throw new Error("wiki extract " + res.status);
     var data = await res.json();
     var pages = data && data.query && data.query.pages;
@@ -221,6 +230,7 @@
     var blurb = introBlurb(raw);
     if (!blurb || blurb.length < 40) return null;
 
+    var rephrase = getRephrase();
     var short = rephrase && rephrase.shorten ? rephrase.shorten(blurb, resolvedTitle) : blurb;
     if (!short || short.length < 24) short = blurb;
 

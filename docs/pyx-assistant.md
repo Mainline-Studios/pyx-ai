@@ -17,7 +17,7 @@ Mic / type
   → Sound of Text neural TTS (default online) or on-device Kokoro when selected/loaded
 ```
 
-MARII cloud boost is **retired**. `POST /api/marii/ask` and `workers/marii-ask` stay as compatibility shims and return **501**. Do not wire new features to them.
+MARII cloud boost is **retired**. `POST /api/marii/ask` still returns **501**. `GET` on `workers/marii-ask` runs the same local pipeline as the assistant and returns JSON for curl. Do not wire a cloud LLM to these paths.
 
 | File | Role |
 |------|------|
