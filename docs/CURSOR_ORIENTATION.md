@@ -59,7 +59,7 @@ Production Hosting rewrites in `firebase.json` send API paths to Cloud Run servi
 | `/mainlineintelligence` | `public/mainlineintelligence/index.html` | MI home: hero, MARII/MCI copy, mailing form, moderator try-it, integrate snippet, “dev’s corner”. |
 | `/mainlineintelligence/pyx-assistant` | `public/mainlineintelligence/pyx-assistant/index.html` | About Pyx Assistant (what it is / isn’t). |
 | `/mainlineintelligence/pyx-assistant.html` | `public/mainlineintelligence/pyx-assistant.html` | Redirect stub → `/mainlineintelligence/pyx-assistant`. |
-| `/mainlineintelligence/newsletters/` | `mi-newsletter-002.html` + `.pdf` (also `mi-newsletter-001.pdf`) | Static newsletter assets. Issue **002** is what the mailing Worker attaches. |
+| `/mainlineintelligence/newsletters/` | `mi-newsletter-003.html` + `.pdf` (also 001/002) | Static newsletter assets. Issue **003** is what the mailing Worker attaches. |
 | `/betas` | `public/betas/index.html` | Betas index (Assistant + Announcer). Hosting rewrite → `index.html`. |
 
 Firebase Hosting serves these as static files. Directory URLs `/mainlineintelligence` and `/betas/pyxassistant` are rewritten in `firebase.json` only for the betas; MI home is a folder with `index.html` (works as a directory index).
@@ -275,7 +275,7 @@ npx wrangler dev
 |------|--------|
 | `RESEND_API_KEY` | Wrangler secret (required to send) |
 | `RESEND_FROM` | Optional var (default From header) |
-| `NEWSLETTER_PDF_URL` | Optional; default Hosting URL for issue 002 PDF |
+| `NEWSLETTER_PDF_URL` | Optional; default Hosting URL for issue 003 PDF |
 | `BROADCAST_SECRET` | Secret; required for `POST /broadcast` |
 | `SUBSCRIBERS` | KV namespace binding (id in `wrangler.toml`) |
 
