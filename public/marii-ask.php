@@ -58,7 +58,7 @@ https://pyx-ai.web.app/api/marii/ask/how%20is%20judge
 
 <p><font size="2" color="#000080"><b>Jump</b></font><br>
 <font size="1">
-<a href="#curl">curl</a> &middot; <a href="#wget">wget</a> &middot; <a href="#http">HTTP</a> &middot;
+<a href="#curl">curl</a> &middot; <a href="#bash">bash</a> &middot; <a href="#zsh">zsh</a> &middot; <a href="#wget">wget</a> &middot; <a href="#http">HTTP</a> &middot;
 <a href="#php">PHP</a> &middot; <a href="#python">Python</a> &middot; <a href="#js">JavaScript</a> &middot;
 <a href="#ts">TypeScript</a> &middot; <a href="#node">Node</a> &middot; <a href="#deno">Deno</a> &middot;
 <a href="#ruby">Ruby</a> &middot; <a href="#perl">Perl</a> &middot; <a href="#go">Go</a> &middot;
@@ -82,6 +82,17 @@ https://pyx-ai.web.app/api/marii/ask/how%20is%20judge
 
 <p><a name="curl"></a><font size="2" color="#000080"><b>curl / sh</b></font></p>
 <table width="100%" border="1" cellpadding="6" cellspacing="0" bgcolor="#eeeeff" bordercolor="#9999cc"><tr><td><pre style="margin:0;font-family:Courier New,Courier,monospace;font-size:12px">curl -sS "https://marii-ask.mainline-mi.workers.dev/how%20is%20judge"</pre></td></tr></table>
+
+<p><a name="bash"></a><font size="2" color="#000080"><b>bash</b></font></p>
+<table width="100%" border="1" cellpadding="6" cellspacing="0" bgcolor="#eeeeff" bordercolor="#9999cc"><tr><td><pre style="margin:0;font-family:Courier New,Courier,monospace;font-size:12px">#!/usr/bin/env bash
+q="how is judge"
+curl -sS "https://marii-ask.mainline-mi.workers.dev/${q// /%20}"</pre></td></tr></table>
+
+<p><a name="zsh"></a><font size="2" color="#000080"><b>zsh</b></font></p>
+<table width="100%" border="1" cellpadding="6" cellspacing="0" bgcolor="#eeeeff" bordercolor="#9999cc"><tr><td><pre style="margin:0;font-family:Courier New,Courier,monospace;font-size:12px">#!/usr/bin/env zsh
+q="how is judge"
+curl -sS "https://marii-ask.mainline-mi.workers.dev/${q// /%20}"
+# same idea: curl -sS "https://marii-ask.mainline-mi.workers.dev/${q:gs/ /%20}"</pre></td></tr></table>
 
 <p><a name="wget"></a><font size="2" color="#000080"><b>wget</b></font></p>
 <table width="100%" border="1" cellpadding="6" cellspacing="0" bgcolor="#eeeeff" bordercolor="#9999cc"><tr><td><pre style="margin:0;font-family:Courier New,Courier,monospace;font-size:12px">wget -qO- "https://marii-ask.mainline-mi.workers.dev/how%20is%20judge"</pre></td></tr></table>
