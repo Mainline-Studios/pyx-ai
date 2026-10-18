@@ -17,13 +17,29 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
-      "**/*.php",
+      "workforpyx.php",
+      "workforpyx_lib.php",
+      "dev-workshop.php",
+      "_php_bridge.php",
       "pyx-firebase-trainer.html"
     ],
     "headers": [
       {
         "source": "/**/*.html",
         "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=0, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/marii-ask.php",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "text/html; charset=iso-8859-1"
+          },
           {
             "key": "Cache-Control",
             "value": "public, max-age=0, must-revalidate"
