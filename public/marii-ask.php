@@ -84,15 +84,14 @@ https://pyx-ai.web.app/api/marii/ask/how%20is%20judge
 <table width="100%" border="1" cellpadding="6" cellspacing="0" bgcolor="#eeeeff" bordercolor="#9999cc"><tr><td><pre style="margin:0;font-family:Courier New,Courier,monospace;font-size:12px">curl -sS "https://marii-ask.mainline-mi.workers.dev/how%20is%20judge"</pre></td></tr></table>
 
 <p><a name="bash"></a><font size="2" color="#000080"><b>bash</b></font></p>
-<table width="100%" border="1" cellpadding="6" cellspacing="0" bgcolor="#eeeeff" bordercolor="#9999cc"><tr><td><pre style="margin:0;font-family:Courier New,Courier,monospace;font-size:12px">#!/usr/bin/env bash
-q="how is judge"
+<table width="100%" border="1" cellpadding="6" cellspacing="0" bgcolor="#eeeeff" bordercolor="#9999cc"><tr><td><pre style="margin:0;font-family:Courier New,Courier,monospace;font-size:12px">q="how is judge"
 curl -sS "https://marii-ask.mainline-mi.workers.dev/${q// /%20}"</pre></td></tr></table>
+<p><font size="1">Paste those two lines into the prompt. Do not paste a <tt>#!</tt> shebang into zsh — <tt>!</tt> is history and you get &quot;event not found&quot;.</font></p>
 
 <p><a name="zsh"></a><font size="2" color="#000080"><b>zsh</b></font></p>
-<table width="100%" border="1" cellpadding="6" cellspacing="0" bgcolor="#eeeeff" bordercolor="#9999cc"><tr><td><pre style="margin:0;font-family:Courier New,Courier,monospace;font-size:12px">#!/usr/bin/env zsh
-q="how is judge"
-curl -sS "https://marii-ask.mainline-mi.workers.dev/${q// /%20}"
-# same idea: curl -sS "https://marii-ask.mainline-mi.workers.dev/${q:gs/ /%20}"</pre></td></tr></table>
+<table width="100%" border="1" cellpadding="6" cellspacing="0" bgcolor="#eeeeff" bordercolor="#9999cc"><tr><td><pre style="margin:0;font-family:Courier New,Courier,monospace;font-size:12px">q="how is judge"
+curl -sS "https://marii-ask.mainline-mi.workers.dev/${q// /%20}"</pre></td></tr></table>
+<p><font size="1">Same two lines. Optional zsh spelling: <tt>${q:gs/ /%20}</tt>. A shebang belongs in a saved script file only — never paste it into a live zsh prompt.</font></p>
 
 <p><a name="wget"></a><font size="2" color="#000080"><b>wget</b></font></p>
 <table width="100%" border="1" cellpadding="6" cellspacing="0" bgcolor="#eeeeff" bordercolor="#9999cc"><tr><td><pre style="margin:0;font-family:Courier New,Courier,monospace;font-size:12px">wget -qO- "https://marii-ask.mainline-mi.workers.dev/how%20is%20judge"</pre></td></tr></table>
