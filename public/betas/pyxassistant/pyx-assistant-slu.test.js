@@ -41,6 +41,7 @@ assert(slu.classify("tell me a joke").intent === "joke", "joke intent");
 assert(slu.classify("fun fact").intent === "fact", "fact intent");
 assert(math.evalText("9*8") === 72, "9*8 = 72");
 assert(math.evalText("fifteen percent of 80") === 12, "15% of 80 = 12");
+assert(math.looksMath("15% of 80") === true, "15% of 80 looks like math");
 assert(math.evalText("square root of 144") === 12, "sqrt 144");
 assert(math.evalText("twenty plus twenty two") === 42, "word numbers");
 assert(math.answer("32 f to c").value === 0, "32 F → 0 C");
@@ -307,6 +308,27 @@ assert(wiki.titleMatchScore("ada lovelace", "Ada Lovelace") >= 0.95, "wiki exact
 assert(wiki.titleMatchScore("dogs", "Dog breeding") < 0.92, "wiki rejects loose title");
 assert(wiki.firstSentences("One. Two. Three.", 2) === "One. Two. Three.", "wiki intro keeps short para");
 assert(wiki.introBlurb("One. Two. Three. Four. Five.") === "One. Two.", "wiki long para → two sentences");
+
+var rephrase = require("./pyx-assistant-wiki-rephrase.js");
+var popcornLead =
+  "Popcorn (also called popped corn, popcorns or pop-corn) is a variety of corn kernel which expands and puffs up when heated; the popped kernels form a light, fluffy, and crunchy snack.";
+var popcornShort = rephrase.shorten(popcornLead, "Popcorn");
+assert(popcornShort.length > 20, "wiki rephrase returns text");
+assert(!/Reading it now/i.test(popcornShort), "wiki rephrase is not the stub");
+assert(/popcorn/i.test(popcornShort), "wiki rephrase keeps popcorn");
+assert(/puff|heat|corn|snack/i.test(popcornShort), "wiki rephrase keeps the fact");
+assert(popcornShort.length < popcornLead.length, "wiki rephrase is shorter than the lead");
+assert(popcornShort.length <= rephrase.MAX_CHARS, "wiki rephrase stays under the cap");
+assert(!/\(also called/i.test(popcornShort), "wiki rephrase drops also-called parens");
+assert(!/;/.test(popcornShort), "wiki rephrase does not keep a second clause after a semicolon");
+assert(/kind of corn|puffs up/i.test(popcornShort), "wiki rephrase uses the short popcorn line");
+
+var adaLead =
+  "Augusta Ada King, Countess of Lovelace (née Byron; 10 December 1815 – 27 November 1852) was an English mathematician and writer, chiefly known for her work on Charles Babbage's proposed mechanical general-purpose computer, the Analytical Engine.";
+var adaShort = rephrase.shorten(adaLead, "Ada Lovelace");
+assert(/lovelace|ada/i.test(adaShort), "ada rephrase keeps the name");
+assert(adaShort.length < adaLead.length, "ada rephrase is shorter");
+assert(adaShort.length <= rephrase.MAX_CHARS, "ada rephrase stays under the cap");
 
 if (failed) {
   console.error("\n" + failed + " failed");

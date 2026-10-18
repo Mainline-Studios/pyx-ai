@@ -17,7 +17,7 @@ Mic / type
   → Sound of Text neural TTS (default online) or on-device Kokoro when selected/loaded
 ```
 
-MARII cloud boost is **retired**. `POST /api/marii/ask` and `workers/marii-ask` stay as compatibility shims and return **501**. Do not wire new features to them.
+MARII cloud boost is **retired**. `POST /api/marii/ask` still returns **501**. `GET` on `workers/marii-ask` runs the same local pipeline as the assistant and returns JSON for curl. Do not wire a cloud LLM to these paths.
 
 | File | Role |
 |------|------|
@@ -28,7 +28,8 @@ MARII cloud boost is **retired**. `POST /api/marii/ask` and `workers/marii-ask` 
 | `pyx-assistant-voice.js` | Web Speech STT + Sound of Text TTS + optional Kokoro |
 | `pyx-assistant-sports.js` | Live MLB/ESPN scoreboards |
 | `pyx-assistant-weather.js` | Live weather via Open-Meteo |
-| `pyx-assistant-wiki.js` | High-confidence Wikipedia blurbs |
+| `pyx-assistant-wiki.js` | High-confidence Wikipedia blurbs (reply is the short extract, not a “reading it now” stub) |
+| `pyx-assistant-wiki-rephrase.js` | Local n-gram + phrase-table shortener (notebook voice + this lead; not a cloud/1B LLM) |
 | `pyx-assistant.js` | App controller and reply pipeline |
 | `scripts/build-pyx-assistant-kb.js` | Source of truth for the knowledge pack |
 

@@ -17,13 +17,29 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
-      "**/*.php",
+      "workforpyx.php",
+      "workforpyx_lib.php",
+      "dev-workshop.php",
+      "_php_bridge.php",
       "pyx-firebase-trainer.html"
     ],
     "headers": [
       {
         "source": "/**/*.html",
         "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=0, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/marii-ask.php",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "text/html; charset=iso-8859-1"
+          },
           {
             "key": "Cache-Control",
             "value": "public, max-age=0, must-revalidate"
@@ -47,6 +63,28 @@
             "value": "public, max-age=0, must-revalidate"
           }
         ]
+      }
+    ],
+    "redirects": [
+      {
+        "source": "/api/marii/ask/:request*",
+        "destination": "https://marii-ask.mainline-mi.workers.dev/api/marii/ask/:request",
+        "type": 302
+      },
+      {
+        "source": "/api/marii/ask",
+        "destination": "https://marii-ask.mainline-mi.workers.dev/api/marii/ask",
+        "type": 302
+      },
+      {
+        "source": "/marii/ask/:request*",
+        "destination": "https://marii-ask.mainline-mi.workers.dev/marii/ask/:request",
+        "type": 302
+      },
+      {
+        "source": "/marii/ask",
+        "destination": "https://marii-ask.mainline-mi.workers.dev/marii/ask",
+        "type": 302
       }
     ],
     "rewrites": [
@@ -84,22 +122,6 @@
           "serviceId": "pyxaiapi",
           "region": "us-central1"
         }
-      },
-      {
-        "source": "/api/marii/ask",
-        "destination": "/marii-ask.html"
-      },
-      {
-        "source": "/api/marii/ask/**",
-        "destination": "/marii-ask.html"
-      },
-      {
-        "source": "/marii/ask",
-        "destination": "/marii-ask.html"
-      },
-      {
-        "source": "/marii/ask/**",
-        "destination": "/marii-ask.html"
       },
       {
         "source": "/api/mi/**",
